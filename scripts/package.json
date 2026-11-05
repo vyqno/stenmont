@@ -8,7 +8,8 @@
     "lint": "tsc --noEmit",
     "create-merchant": "tsx --env-file=../.env create-merchant.ts",
     "delegate-creator": "tsx --env-file=../.env delegate-creator.ts",
-    "pay-invoice": "tsx --env-file=../.env pay-invoice.ts"
+    "pay-invoice": "tsx --env-file=../.env pay-invoice.ts",
+    "spike:p256": "tsx --env-file=../.env spikes/p256.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
