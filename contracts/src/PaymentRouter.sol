@@ -36,6 +36,7 @@ contract PaymentRouter is IPaymentRouter, EIP712, Ownable2Step, Pausable, Reentr
     /// @notice Refunds above this need a human approval signed by `attester`.
     uint128 public refundApprovalThreshold;
 
+    // slither-disable-next-line uninitialized-state -- written through storage pointers in _create; slither cannot parse OZ's transient guard
     mapping(bytes32 id => Invoice) private _invoices;
     mapping(bytes32 id => mapping(address payer => uint128)) public paidBy;
     mapping(bytes32 id => mapping(address payer => uint128)) public refundedTo;
