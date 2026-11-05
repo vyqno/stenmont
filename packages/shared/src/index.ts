@@ -5,3 +5,5 @@ export * from "./ids";
 export * from "./eip712";
 export * from "./abis";
 export * from "./addresses";
+export * from "./webauthn";
+export * from "./chainAbis";

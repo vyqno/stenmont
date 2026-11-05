@@ -69,3 +69,30 @@ export const setCreatorTypes = {
     { name: "nonce", type: "uint256" },
   ],
 } as const;
+
+export const transferAuthTypes = {
+  TransferWithAuthorization: [
+    { name: "from", type: "address" },
+    { name: "to", type: "address" },
+    { name: "value", type: "uint256" },
+    { name: "validAfter", type: "uint256" },
+    { name: "validBefore", type: "uint256" },
+    { name: "nonce", type: "bytes32" },
+  ],
+} as const;
+
+export function buildTransferAuth(args: {
+  from: Address;
+  to: Address;
+  value: bigint;
+  validAfter: bigint;
+  validBefore: bigint;
+  nonce: Hex;
+}) {
+  return {
+    domain: usdtDomain,
+    types: transferAuthTypes,
+    primaryType: "TransferWithAuthorization" as const,
+    message: args,
+  };
+}
