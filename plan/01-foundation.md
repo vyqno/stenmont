@@ -76,8 +76,51 @@ Versions and rules in [README.md](README.md). Re-check versions with `npm view` 
 
 ### Task 1.6: CI
 
-**Files:** Create `.github/workflows/ci.yml`
+**Files:** Create `.github/workflows/ci.yml`; modify `apps/web/eslint.config.mjs`, `contracts/foundry.toml` (`[fmt]`)
 
-- [ ] Workflow: checkout, setup Node from `.nvmrc`, `pnpm install --frozen-lockfile`, `pnpm -r test`, install Foundry, `forge test` in `contracts/`
-- [ ] Push is by you; after the first push the Actions tab shows green
-- [ ] Commit line: `build: add CI for TypeScript and Foundry tests`
+- [x] Workflow with actions pinned to commit SHAs: `typescript` (install frozen, lint, web typecheck, tests), `contracts` (soldeer install, `forge fmt --check`, build, test), `web-build` (OpenNext build), and a weekly or manual `fork` job against the real USDT
+- [x] Every CI command run locally and green (`pnpm -r lint`, typecheck, `pnpm -r test`, `forge fmt --check`, `forge build`, `forge test`, `pnpm --filter @stenmont/web build:cf`)
+- [ ] After the first push the Actions tab shows all jobs green
+- [ ] Commit line added to `commits.md`
+
+### Task 1.7: Repository standards (so the repo reads as one coherent piece of engineering)
+
+**Files:** Create `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, `docs/ARCHITECTURE.md`, `docs/adr/0001-cloudflare-d1.md`, `docs/adr/0002-durable-object-relayer.md`, `docs/adr/0003-payment-nonce-bound-to-invoice.md`, `.github/{dependabot.yml,pull_request_template.md,CODEOWNERS}`, `commitlint.config.js`, `lefthook.yml`, `.prettierrc`; modify `README.md` (badges, diagram, quickstart)
+
+- [ ] `LICENSE` (MIT; the vendored Tether code stays Apache-2.0 with its own header)
+- [ ] `CONTRIBUTING.md`: Conventional Commits with scopes (`feat(contracts):`, `fix(api):`, `docs:`, `build:`, `test:`, `chore:`), one branch per phase (`phase-N-name`) merged to `main` by pull request, squash never (keep the atomic history)
+- [ ] `commitlint` plus `lefthook` pre-commit: `forge fmt --check`, `prettier --check`, `pnpm -r lint`, `pnpm -r test`, and a commit-msg check. A bad message or failing test blocks the commit locally
+- [ ] CI (Task 1.6) required on `main`; add a coverage and a `forge snapshot` gas check
+- [ ] `docs/ARCHITECTURE.md`: one diagram (contracts, Workers, D1, relayer, indexer, ENS, World), the trust boundaries, and the money flow
+- [ ] ADRs for each decision already made (D1 over Postgres, Durable Object relayer, nonce derived from invoice id, passkey accounts, Cron indexer), one page each: context, decision, consequences
+- [ ] `SECURITY.md`: threat model summary, how to report, and an `audits/` folder that receives the Pashov and Trail of Bits reports and our fixes
+- [ ] `contracts/deployments/<chainId>.json` is the single source of truth for addresses; README, SDK and API read from it (CI fails if they drift)
+- [ ] A link and spelling check in CI (broken links, "onchain" not "on-chain", brand name `Stenmont`)
+- [ ] Tag a release at the end of each phase (`v0.1.0` after Phase 1) with notes
+- [ ] Commit lines added to `commits.md`
+
+### Task 1.8: CD on Cloudflare (staging automatic, production gated)
+
+**Goal:** a merge to `main` deploys staging; production deploys only when you fast-forward `release`. No Cloudflare token lives in GitHub, and secrets stay in Cloudflare.
+
+**Model**
+
+| Event | What runs | Where |
+|---|---|---|
+| Pull request | CI (`ci.yml`): lint, typecheck, tests, forge, web build | GitHub Actions, no secrets |
+| Merge to `main` | Cloudflare Workers Builds deploys `stenmont-api-staging` and `stenmont-web-staging` | Cloudflare |
+| Fast-forward `release` from `main` (you, after checking staging) | Workers Builds deploys `stenmont-api` and `stenmont-web` | Cloudflare |
+
+**Files:** Create `docs/DEPLOYMENT.md` (this model, rollback, migration rules)
+
+- [ ] Create the GitHub repo under the `stenmont` org and install Cloudflare's GitHub app on it (**you**, one time, dashboard)
+- [ ] Protect `main`: pull request required, status checks `typescript`, `contracts`, `web-build` required and up to date, force pushes blocked, no squash (**you**, repo settings)
+- [ ] Protect `release`: only you can push; fast-forward only
+- [ ] Workers Builds for `stenmont-api-staging`: production branch `main`, root directory `services/api`, build command `pnpm install --frozen-lockfile`, deploy command `pnpm deploy:staging`
+- [ ] Workers Builds for `stenmont-web-staging`: production branch `main`, root directory `apps/web`, deploy command `pnpm deploy:staging`
+- [ ] Workers Builds for `stenmont-api` and `stenmont-web`: production branch `release`, deploy command `pnpm deploy:production`, and a build variable `STENMONT_CONFIRM_PRODUCTION=yes` set only on these two (the second gate; the scripts refuse without it)
+- [ ] Turn off preview builds for non-production branches, so a pull request never touches the staging database
+- [ ] Migration rule written in `docs/DEPLOYMENT.md`: migrations run before the new code, so every migration must work with the old code too (add columns first, remove later)
+- [ ] Rollback written down: `wrangler rollback --env production` for code, D1 Time Travel for data
+- [ ] Verify: a merge to `main` shows the new version on `api-staging.stenmont.com` within minutes; the production URL does not change until `release` moves
+- [ ] Commit lines added to `commits.md`

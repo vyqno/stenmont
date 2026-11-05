@@ -53,3 +53,22 @@ Committed 00:15 on `cloudflare-stack` (up to `ef2de18`): readme, plan, MCP confi
 - 01:19 slither: no high or medium findings; 7 intentional timestamp notes (deadlines). It cannot parse OpenZeppelin's transient guard, so I also ran it on a copy with the storage-based guard. Installed in `~/.venvs/slither`.
 - 01:19 `packages/shared` ids now match the contract exactly (merchant-scoped ids, payment and refund nonces). The same independently computed vectors are asserted in both TypeScript and Solidity.
 - 01:19 Not deployed yet: Task 2.3 (deploy to Whitechain Sepolia, staging first). Remaining contracts: C2 to C11 in `plan/contracts.md`.
+- 01:20 Added Task 1.7 (repository standards: license, commit rules, hooks, CI, architecture docs, ADRs, security docs, release tags) to `plan/01-foundation.md`.
+- 01:27 New branch `phase-1-ci-cd`. Task 1.6 done: GitHub Actions CI (TypeScript, contracts, web build, weekly fork tests) with actions pinned to commit SHAs. Every CI command passes locally. Contracts formatted with `forge fmt` (no behavior change; all 79 unit and 8 fork tests still pass). ESLint now ignores generated `.open-next` output.
+- 01:27 Task 1.8 planned: CD on Cloudflare Workers Builds. Merge to `main` deploys staging; fast-forward of `release` deploys production behind `STENMONT_CONFIRM_PRODUCTION=yes`. No Cloudflare token in GitHub. Needs the GitHub org repo and Cloudflare's GitHub app first.
+
+---
+
+## Phase 2 links (staging, Whitechain Testnet 1874)
+
+- PaymentRouter (verified): https://explorer.testnet.whitechain.io/address/0xA5B6C9206Db75fD59307Bd22f7703387Bb8aB929
+- Deploy transaction: https://explorer.testnet.whitechain.io/tx/0xf4c5a9d7146b0a487b8e3fd5f589a47e9923787c5fef01a0fe12d7e2e3f927db
+- First invoice created: https://explorer.testnet.whitechain.io/tx/0x08c86c8d0fc45e4d7d27ddcfc44e58c28d97a7899e514cfdd500049c4482421f
+- First payment in the official USDT: https://explorer.testnet.whitechain.io/tx/0x14398a2fa0244cf368184841c1872f9b012bb4c19f6b4b3c71152abd4ce3518d
+
+---
+
+- 01:34 New branch `phase-2-payments`. Task 2.3 done: `PaymentRouter` deployed to Whitechain Sepolia as the staging deployment and verified. Owner and guardian are the deployer wallet for now (move to a multisig before real value); attester is the attester wallet; refund approval threshold 100 USDT.
+- 01:34 First real payment: 1.00 official USDT. Payer went 30.00 to 29.00 USDT while holding 0 WBT (the relayer paid the gas), merchant 10.00 to 11.00, invoice Paid. Links above.
+- 01:34 `contracts/deployments/1874.json` is now the one source of truth for addresses. `packages/shared` is generated from it and from the contract ABI; CI fails if they drift.
+- 01:34 Next: Task 2.4 (API keys, invoices, payment links), then 2.5 (indexer, webhooks).

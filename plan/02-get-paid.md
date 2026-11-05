@@ -47,14 +47,15 @@ error Overpay(); error RefundTooLarge();
 
 ### Task 2.3: Deploy and verify on Whitechain Sepolia, first real payment
 
-**Files:** Create `contracts/script/DeployRouter.s.sol`, `scripts/first-payment.mjs`, `contracts/deployments/1874.json`
-**Produces:** deployed address in `deployments/1874.json` and `packages/shared/src/addresses.ts` (`PAYMENT_ROUTER: Address`).
+**Files:** `contracts/script/DeployRouter.s.sol`, `contracts/test/DeployRouter.t.sol`, `contracts/deployments/1874.json` (single source of truth), `contracts/script/export-shared.mjs` (generates `packages/shared/src/addresses.ts` and `abis/`), `scripts/first-payment.ts`
+**Result:** staging deployment `PaymentRouter` at `0xA5B6C9206Db75fD59307Bd22f7703387Bb8aB929` (block 12,312,560). The production deployment is a separate fresh deploy before submission.
 
-- [ ] Run `forge script script/DeployRouter.s.sol --rpc-url https://rpc.testnet.whitechain.io --broadcast` with `STENMONT_DEPLOYER_PRIVATE_KEY`; copy the address into `addresses.ts`
-- [ ] Verify with the flags that worked in spike 0.3; open the explorer page and see "verified"
-- [ ] `first-payment.mjs`: merchant (`DEPLOYER`) signs `CreateInvoice` for 1.00 USDT; `DEMO_PAYER` signs `receiveWithAuthorization`; `RELAYER` submits `createInvoice` then `pay`. Prints the explorer URL
-- [ ] Open the URL: status success, `InvoicePaid` event present, USDT `Transfer` of 1,000,000 units to the merchant payout. Save the link in `BUILDER-NOTES.md` (it goes in the final README)
-- [ ] Commit line: `feat: deploy PaymentRouter to Whitechain Sepolia`
+- [x] Deploy script plus a test of its wiring (roles, threshold, default 100 USDT), simulated on the live chain first, then broadcast
+- [x] Verified on the explorer with `forge verify-contract --verifier blockscout --verifier-url https://explorer.testnet.whitechain.io/api/ --compiler-version 0.8.38 --num-of-optimizations 200`
+- [x] `export-shared.mjs` generates the TypeScript ABI and addresses; CI fails if they drift from the contracts
+- [x] First payment: merchant signed the invoice, demo payer signed a USDT authorization, relayer paid the gas. Payer 30.00 to 29.00 USDT with 0 WBT held, merchant 10.00 to 11.00, invoice Paid
+- [x] Links saved in `BUILDER-NOTES.md` (they go in the final README)
+- [ ] Commit lines added to `commits.md`
 
 ### Task 2.4: API keys, invoices, payment links
 
