@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.38;
 
+import {PasskeyAccountFactory} from "../../src/PasskeyAccountFactory.sol";
 import {PaymentRouter} from "../../src/PaymentRouter.sol";
 import {IPaymentRouter} from "../../src/interfaces/IPaymentRouter.sol";
 import {MockWallet} from "../mocks/MockWallet.sol";
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {Test} from "forge-std/Test.sol";
 
 interface IRealUSDT {
@@ -205,5 +207,42 @@ contract PaymentRouterForkTest is Test {
         vm.expectRevert();
         router.pay(id, 5e6, a);
         assertEq(router.invoices(id).paid, 0);
+    }
+
+    // ---------------------------------------------------------------- passkey account on the real token
+
+    function _passkeyAssertion(uint256 pk, bytes32 hash) internal view returns (bytes memory) {
+        string memory clientData = string.concat(
+            '{"type":"webauthn.get","challenge":"',
+            Base64.encodeURL(abi.encodePacked(hash)),
+            '","origin":"https://app.stenmont.com","crossOrigin":false}'
+        );
+        bytes memory authData = abi.encodePacked(sha256("app.stenmont.com"), bytes1(0x05), uint32(1));
+        (bytes32 r, bytes32 s) = vm.signP256(pk, sha256(abi.encodePacked(authData, sha256(bytes(clientData)))));
+        uint256 n = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551;
+        uint256 su = uint256(s) > n / 2 ? n - uint256(s) : uint256(s);
+        return abi.encode(r, bytes32(su), uint256(23), uint256(1), authData, clientData);
+    }
+
+    function test_fork_passkeyAccountPaysThroughRealUSDT() public {
+        uint256 passkeyPk = 0xC0DE;
+        (uint256 ux, uint256 uy) = vm.publicKeyP256(passkeyPk);
+        PasskeyAccountFactory factory = new PasskeyAccountFactory();
+        address account = factory.createAccount(bytes32(ux), bytes32(uy), bytes32(0));
+        vm.prank(WHALE);
+        USDT.transfer(account, 5e6);
+
+        bytes32 id = _invoice(keccak256("INV-PK"), 5e6);
+        bytes32 salt = keccak256("s1");
+        IPaymentRouter.Auth memory a = IPaymentRouter.Auth({
+            payer: account,
+            validAfter: 0,
+            validBefore: validBefore,
+            salt: salt,
+            signature: _passkeyAssertion(passkeyPk, _usdtDigest(account, 5e6, router.payNonce(id, salt)))
+        });
+        router.pay(id, 5e6, a); // the real USDT calls PasskeyAccount.isValidSignature over ERC-1271
+        assertEq(USDT.balanceOf(payout), 5e6);
+        assertEq(USDT.balanceOf(account), 0);
     }
 }
