@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.38;
 
-import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 
+import {IClaimPayout} from "./interfaces/IClaimPayout.sol";
 import {IPaymentRouter} from "./interfaces/IPaymentRouter.sol";
 import {IUSDT} from "./interfaces/IUSDT.sol";
-import {IClaimPayout} from "./interfaces/IClaimPayout.sol";
 
 /// @title PaymentRouter
 /// @notice Invoices and USDT payments for Stenmont. The router never keeps money: every payment and
@@ -129,9 +129,7 @@ contract PaymentRouter is IPaymentRouter, EIP712, Ownable2Step, Pausable, Reentr
         if (creator == address(0)) revert ZeroAddress();
         if (block.timestamp > deadline) revert Expired();
         bytes32 digest = _hashTypedDataV4(
-            keccak256(
-                abi.encode(SET_CREATOR_TYPEHASH, merchant, creator, allowed, deadline, creatorNonce[merchant])
-            )
+            keccak256(abi.encode(SET_CREATOR_TYPEHASH, merchant, creator, allowed, deadline, creatorNonce[merchant]))
         );
         if (!SignatureChecker.isValidSignatureNow(merchant, digest, merchantSig)) revert BadSignature();
         creatorNonce[merchant]++;

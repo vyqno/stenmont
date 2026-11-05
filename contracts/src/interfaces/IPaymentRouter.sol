@@ -52,12 +52,7 @@ interface IPaymentRouter {
     }
 
     event InvoiceCreated(
-        bytes32 indexed id,
-        address indexed merchant,
-        address payout,
-        uint128 amount,
-        uint64 dueDate,
-        bytes32 metaHash
+        bytes32 indexed id, address indexed merchant, address payout, uint128 amount, uint64 dueDate, bytes32 metaHash
     );
     event InvoicePaid(bytes32 indexed id, address indexed payer, uint128 value, uint128 paidTotal, bool fullyPaid);
     event InvoiceRefunded(bytes32 indexed id, address indexed to, uint128 value, uint128 refundedTotal);

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.38;
 
-import {Test} from "forge-std/Test.sol";
 import {PaymentRouter} from "../src/PaymentRouter.sol";
 import {IPaymentRouter} from "../src/interfaces/IPaymentRouter.sol";
 import {MockUSDT} from "./mocks/MockUSDT.sol";
+import {Test} from "forge-std/Test.sol";
 
 /// @dev Shared setup and signing helpers for PaymentRouter tests.
 abstract contract Base is Test {
@@ -25,7 +25,7 @@ abstract contract Base is Test {
     uint256 internal payer2Pk = 0xCAFE02;
     address internal payer2;
 
-    uint128 internal constant THRESHOLD = 1_000e6;
+    uint128 internal constant THRESHOLD = 1000e6;
     uint256 internal constant T0 = 1_700_000_000;
     uint128 internal constant AMOUNT = 100e6;
 

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.38;
 
-import {Base} from "./Base.t.sol";
 import {IPaymentRouter} from "../src/interfaces/IPaymentRouter.sol";
+import {Base} from "./Base.t.sol";
 
 /// @dev Every number that feeds value math is fuzzed across its accepted domain.
 ///      Payers hold 10_000e6, so amounts are bounded to 5_000e6.
 contract PaymentRouterFuzzTest is Base {
-    uint128 internal constant MAX_AMOUNT = 5_000e6;
+    uint128 internal constant MAX_AMOUNT = 5000e6;
 
     function testFuzz_idsAreInjective(address m1, address m2, bytes32 r1, bytes32 r2) public view {
         bool same = (m1 == m2) && (r1 == r2);
@@ -49,7 +49,7 @@ contract PaymentRouterFuzzTest is Base {
 
     function testFuzz_overpayAlwaysReverts(uint128 amount, uint128 extra) public {
         amount = uint128(bound(amount, 1, MAX_AMOUNT));
-        extra = uint128(bound(extra, 1, 1_000e6));
+        extra = uint128(bound(extra, 1, 1000e6));
         bytes32 id = _newInvoice(keccak256("f2"), amount);
         IPaymentRouter.Auth memory a = _payAuth(payerPk, id, amount + extra, keccak256("a"));
         vm.expectRevert(IPaymentRouter.Overpay.selector);
@@ -73,7 +73,7 @@ contract PaymentRouterFuzzTest is Base {
 
     function testFuzz_refundNeverExceedsWhatThePayerPaid(uint128 paidAmt, uint128 refundAmt) public {
         paidAmt = uint128(bound(paidAmt, 1, MAX_AMOUNT));
-        refundAmt = uint128(bound(refundAmt, 1, MAX_AMOUNT + 1_000e6));
+        refundAmt = uint128(bound(refundAmt, 1, MAX_AMOUNT + 1000e6));
         bytes32 id = _newInvoice(keccak256("f4"), paidAmt);
         _pay(id, paidAmt, payerPk, keccak256("a"));
         vm.prank(owner);

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.38;
 
-import {Test, console2} from "forge-std/Test.sol";
 import {PaymentRouter} from "../src/PaymentRouter.sol";
 import {IPaymentRouter} from "../src/interfaces/IPaymentRouter.sol";
 import {MockUSDT} from "./mocks/MockUSDT.sol";
+import {Test, console2} from "forge-std/Test.sol";
 
 /// @dev Drives the router through random sequences with funded actors. Every action is bounded to be valid,
 ///      so a run that reverts is a bug in the handler or the contract (fail_on_revert = true).
@@ -159,9 +159,7 @@ contract RouterHandler is Test {
         uint256 deadline = block.timestamp + 1 days;
         bytes32 digest = keccak256(
             abi.encodePacked(
-                "\x19\x01",
-                router.domainSeparator(),
-                keccak256(abi.encode(router.CANCEL_TYPEHASH(), id, deadline))
+                "\x19\x01", router.domainSeparator(), keccak256(abi.encode(router.CANCEL_TYPEHASH(), id, deadline))
             )
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(merchantPks[merchantOf[id]], digest);

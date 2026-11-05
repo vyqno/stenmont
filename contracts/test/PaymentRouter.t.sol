@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.38;
 
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
-import {Base} from "./Base.t.sol";
 import {PaymentRouter} from "../src/PaymentRouter.sol";
 import {IPaymentRouter} from "../src/interfaces/IPaymentRouter.sol";
+import {Base} from "./Base.t.sol";
 import {MockHook, ReentrantHook} from "./mocks/MockHook.sol";
 import {MockWallet} from "./mocks/MockWallet.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
 contract PaymentRouterTest is Base {
     bytes32 internal constant REF1 = keccak256("INV-1");
@@ -52,8 +52,13 @@ contract PaymentRouterTest is Base {
         bytes32 id = router.invoiceIdOf(m, ref);
         assertEq(ref, 0x80066d42cb1d1876d3f91ddfce739f4649eb223e815f12756f733eb185548803);
         assertEq(id, 0x9ef5cc50eed76dda0d467227d32f719840fdc30d278ccee49088083624704f1b);
-        assertEq(router.payNonce(id, keccak256("salt-1")), 0x30c0821dae3ef5dfd5e9a46e71ce92f134ddac0b8e6be8fa3745d8e8897c9a03);
-        assertEq(router.refundNonce(id, 0xe4F5853650f40f04e920c62F6dE9e4e38D767B66, keccak256("salt-1")), 0x626e030da4e60de0d17bf6c6205d7f6cc4cee8e853470b61bc2f9f2efd12cc93);
+        assertEq(
+            router.payNonce(id, keccak256("salt-1")), 0x30c0821dae3ef5dfd5e9a46e71ce92f134ddac0b8e6be8fa3745d8e8897c9a03
+        );
+        assertEq(
+            router.refundNonce(id, 0xe4F5853650f40f04e920c62F6dE9e4e38D767B66, keccak256("salt-1")),
+            0x626e030da4e60de0d17bf6c6205d7f6cc4cee8e853470b61bc2f9f2efd12cc93
+        );
     }
 
     function test_nonces_areDistinctPerKindIdAndSalt() public view {
@@ -217,8 +222,12 @@ contract PaymentRouterTest is Base {
     }
 
     function test_creator_revoked_thenCreateReverts() public {
-        router.setCreator(merchant, relayer, true, T0 + 1 days, _creatorSig(merchantPk, merchant, relayer, true, T0 + 1 days, 0));
-        router.setCreator(merchant, relayer, false, T0 + 1 days, _creatorSig(merchantPk, merchant, relayer, false, T0 + 1 days, 1));
+        router.setCreator(
+            merchant, relayer, true, T0 + 1 days, _creatorSig(merchantPk, merchant, relayer, true, T0 + 1 days, 0)
+        );
+        router.setCreator(
+            merchant, relayer, false, T0 + 1 days, _creatorSig(merchantPk, merchant, relayer, false, T0 + 1 days, 1)
+        );
         assertFalse(router.creators(merchant, relayer));
         IPaymentRouter.CreateInvoice memory r = _req(REF1, AMOUNT);
         vm.prank(relayer);
@@ -247,7 +256,9 @@ contract PaymentRouterTest is Base {
     }
 
     function test_creator_expiredRequestReverts() public {
-        router.setCreator(merchant, relayer, true, T0 + 1 days, _creatorSig(merchantPk, merchant, relayer, true, T0 + 1 days, 0));
+        router.setCreator(
+            merchant, relayer, true, T0 + 1 days, _creatorSig(merchantPk, merchant, relayer, true, T0 + 1 days, 0)
+        );
         IPaymentRouter.CreateInvoice memory r = _req(REF1, AMOUNT);
         vm.warp(r.deadline + 1);
         vm.prank(relayer);
@@ -256,7 +267,9 @@ contract PaymentRouterTest is Base {
     }
 
     function test_creator_delegationIsPerMerchant() public {
-        router.setCreator(merchant, relayer, true, T0 + 1 days, _creatorSig(merchantPk, merchant, relayer, true, T0 + 1 days, 0));
+        router.setCreator(
+            merchant, relayer, true, T0 + 1 days, _creatorSig(merchantPk, merchant, relayer, true, T0 + 1 days, 0)
+        );
         IPaymentRouter.CreateInvoice memory r = _req(REF1, AMOUNT);
         r.merchant = payer; // relayer is not a creator for `payer`
         vm.prank(relayer);

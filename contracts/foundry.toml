@@ -32,3 +32,9 @@ forge-std = "1"
 
 [soldeer]
 remappings_generate = false
+
+[fmt]
+line_length = 120
+bracket_spacing = false
+number_underscore = "thousands"
+sort_imports = true

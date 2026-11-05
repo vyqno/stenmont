@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.38;
 
-import {Test} from "forge-std/Test.sol";
 import {PaymentRouter} from "../../src/PaymentRouter.sol";
 import {IPaymentRouter} from "../../src/interfaces/IPaymentRouter.sol";
 import {MockWallet} from "../mocks/MockWallet.sol";
+import {Test} from "forge-std/Test.sol";
 
 interface IRealUSDT {
     function balanceOf(address) external view returns (uint256);
@@ -37,7 +37,7 @@ contract PaymentRouterForkTest is Test {
         vm.createSelectFork(vm.envOr("WHITECHAIN_RPC", string("https://rpc.testnet.whitechain.io")), PINNED_BLOCK);
         merchant = vm.addr(merchantPk);
         payer = vm.addr(payerPk);
-        router = new PaymentRouter(address(USDT), owner, owner, owner, 1_000e6);
+        router = new PaymentRouter(address(USDT), owner, owner, owner, 1000e6);
         validBefore = block.timestamp + 1 days;
         vm.startPrank(WHALE);
         USDT.transfer(payer, 20e6);

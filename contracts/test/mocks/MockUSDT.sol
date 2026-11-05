@@ -42,9 +42,7 @@ contract MockUSDT is ERC20, EIP712 {
         require(block.timestamp < validBefore, "authorization is expired");
         require(!authorizationState[from][nonce], "authorization is used");
         bytes32 digest = _hashTypedDataV4(
-            keccak256(
-                abi.encode(RECEIVE_WITH_AUTHORIZATION_TYPEHASH, from, to, value, validAfter, validBefore, nonce)
-            )
+            keccak256(abi.encode(RECEIVE_WITH_AUTHORIZATION_TYPEHASH, from, to, value, validAfter, validBefore, nonce))
         );
         require(SignatureChecker.isValidSignatureNow(from, digest, signature), "invalid signature");
         authorizationState[from][nonce] = true;
