@@ -1,0 +1,61 @@
+{
+  // Top level = local development only. Never deploy it. Use --env staging, then (only when approved) --env production.
+  // Secrets (keys, client secrets) are NOT here: they live in Cloudflare via `wrangler secret`.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stenmont-api-dev",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "vars": {
+    "ENVIRONMENT": "local",
+    "WHITECHAIN_RPC": "https://rpc.testnet.whitechain.io",
+    "WHITECHAIN_CHAIN_ID": "1874",
+    "USDT_ADDRESS": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+    "SEPOLIA_RPC": "https://sepolia.gateway.tenderly.co",
+    "ENS_ROOT_NAME": "stenmont.eth",
+    "APP_URL": "http://localhost:3000",
+    "API_URL": "http://localhost:8787"
+  },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "stenmont-db-local", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
+  ],
+  "env": {
+    "staging": {
+      "name": "stenmont-api-staging",
+      "workers_dev": false,
+      "routes": [{ "pattern": "api-staging.stenmont.com", "custom_domain": true }],
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "WHITECHAIN_RPC": "https://rpc.testnet.whitechain.io",
+        "WHITECHAIN_CHAIN_ID": "1874",
+        "USDT_ADDRESS": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+        "SEPOLIA_RPC": "https://sepolia.gateway.tenderly.co",
+        "ENS_ROOT_NAME": "stenmont.eth",
+        "APP_URL": "https://app-staging.stenmont.com",
+        "API_URL": "https://api-staging.stenmont.com"
+      },
+      "d1_databases": [
+        { "binding": "DB", "database_name": "stenmont-db-staging", "database_id": "4d58ae4e-a8af-440a-a03b-092d696d7cd7", "migrations_dir": "migrations" }
+      ]
+    },
+    "production": {
+      "name": "stenmont-api",
+      "workers_dev": false,
+      "routes": [{ "pattern": "api.stenmont.com", "custom_domain": true }],
+      "vars": {
+        "ENVIRONMENT": "production",
+        "WHITECHAIN_RPC": "https://rpc.testnet.whitechain.io",
+        "WHITECHAIN_CHAIN_ID": "1874",
+        "USDT_ADDRESS": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+        "SEPOLIA_RPC": "https://sepolia.gateway.tenderly.co",
+        "ENS_ROOT_NAME": "stenmont.eth",
+        "APP_URL": "https://app.stenmont.com",
+        "API_URL": "https://api.stenmont.com"
+      },
+      "d1_databases": [
+        { "binding": "DB", "database_name": "stenmont-db", "database_id": "8a6bbf8d-ad79-4db9-9fc4-7fa598a89a1e", "migrations_dir": "migrations" }
+      ]
+    }
+  }
+}
