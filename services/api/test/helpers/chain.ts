@@ -1,4 +1,4 @@
-import { Rejected, type ActivateRequest, type ChainClient } from "../../src/chain";
+import { Rejected, type ActivateRequest, type ChainClient, type RefundRequest } from "../../src/chain";
 import type { Call } from "../../src/relayer/sender";
 
 export const RELAYER_ADDRESS = "0xe4F5853650f40f04e920c62F6dE9e4e38D767B66" as const;
@@ -10,11 +10,13 @@ export function fakeChain(overrides: Partial<ChainClient> = {}) {
   const calls: unknown[] = [];
   const sent: Call[] = [];
   const activations: ActivateRequest[] = [];
+  const refundsSent: RefundRequest[] = [];
   const counts = { estimate: 0 };
-  const chain: ChainClient & { calls: unknown[]; sent: Call[]; activations: ActivateRequest[]; counts: typeof counts } = {
+  const chain: ChainClient & { calls: unknown[]; sent: Call[]; activations: ActivateRequest[]; refundsSent: RefundRequest[]; counts: typeof counts } = {
     calls,
     sent,
     activations,
+    refundsSent,
     counts,
     relayerAddress() {
       return RELAYER_ADDRESS;
@@ -22,6 +24,10 @@ export function fakeChain(overrides: Partial<ChainClient> = {}) {
     async activateMerchant(req) {
       activations.push(req);
       return { txHash: hash(5000 + activations.length) };
+    },
+    async refund(req) {
+      refundsSent.push(req);
+      return { txHash: hash(7000 + refundsSent.length) };
     },
     async createInvoice(req) {
       calls.push(req);

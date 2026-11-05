@@ -131,6 +131,20 @@ export const refunds = sqliteTable(
   (t) => [uniqueIndex("refunds_tx_log_uq").on(t.txHash, t.logIndex), index("refunds_invoice_idx").on(t.invoiceId)],
 );
 
+export const refundRequests = sqliteTable("refund_requests", {
+  id: text("id").primaryKey(),
+  merchantId: text("merchant_id").notNull(),
+  invoiceId: text("invoice_id").notNull(),
+  toAddress: text("to_address").notNull(),
+  value: text("value").notNull(),
+  salt: text("salt").notNull(),
+  validBefore: integer("valid_before").notNull(), // unix seconds
+  challenge: text("challenge").notNull(), // base64url of the digest the merchant passkey signs
+  status: text("status").notNull().default("pending"), // pending | sending | submitted
+  txHash: text("tx_hash"),
+  createdAt: text("created_at").notNull(),
+});
+
 export const paymentLinks = sqliteTable(
   "payment_links",
   {

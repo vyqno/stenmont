@@ -28,6 +28,18 @@ export type ActivateRequest = {
   signature: Hex;
 };
 
+/** The merchant account's signed token authorisation, redeemed by PaymentRouter.refund. */
+export type RefundRequest = {
+  invoiceId: Hex;
+  value: bigint;
+  to: Address;
+  merchant: Address;
+  validAfter: bigint;
+  validBefore: bigint;
+  salt: Hex;
+  signature: Hex;
+};
+
 type Base = { transactionHash: Hex; logIndex: number; blockNumber: bigint };
 export type RouterLog =
   | (Base & { eventName: "InvoicePaid"; args: { id: Hex; payer: Address; value: bigint; paidTotal: bigint; fullyPaid: boolean } })
@@ -48,6 +60,8 @@ export interface ChainClient {
   createInvoice(req: CreateInvoiceRequest): Promise<{ txHash: Hex }>;
   /** Deploys the passkey account and registers the relayer as its invoice creator (Multicall3). Resolves after the receipt. */
   activateMerchant(req: ActivateRequest): Promise<{ txHash: Hex }>;
+  /** Sends PaymentRouter.refund with the merchant's signed authorisation. Throws Rejected if the contract would revert. Resolves after the receipt. */
+  refund(req: RefundRequest): Promise<{ txHash: Hex }>;
   /** The relayer wallet: the address merchants authorise to create invoices for them. */
   relayerAddress(): Address;
   getBlockNumber(): Promise<bigint>;
@@ -120,6 +134,21 @@ export function viemChain(env: Env): ChainClient {
       return { txHash };
     },
     relayerAddress: () => relayer,
+    async refund(req) {
+      const call = {
+        to: router,
+        data: encodeFunctionData({
+          abi: paymentRouterAbi,
+          functionName: "refund",
+          args: [req.invoiceId, req.value, req.to, { payer: req.merchant, validAfter: req.validAfter, validBefore: req.validBefore, salt: req.salt, signature: req.signature }],
+        }),
+      };
+      await estimate(call);
+      const txHash = await sender().submit(call);
+      const receipt = await wait(txHash);
+      if (receipt.status !== "success") throw new Error(`refund reverted in ${txHash}`);
+      return { txHash };
+    },
     async activateMerchant(req) {
       const createData = encodeFunctionData({ abi: passkeyAccountFactoryAbi, functionName: "createAccount", args: [req.qx, req.qy, req.salt] });
       const delegateData = encodeFunctionData({

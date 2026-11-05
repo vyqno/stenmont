@@ -94,7 +94,7 @@ const badChallenge = (c: Ctx) => fail(c, 400, "invalid_challenge", "This request
 const denied = (c: Ctx) => fail(c, 401, "unauthorized", "The passkey could not be verified.");
 
 /** Checks a passkey assertion against the stored key and challenge, and advances the signature counter. */
-async function checkAssertion(c: Ctx, challenge: string, b: AssertionBody, merchantId?: string | null) {
+export async function checkAssertion(c: Ctx, challenge: string, b: Omit<AssertionBody, "challengeId">, merchantId?: string | null) {
   const [pk] = await c.var.db.select().from(passkeys).where(eq(passkeys.id, b.credentialId));
   if (!pk || (merchantId && pk.merchantId !== merchantId)) return null;
   let parts: { authenticatorData: Uint8Array; clientDataJSON: string; der: Uint8Array };

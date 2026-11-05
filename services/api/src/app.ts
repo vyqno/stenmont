@@ -12,6 +12,7 @@ import { invoiceRoutes } from "./routes/invoices";
 import { gasTankRoutes } from "./routes/gasTank";
 import { linkRoutes } from "./routes/links";
 import { publicRoutes } from "./routes/public";
+import { refundRoutes } from "./routes/refunds";
 import { relayRoutes } from "./routes/relay";
 import { webhookEndpointRoutes } from "./routes/webhookEndpoints";
 
@@ -60,6 +61,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/webhook-endpoints", webhookEndpointRoutes);
   v1.route("/gas-tank", gasTankRoutes);
   v1.route("/exports", exportRoutes);
+  v1.route("/refunds", refundRoutes);
   app.route("/v1", v1);
   app.route("/auth", authRoutes);
   app.route("/relay", relayRoutes);
