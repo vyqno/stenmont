@@ -4,5 +4,6 @@ export const EVENT_TYPES = [
   "invoice.paid",
   "refund.created",
   "invoice.cancelled",
+  "invoice.reminder",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
