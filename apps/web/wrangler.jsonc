@@ -1,0 +1,27 @@
+{
+  // Top level = local development only. Never deploy it. Use --env staging, then (only when approved) --env production.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stenmont-web-dev",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": false,
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "vars": { "ENVIRONMENT": "local", "API_URL": "http://localhost:8787" },
+  "env": {
+    "staging": {
+      "name": "stenmont-web-staging",
+      "workers_dev": false,
+      "routes": [{ "pattern": "app-staging.stenmont.com", "custom_domain": true }],
+      "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+      "vars": { "ENVIRONMENT": "staging", "API_URL": "https://api-staging.stenmont.com" }
+    },
+    "production": {
+      "name": "stenmont-web",
+      "workers_dev": false,
+      "routes": [{ "pattern": "app.stenmont.com", "custom_domain": true }],
+      "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+      "vars": { "ENVIRONMENT": "production", "API_URL": "https://api.stenmont.com" }
+    }
+  }
+}
