@@ -1,0 +1,57 @@
+# Stenmont build plan
+
+One file per phase. Do phases in order; a phase starts only when the previous phase's **Done when** holds. Tick the `- [ ]` boxes as steps finish. After each task, add the commit line to `commits.md` (Claude never commits).
+
+> **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development (recommended) or superpowers:executing-plans. Test first, always.
+
+## Status
+
+| Phase | File | What it delivers | Tracks | Status |
+|---|---|---|---|---|
+| 0 | [00-prerequisites.md](00-prerequisites.md) | Accounts, tools, keys, funds, three spikes | none | not started |
+| 1 | [01-foundation.md](01-foundation.md) | Repo, shared package, Foundry, API Worker + D1, CI | none | not started |
+| 2 | [02-get-paid.md](02-get-paid.md) | PaymentRouter, API, indexer, webhooks, first real USDT payment | Operate | not started |
+| 3 | [03-gasless.md](03-gasless.md) | Relayer with caps, passkey account, zero-crypto pay page | Scale | not started |
+| 4 | [04-plug-in.md](04-plug-in.md) | SDK, example store, dashboard, refunds, renewals, reminders, export | Operate | not started |
+| 5 | [05-identity.md](05-identity.md) | ENSv2 names and roles, World IDKit, World Agent Pass | ENS, World x2 | not started |
+| 6 | [06-agents.md](06-agents.md) | x402 facilitator, agent pay client, finance MCP | Scale, World | not started |
+| 7 | [07-financing.md](07-financing.md) | Investor allowlist, sell an invoice, settle, default | Tokenize | not started |
+| 8 | [08-ship.md](08-ship.md) | Seed data, video, README, feedback files, submission | all | not started |
+
+Cut line if time runs short, in order of what to keep: 1, 2, 3, 5 (minimum), 8, then 4, then 7, then 6. Never cut 8.
+
+## Architecture in one screen
+
+```
+contracts/            Foundry: PaymentRouter, SubscriptionManager, PasskeyAccount(+Factory), InvestorRegistry, InvoiceClaim
+packages/shared       chains, USDT, money, EIP-712 builders, ids        (used by everything)
+packages/sdk          @stenmont/sdk      server client (invoices, checkout, refunds, webhook verify)
+packages/react        @stenmont/react    <PayButton/> / <Checkout/>
+packages/agent        @stenmont/agent    agent pay client with limits
+services/api          Hono Worker: REST API, relayer (Durable Object), indexer (Cron), webhooks (Queue), email
+services/facilitator  Hono Worker: x402 verify/settle on Whitechain
+services/mcp          MCP Worker: finance agent tools
+apps/web              Next.js 16 on Cloudflare (OpenNext): dashboard, pay page, investor portal, landing
+apps/example-store    separate demo shop that adds Stenmont in about 20 lines
+```
+
+## Decisions (and why)
+
+| Decision | Why |
+|---|---|
+| **Cloudflare D1 (SQLite) + Drizzle**, not Postgres/Neon | One vendor, no connection strings, no Hyperdrive, no extra account; a Workers binding. Trade-offs we accept: money columns are TEXT holding base units (converted to `bigint` in code), no row-level security so every query is scoped by `merchant_id` in one helper that tests cover. |
+| Relayer is a **Durable Object** | One writer per relayer key means no nonce races under concurrent payments. |
+| Indexer is a **Cron Trigger** polling `getLogs` | Workers cannot hold a long-lived chain listener. |
+| Webhooks go through a **Queue** with retries | At-least-once delivery with backoff; receivers dedupe on event id. |
+| Dashboard login is an **email magic link** (Cloudflare Email Sending) | No passwords, nothing extra to build; World ID guards the risky actions instead. |
+| Payer and merchant accounts are **passkey smart accounts** | No seed phrase; works with USDT's ERC-1271 signature check. |
+| **Foundry** for contracts | Fuzz and invariant tests for money code, fork tests, `forge script` deploys. |
+
+## Global constraints (every phase)
+
+- Only the official USDT on Whitechain Sepolia: `0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7`, 6 decimals. Chain id `1874`, RPC `https://rpc.testnet.whitechain.io`, explorer `https://explorer.testnet.whitechain.io`.
+- Contracts never hold customer money: router USDT balance is 0 after every call.
+- Latest stable versions, checked live when a phase starts (`npm view`, GitHub releases). Node 26.13.0 LTS, pnpm 12, TypeScript 7, Foundry 1.9.0, Solidity 0.8.38, Next.js 16.
+- No secrets in the repo; `.env` and `wrangler secret` only. Test keys only.
+- Every money-moving call is idempotent and writes an `audit_log` row.
+- Money in code is `bigint` of USDT base units (6 dp); in D1 it is a decimal TEXT string.
