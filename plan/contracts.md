@@ -43,6 +43,7 @@ Shared rules: owner is two-step (`Ownable2Step`), a guardian can pause, no contr
 |---|---|---|---|---|---|---|
 | C1 `PaymentRouter` | 67 | 11 (1,000 runs each) | 3 properties, 25,600 calls, 0 reverts | 8 | no high or medium (7 intentional timestamp notes) | yes, 100% line, statement, branch and function coverage |
 | C2 `PasskeyAccount` + factory | 22 | 1 (256 runs) | n/a (stateless) | 1 | only the intentional timestamp notes | yes |
-| C3 to C11 | not started | | | | | |
+| C3 `SubscriptionManager` | 43 | 4 (1,000 runs) | 3 properties | 3 | one annotated false positive, timestamp notes | yes |
+| C4 to C11 | not started | | | | | |
 
 slither note: it cannot parse OpenZeppelin's transient-storage reentrancy guard (`ReentrancyGuardTransient`), so for a complete run use a temporary copy that swaps in `ReentrancyGuard`. Run with `~/.venvs/slither/bin/slither . --filter-paths "dependencies|test|lib" --exclude-dependencies`.

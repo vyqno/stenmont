@@ -37,20 +37,16 @@
 
 ### Task 4.3: SubscriptionManager
 
-**Files:** Create `contracts/src/SubscriptionManager.sol`, `contracts/test/SubscriptionManager.t.sol`
-**Produces:**
-```solidity
-struct Sub { address payer; address merchantPayout; uint128 amount; uint32 periodSeconds; uint64 nextCharge; bool active; }
-function subscribe(bytes32 id, Sub calldata s, uint256 permitDeadline, bytes calldata permitSig) external; // payer's EIP-2612 permit grants allowance, then first charge
-function charge(bytes32 id) external;            // anyone; only when block.timestamp >= nextCharge; transferFrom payer -> merchantPayout
-function cancel(bytes32 id, bytes calldata payerSig) external; // or called by the merchant
-event SubscriptionCharged(bytes32 indexed id, uint128 amount, uint64 next);
-event SubscriptionCancelled(bytes32 indexed id);
-```
+**Files:** `contracts/src/SubscriptionManager.sol`, `contracts/src/interfaces/ISubscriptionManager.sol`, `contracts/script/DeploySubscriptionManager.s.sol`, tests `SubscriptionManager{,.invariant}.t.sol`, `fork/SubscriptionManager.fork.t.sol`, `DeploySubscriptionManager.t.sol`
+**Built (beyond the first sketch):** the customer signs one EIP-712 `Subscribe` message (works for passkey accounts via ERC-1271) and an optional EIP-2612 permit. Every subscription has a hard `maxCharges` (at most 10,000), so the total ever pulled is `amount * maxCharges`. A charge goes straight payer to payout; the manager never holds money. Anyone can trigger a due charge, but only once per period. Missed periods are skipped, never billed together. The payer or merchant can cancel any time, even while paused, and the payer can cancel by signature so a relayer can submit it.
+- **Permit design:** a permit SETS the allowance (it does not add), so `subscribe` takes `permitValue` and the signer chooses "current allowance + this cap". A griefer who front-runs the permit cannot block a subscription (the permit is wrapped and the allowance is checked instead).
+- **Found by the tests:** a payer exactly one period late could be charged twice in a row (the next charge time equalled now). Fixed with `>=` and regression tests; also found that the contract computing the permit value itself would overwrite allowances for a payer's other subscriptions.
+- **slither:** the `arbitrary-send-erc20` finding on `transferFrom(s.payer, …)` is a false positive by design (the payer is written only after their signature is verified) and is annotated with that reasoning.
 
-- [ ] Failing tests: `test_charge_beforeDue_reverts`, `test_charge_afterPeriod_movesFunds_andAdvancesNext`, `test_cancel_stopsFurtherCharges`, `test_charge_insufficientBalance_reverts_clean` (relayer treats revert as `past_due`), invariant: manager USDT balance 0
-- [ ] Run → FAIL; implement; run → PASS; deploy + verify; add `SUBSCRIPTION_MANAGER` to `addresses.ts`
-- [ ] Commit line: `feat: add SubscriptionManager`
+- [x] 43 tests: unit and access, 1,000-run fuzz over amounts, periods, charge counts and timing (boundary classes: before, exactly at, just after), 3 handler-driven invariants (the manager holds nothing, payouts equal what was charged, charge counts and statuses agree), 3 fork tests on the real USDT (EOA permit, smart-account permit, a payer who runs out of funds)
+- [x] Staging deployment verified: `0x3e1C51d461e6adb0b087DC39d41942E084eba2DD`
+- [x] ABIs, addresses and typed data (pinned to the deployed typehashes) in `packages/shared`
+- [ ] Commit lines added to `commits.md`
 
 ### Task 4.4: Refunds, subscriptions, reminders, export (API)
 

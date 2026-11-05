@@ -114,3 +114,13 @@ Committed 00:15 on `cloudflare-stack` (up to `ef2de18`): readme, plan, MCP confi
 - 02:40 Found by the tests: simultaneous honest payments could be refused as "limit reached" while others held reservations. Now reported as busy and retried quietly by the pay page.
 - 02:40 Found by the tests: a Foundry-signed assertion and a browser-style assertion must use the same flat encoding; a real vector now pins TypeScript and Solidity together.
 - 02:40 Phase 3 complete on staging. Production still pending (needs its own router, factory, migrations, queue, cron and gas tank).
+
+---
+
+Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account, relayer with caps, pay page, drain tests).
+
+---
+
+- 02:48 New branch `phase-4-plug-in`. Task 4.1 (delegated invoice creation) was already built into the router in Phase 2.
+- 02:48 Task 4.3 done: `SubscriptionManager` (signed once, hard cap on charges, no catch-up billing, cancel any time, works with passkey accounts). 43 tests, a fuzz test caught a double-charge bug at exactly one period late (fixed), the invariant run caught that a permit overwrites rather than adds to the allowance (fixed by letting the signer choose the permit value). Staging: https://explorer.testnet.whitechain.io/address/0x3e1C51d461e6adb0b087DC39d41942E084eba2DD (verified).
+- 02:48 Phase 4 remaining: 4.2 magic-link login and onboarding, 4.4 refunds, subscriptions, reminders and CSV export in the API, 4.5 SDK and React button, 4.6 the example store, 4.7 the merchant dashboard.
