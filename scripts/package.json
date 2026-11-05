@@ -1,0 +1,22 @@
+{
+  "name": "@stenmont/scripts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "first-payment": "tsx --env-file=../.env first-payment.ts",
+    "lint": "tsc --noEmit",
+    "create-merchant": "tsx --env-file=../.env create-merchant.ts",
+    "delegate-creator": "tsx --env-file=../.env delegate-creator.ts",
+    "pay-invoice": "tsx --env-file=../.env pay-invoice.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@stenmont/shared": "workspace:*",
+    "viem": "^2.57.16"
+  }
+}
