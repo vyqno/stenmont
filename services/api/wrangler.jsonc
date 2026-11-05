@@ -14,8 +14,15 @@
     "USDT_ADDRESS": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
     "SEPOLIA_RPC": "https://sepolia.gateway.tenderly.co",
     "ENS_ROOT_NAME": "stenmont.eth",
+    "ROUTER_ADDRESS": "0xA5B6C9206Db75fD59307Bd22f7703387Bb8aB929",
+    "ROUTER_DEPLOY_BLOCK": "12312560",
+    "INDEXER_CONFIRMATIONS": "2",
     "APP_URL": "http://localhost:3000",
     "API_URL": "http://localhost:8787"
+  },
+  "queues": {
+    "producers": [{ "binding": "WEBHOOKS", "queue": "stenmont-webhooks-local" }],
+    "consumers": [{ "queue": "stenmont-webhooks-local", "max_retries": 100 }]
   },
   "d1_databases": [
     { "binding": "DB", "database_name": "stenmont-db-local", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
@@ -32,8 +39,16 @@
         "USDT_ADDRESS": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
         "SEPOLIA_RPC": "https://sepolia.gateway.tenderly.co",
         "ENS_ROOT_NAME": "stenmont.eth",
+        "ROUTER_ADDRESS": "0xA5B6C9206Db75fD59307Bd22f7703387Bb8aB929",
+        "ROUTER_DEPLOY_BLOCK": "12312560",
+        "INDEXER_CONFIRMATIONS": "2",
         "APP_URL": "https://app-staging.stenmont.com",
         "API_URL": "https://api-staging.stenmont.com"
+      },
+      "triggers": { "crons": ["* * * * *"] },
+      "queues": {
+        "producers": [{ "binding": "WEBHOOKS", "queue": "stenmont-webhooks-staging" }],
+        "consumers": [{ "queue": "stenmont-webhooks-staging", "max_batch_size": 10, "max_batch_timeout": 5, "max_retries": 100 }]
       },
       "d1_databases": [
         { "binding": "DB", "database_name": "stenmont-db-staging", "database_id": "4d58ae4e-a8af-440a-a03b-092d696d7cd7", "migrations_dir": "migrations" }
@@ -50,8 +65,17 @@
         "USDT_ADDRESS": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
         "SEPOLIA_RPC": "https://sepolia.gateway.tenderly.co",
         "ENS_ROOT_NAME": "stenmont.eth",
+        "ROUTER_ADDRESS": "0x0000000000000000000000000000000000000000",
+        "ROUTER_DEPLOY_BLOCK": "0",
+        "INDEXER_CONFIRMATIONS": "2",
         "APP_URL": "https://app.stenmont.com",
         "API_URL": "https://api.stenmont.com"
+      },
+      // No cron trigger until the production router is deployed (ROUTER_ADDRESS above is a placeholder).
+      "triggers": { "crons": [] },
+      "queues": {
+        "producers": [{ "binding": "WEBHOOKS", "queue": "stenmont-webhooks" }],
+        "consumers": [{ "queue": "stenmont-webhooks", "max_batch_size": 10, "max_batch_timeout": 5, "max_retries": 100 }]
       },
       "d1_databases": [
         { "binding": "DB", "database_name": "stenmont-db", "database_id": "8a6bbf8d-ad79-4db9-9fc4-7fa598a89a1e", "migrations_dir": "migrations" }
