@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "world-docs": {
+      "type": "http",
+      "url": "https://docs.world.org/mcp"
+    },
+    "world-id-developer": {
+      "type": "http",
+      "url": "https://auth.world.org/mcp/developer"
+    },
+    "ens": {
+      "type": "http",
+      "url": "https://ens-mcp.namespace.ninja/mcp"
+    },
+    "ethereum": {
+      "type": "http",
+      "url": "https://ethereum-mcp.gregskril.workers.dev/mcp"
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ]
+    },
+    "cloudflare-api": {
+      "type": "http",
+      "url": "https://mcp.cloudflare.com/mcp"
+    },
+    "cloudflare-docs": {
+      "type": "http",
+      "url": "https://docs.mcp.cloudflare.com/mcp"
+    }
+  }
+}
