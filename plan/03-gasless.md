@@ -15,24 +15,17 @@
 
 ### Task 3.1: PasskeyAccount and factory
 
-**Files:** Create `contracts/src/PasskeyAccount.sol`, `contracts/src/PasskeyAccountFactory.sol`, `contracts/test/PasskeyAccount.t.sol`
-**Produces:**
-```solidity
-// PasskeyAccount
-function initialize(bytes32 x, bytes32 y) external;
-function isValidSignature(bytes32 hash, bytes calldata signature) external view returns (bytes4); // 0x1626ba7e if valid
-// PasskeyAccountFactory
-function createAccount(bytes32 x, bytes32 y, bytes32 salt) external returns (address);
-function getAddress(bytes32 x, bytes32 y, bytes32 salt) external view returns (address); // CREATE2, counterfactual
-```
-`signature` = abi-encoded WebAuthn assertion (authenticatorData, clientDataJSON, challengeIndex, typeIndex, r, s); the challenge must equal `hash`. Accounts are minimal proxies (clones) of one implementation.
+**Files:** `contracts/src/PasskeyAccount.sol`, `contracts/src/PasskeyAccountFactory.sol`, `contracts/script/DeployFactory.s.sol`, `contracts/test/{PasskeyAccount,P256,DeployFactory}.t.sol`, `scripts/spikes/p256.ts`
+**Built on OpenZeppelin 5.6.1** (`SignerWebAuthn`, `P256`, `Clones`), not custom cryptography. The account only validates signatures (ERC-1271); it has no execute or upgrade path. Minimal-proxy clones, CREATE2 addresses that include the public key, creation is permissionless and atomic (create plus initialize).
+**Wire format for the browser (Task 3.3):** the signature is the six fields ABI-encoded flat, not as a struct: `abi.encode(r, s, challengeIndex, typeIndex, authenticatorData, clientDataJSON)`. The challenge is the 32-byte digest, `s` must be normalised to low-s, and the authenticator must report user presence and user verification.
+**Spike 0.2:** the P-256 precompile at `0x100` is live on Whitechain Sepolia (answers a Foundry-generated vector with 1, rejects a tampered one). OpenZeppelin falls back to Solidity if it is ever missing.
 
-- [ ] Failing tests using `vm.signP256` with a fixed key: `test_validAssertion_returnsMagic`, `test_tamperedChallenge_returnsInvalid`, `test_highS_returnsInvalid`, `test_wrongKey_returnsInvalid`, `test_getAddress_matchesCreateAccount`, `test_endToEnd_accountSignsReceiveAuth_andRouterPays` (account holds USDT, signs the 3009 digest, router `pay` succeeds)
-- [ ] Run `forge test --match-contract PasskeyAccountTest` → FAIL
-- [ ] Implement; if spike 0.2 failed, rely on the library's Solidity fallback and record the gas in `BUILDER-NOTES.md`
-- [ ] Run → PASS
-- [ ] Deploy factory (`script/DeployFactory.s.sol`) and verify; add `PASSKEY_FACTORY` to `addresses.ts`
-- [ ] Commit line: `feat: add passkey smart account and factory`
+- [x] 21 passkey tests (valid, tampered challenge, high-s, wrong key, missing user presence or verification, wrong ceremony type, garbage never reverts, one-time initialize, locked implementation, off-curve keys, factory determinism, nobody can take an address with another key, end-to-end payment through the router, counterfactual deploy-then-pay, fuzz)
+- [x] Fork test: a passkey account pays through the real Whitechain USDT over ERC-1271
+- [x] slither: only the 7 intentional timestamp notes
+- [x] Staging deployment verified: factory `0x5101c37647581c81b462436af2D7ac8ccD08D33A`, implementation `0xf5cA54b1da9fc2E3CAF9CbD17C60D98554cB800C` (the first factory was redeployed after two small slither-driven fixes so the repo matches the chain)
+- [x] ABIs and addresses generated into `packages/shared`
+- [ ] Commit lines added to `commits.md`
 
 ### Task 3.2: Relayer Durable Object with caps
 

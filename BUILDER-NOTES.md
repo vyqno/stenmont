@@ -93,3 +93,7 @@ Committed 00:15 on `cloudflare-stack` (up to `ef2de18`): readme, plan, MCP confi
 - 01:58 Found while testing: invalid amounts like `-1` returned a 500 instead of a 400 (zod runs refinements after the regex fails). Fixed with a test.
 - 01:58 Found on staging: a new cron trigger takes several minutes to start after its first deploy. The cursor then advances normally.
 - 01:58 Open: production deploy needs a production router, then migrations, the production queue and cron. Phase 3 next: Durable Object relayer with caps, passkey account, zero-crypto pay page.
+- 02:13 New branch `phase-3-gasless`. Spike 0.2: the P-256 precompile at `0x100` IS live on Whitechain Sepolia (my first test vector was wrong because Node hashed the input twice; a Foundry-generated vector passes on the live chain and is rejected when tampered).
+- 02:13 Task 3.1 done: `PasskeyAccount` and `PasskeyAccountFactory`, built on OpenZeppelin's WebAuthn signer. 21 new tests, a fork test through the real USDT, slither clean. Staging factory `0x5101c37647581c81b462436af2D7ac8ccD08D33A` (verified).
+- 02:13 Browser note: the passkey signature must be the six WebAuthn fields ABI-encoded flat, not as a struct. Recorded in `plan/03-gasless.md` for Task 3.3.
+- 02:13 Next: Task 3.2 (Durable Object relayer with caps and the account deploy-on-first-use), then 3.3 (pay page) and 3.4 (drain tests).
