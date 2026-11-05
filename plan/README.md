@@ -16,7 +16,10 @@ One file per phase. Do phases in order; a phase starts only when the previous ph
 | 5 | [05-identity.md](05-identity.md) | ENSv2 names and roles, World IDKit, World Agent Pass | ENS, World x2 | not started |
 | 6 | [06-agents.md](06-agents.md) | x402 facilitator, agent pay client, finance MCP | Scale, World | not started |
 | 7 | [07-financing.md](07-financing.md) | Investor allowlist, sell an invoice, settle, default | Tokenize | not started |
+| 9 | [09-real-world.md](09-real-world.md) | Passkey onboarding, import, books that close themselves, agent interface (Code Mode), tokenization depth, treasury, review | all | after 4 to 7 |
 | 8 | [08-ship.md](08-ship.md) | Seed data, video, README, feedback files, submission | all | not started |
+
+**Strategy:** what makes this different and what Whitechain asked for is in [differentiation.md](differentiation.md).
 
 **Contracts:** the full onchain suite and its test and audit standard is in [contracts.md](contracts.md). Read it before Phases 2, 3, 5 and 7.
 

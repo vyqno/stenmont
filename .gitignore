@@ -14,3 +14,9 @@ contracts/broadcast/
 *.tsbuildinfo
 playwright-report/
 test-results/
+brand-guidelines/Demo_Fonts/
+brand-guidelines/Neue_Haas_Grotesk_Collection/
+*.otf
+*.ttf
+*.woff
+*.woff2
