@@ -1,31 +1,47 @@
 import { drizzle, type DrizzleD1Database } from "drizzle-orm/d1";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { requireApiKey } from "./auth";
 import { viemChain, type ChainClient } from "./chain";
 import type { merchants } from "./db/schema";
 import type { Env } from "./env";
 import { fail } from "./errors";
 import { invoiceRoutes } from "./routes/invoices";
+import { gasTankRoutes } from "./routes/gasTank";
 import { linkRoutes } from "./routes/links";
 import { publicRoutes } from "./routes/public";
+import { relayRoutes } from "./routes/relay";
 import { webhookEndpointRoutes } from "./routes/webhookEndpoints";
 
 export type Db = DrizzleD1Database;
 export type Merchant = typeof merchants.$inferSelect;
 export type AppEnv = {
   Bindings: Env;
-  Variables: { db: Db; chain: ChainClient; merchantId: string; merchant: Merchant };
+  Variables: { db: Db; chain: ChainClient; now: () => Date; merchantId: string; merchant: Merchant };
 };
-export type Deps = { chain: (env: Env) => ChainClient };
+export type Deps = { chain: (env: Env) => ChainClient; now: () => Date };
 
-export function createApp(deps: Deps = { chain: viemChain }) {
+export function createApp(deps: Deps = { chain: viemChain, now: () => new Date() }) {
   const app = new Hono<AppEnv>();
 
   app.use("*", async (c, next) => {
     c.set("db", drizzle(c.env.DB));
     c.set("chain", deps.chain(c.env));
+    c.set("now", deps.now);
     await next();
   });
+
+  // Browsers may call only the public endpoints, and only from our own app (or localhost outside production).
+  const publicCors = cors({
+    origin: (origin, c) =>
+      origin === c.env.APP_URL || (c.env.ENVIRONMENT !== "production" && /^http:\/\/localhost:\d+$/.test(origin)) ? origin : null,
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowHeaders: ["content-type"],
+    maxAge: 600,
+  });
+  app.use("/pay/*", publicCors);
+  app.use("/l/*", publicCors);
+  app.use("/relay/*", publicCors);
 
   app.get("/health", (c) => c.json({ ok: true }));
 
@@ -35,7 +51,9 @@ export function createApp(deps: Deps = { chain: viemChain }) {
   v1.route("/invoices", invoiceRoutes);
   v1.route("/payment-links", linkRoutes);
   v1.route("/webhook-endpoints", webhookEndpointRoutes);
+  v1.route("/gas-tank", gasTankRoutes);
   app.route("/v1", v1);
+  app.route("/relay", relayRoutes);
   app.route("/", publicRoutes);
 
   app.notFound((c) => fail(c, 404, "not_found", "Not found"));

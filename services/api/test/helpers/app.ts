@@ -19,6 +19,8 @@ export const baseEnv = (db: D1Database): Env =>
     ROUTER_DEPLOY_BLOCK: "100",
     APP_URL: "https://app.test",
     API_URL: "https://api.test",
+    FACTORY_ADDRESS: "0x5101c37647581c81b462436af2D7ac8ccD08D33A",
+    FAUCET_PRIVATE_KEY: `0x${"ab".repeat(32)}`,
     WEBHOOKS: { send: async () => {} },
   }) as unknown as Env;
 
@@ -36,11 +38,12 @@ export async function seedMerchant(db: D1Database, id = "m_1", name = "Acme", ke
   return key;
 }
 
-export function setup(chainOverrides: Partial<ChainClient> = {}) {
+export function setup(chainOverrides: Partial<ChainClient> = {}, envOverrides: Partial<Env> = {}) {
   const db = newD1();
   const chain = fakeChain(chainOverrides);
-  const env = baseEnv(db);
-  const app = createApp({ chain: () => chain });
+  const env = { ...baseEnv(db), ...envOverrides } as Env;
+  const clock = { now: new Date("2026-11-06T12:00:00Z") };
+  const app = createApp({ chain: () => chain, now: () => clock.now });
   const req = (path: string, init: RequestInit & { key?: string; idem?: string } = {}) => {
     const headers = new Headers(init.headers);
     if (init.key) headers.set("authorization", `Bearer ${init.key}`);
@@ -48,5 +51,5 @@ export function setup(chainOverrides: Partial<ChainClient> = {}) {
     if (init.body && !headers.has("content-type")) headers.set("content-type", "application/json");
     return app.request(path, { ...init, headers }, env);
   };
-  return { db, chain, env, app, req };
+  return { db, chain, env, app, req, clock };
 }

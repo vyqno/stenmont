@@ -6,6 +6,7 @@ import type { Env, WebhookJob } from "./env";
 import { runIndexer } from "./indexer";
 
 export type { Env } from "./env";
+export { Relayer } from "./relayer/do";
 
 const app = createApp();
 
