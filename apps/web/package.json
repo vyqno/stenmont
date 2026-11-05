@@ -11,15 +11,19 @@
     "build:cf": "opennextjs-cloudflare build",
     "typecheck": "next typegen && tsc --noEmit",
     "deploy:staging": "opennextjs-cloudflare build && opennextjs-cloudflare deploy --env staging",
-    "deploy:production": "test \"$STENMONT_CONFIRM_PRODUCTION\" = yes || (echo 'Refusing: set STENMONT_CONFIRM_PRODUCTION=yes after staging is verified and approved' && exit 1); opennextjs-cloudflare build && opennextjs-cloudflare deploy --env production"
+    "deploy:production": "test \"$STENMONT_CONFIRM_PRODUCTION\" = yes || (echo 'Refusing: set STENMONT_CONFIRM_PRODUCTION=yes after staging is verified and approved' && exit 1); opennextjs-cloudflare build && opennextjs-cloudflare deploy --env production",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.20.16",
+    "@stenmont/shared": "workspace:*",
     "next": "16.4.5",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "viem": "^2.57.16"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

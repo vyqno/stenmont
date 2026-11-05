@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["@stenmont/shared"],
   /* config options here */
   turbopack: {
     rules: {
