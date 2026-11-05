@@ -1,11 +1,22 @@
-import { Hono } from "hono";
+import { drizzle } from "drizzle-orm/d1";
+import { createApp } from "./app";
+import { viemChain } from "./chain";
+import { handleQueue } from "./delivery";
+import type { Env, WebhookJob } from "./env";
+import { runIndexer } from "./indexer";
 
-export type Env = { DB: D1Database };
+export type { Env } from "./env";
 
-const app = new Hono<{ Bindings: Env }>();
+const app = createApp();
 
-app.get("/health", (c) => c.json({ ok: true }));
-
-app.notFound((c) => c.json({ error: { code: "not_found", message: "Not found" } }, 404));
-
-export default app;
+export default {
+  fetch: app.fetch,
+  /** Cron Trigger: poll the chain for PaymentRouter events. */
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(runIndexer(env, drizzle(env.DB), viemChain(env)));
+  },
+  /** Queue consumer: signed webhook deliveries with retries. */
+  async queue(batch: MessageBatch<WebhookJob>, env: Env) {
+    await handleQueue(batch, env.DB);
+  },
+};
