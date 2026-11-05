@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import {
   P256_N,
   encodeWebAuthnSignature,
   lowS,
   parseDerSignature,
   spkiToPublicKey,
+  verifyAssertion,
 } from "../src/webauthn";
 
 // A real assertion generated with Node's crypto (DER signature, SPKI key), and its expected encoding computed
@@ -53,5 +55,57 @@ describe("webauthn helpers", () => {
     expect(() => parseDerSignature(hex("00"))).toThrow();
     expect(() => spkiToPublicKey(hex("00".repeat(10)))).toThrow();
     expect(() => encodeWebAuthnSignature({ r: 1n, s: 1n, authenticatorData: hex("00"), clientDataJSON: "{}" })).toThrow();
+  });
+});
+
+describe("verifyAssertion (what the server checks at sign-in; same rules as the contract)", () => {
+  const challenge = Uint8Array.from(createHash("sha256").update("stenmont webauthn vector").digest());
+  const base = {
+    authenticatorData: hex(V.authData),
+    clientDataJSON: V.clientDataJSON,
+    signatureDer: hex(V.der),
+    publicKey: { x: V.x as `0x${string}`, y: V.y as `0x${string}` },
+    expectedChallenge: challenge,
+    expectedOrigin: "https://app.stenmont.com",
+    expectedRpId: "app.stenmont.com",
+  };
+  const bad = async (over: Partial<typeof base> & { requireUserVerification?: boolean }) => {
+    const r = await verifyAssertion({ ...base, ...over });
+    expect(r.ok).toBe(false);
+    return (r as { reason: string }).reason;
+  };
+
+  it("accepts the real assertion that the Solidity contract also accepts", async () => {
+    expect(await verifyAssertion(base)).toEqual({ ok: true, counter: 1, userVerified: true });
+  });
+  it("rejects a different challenge, origin or relying party", async () => {
+    expect(await bad({ expectedChallenge: Uint8Array.from(createHash("sha256").update("other").digest()) })).toBe("challenge");
+    expect(await bad({ expectedOrigin: "https://evil.example" })).toBe("origin");
+    expect(await bad({ expectedRpId: "evil.example" })).toBe("rp");
+  });
+  it("rejects a tampered signature, a tampered message and another person's key", async () => {
+    const sig = Uint8Array.from(hex(V.der));
+    sig[10] = sig[10]! ^ 0xff;
+    expect(await bad({ signatureDer: sig })).toBe("signature");
+    const data = Uint8Array.from(hex(V.authData));
+    data[33] = 9; // change the signature counter after it was signed
+    expect(await bad({ authenticatorData: data })).toBe("signature");
+    const other = "0x" + "11".repeat(32);
+    expect(await bad({ publicKey: { x: other as `0x${string}`, y: other as `0x${string}` } })).toBe("signature");
+  });
+  it("requires user presence, and user verification when asked", async () => {
+    const noUv = Uint8Array.from(hex(V.authData));
+    noUv[32] = 0x01; // present but not verified
+    // the signature no longer matches, so only the flag checks can be isolated by asking for them first
+    expect(await bad({ authenticatorData: noUv, requireUserVerification: true })).toBe("user_verification");
+    const noUp = Uint8Array.from(hex(V.authData));
+    noUp[32] = 0x04;
+    expect(await bad({ authenticatorData: noUp })).toBe("user_presence");
+  });
+  it("rejects the wrong ceremony type and malformed input without throwing", async () => {
+    expect(await bad({ clientDataJSON: V.clientDataJSON.replace("webauthn.get", "webauthn.create") })).toBe("type");
+    expect(await bad({ clientDataJSON: "not json" })).toBe("client_data");
+    expect(await bad({ authenticatorData: hex("0102") })).toBe("authenticator_data");
+    expect(await bad({ signatureDer: hex("00") })).toBe("signature");
   });
 });

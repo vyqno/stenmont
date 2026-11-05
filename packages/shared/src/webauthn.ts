@@ -62,3 +62,72 @@ export function encodeWebAuthnSignature(a: {
     [word(a.r), word(lowS(a.s)), BigInt(challengeIndex), BigInt(typeIndex), toHex(a.authenticatorData), a.clientDataJSON],
   );
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Server-side verification (sign-in). The same rules the PasskeyAccount contract applies, in WebCrypto so it runs in
+// browsers, Workers and Node.
+
+export const b64urlEncode = (bytes: Uint8Array): string =>
+  btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+
+export function b64urlDecode(s: string): Uint8Array {
+  const b = atob(s.replaceAll("-", "+").replaceAll("_", "/") + "=".repeat((4 - (s.length % 4)) % 4));
+  return Uint8Array.from(b, (c) => c.charCodeAt(0));
+}
+
+export type AssertionCheck =
+  | { ok: true; counter: number; userVerified: boolean }
+  | { ok: false; reason: "client_data" | "type" | "challenge" | "origin" | "authenticator_data" | "rp" | "user_presence" | "user_verification" | "signature" };
+
+const sha256 = async (b: Uint8Array) => new Uint8Array(await crypto.subtle.digest("SHA-256", b as BufferSource));
+const equal = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((v, i) => v === b[i]);
+const fail = (reason: Exclude<AssertionCheck, { ok: true }>["reason"]): AssertionCheck => ({ ok: false, reason });
+
+/** Verifies a WebAuthn assertion (a passkey sign-in) against the public key stored at registration. Never throws. */
+export async function verifyAssertion(a: {
+  authenticatorData: Uint8Array;
+  clientDataJSON: string;
+  signatureDer: Uint8Array;
+  publicKey: { x: Hex; y: Hex };
+  expectedChallenge: Uint8Array;
+  expectedOrigin: string;
+  expectedRpId: string;
+  requireUserVerification?: boolean;
+}): Promise<AssertionCheck> {
+  let client: { type?: string; challenge?: string; origin?: string };
+  try {
+    client = JSON.parse(a.clientDataJSON);
+  } catch {
+    return fail("client_data");
+  }
+  if (client.type !== "webauthn.get") return fail("type");
+  if (client.challenge !== b64urlEncode(a.expectedChallenge)) return fail("challenge");
+  if (client.origin !== a.expectedOrigin) return fail("origin");
+
+  const data = a.authenticatorData;
+  if (data.length < 37) return fail("authenticator_data");
+  if (!equal(data.subarray(0, 32), await sha256(new TextEncoder().encode(a.expectedRpId)))) return fail("rp");
+  const flags = data[32]!;
+  if (!(flags & 0x01)) return fail("user_presence");
+  if (a.requireUserVerification && !(flags & 0x04)) return fail("user_verification");
+
+  try {
+    const { r, s } = parseDerSignature(a.signatureDer);
+    const raw = new Uint8Array(64);
+    raw.set(Uint8Array.from(Buffer_hex(toHex(r, { size: 32 }))), 0);
+    raw.set(Uint8Array.from(Buffer_hex(toHex(s, { size: 32 }))), 32);
+    const point = new Uint8Array(65);
+    point[0] = 0x04;
+    point.set(Buffer_hex(a.publicKey.x), 1);
+    point.set(Buffer_hex(a.publicKey.y), 33);
+    const key = await crypto.subtle.importKey("raw", point, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+    const message = new Uint8Array([...data, ...(await sha256(new TextEncoder().encode(a.clientDataJSON)))]);
+    if (!(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, key, raw, message))) return fail("signature");
+  } catch {
+    return fail("signature");
+  }
+  const counter = ((data[33]! << 24) | (data[34]! << 16) | (data[35]! << 8) | data[36]!) >>> 0;
+  return { ok: true, counter, userVerified: !!(flags & 0x04) };
+}
+
+const Buffer_hex = (h: string): number[] => (h.replace(/^0x/, "").match(/../g) ?? []).map((b) => parseInt(b, 16));
