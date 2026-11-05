@@ -1,6 +1,6 @@
 import { keccak256, toBytes } from "viem";
 import { describe, expect, it } from "vitest";
-import { paymentRouterAbi } from "../src/abis";
+import { passkeyAccountAbi, passkeyAccountFactoryAbi, paymentRouterAbi } from "../src/abis";
 import { deployments } from "../src/addresses";
 import { createInvoiceTypes, routerDomain, setCreatorTypes } from "../src/eip712";
 
@@ -33,6 +33,18 @@ describe("generated artifacts", () => {
     for (const fn of ["createInvoice", "pay", "refund", "refundWithApproval", "cancel", "setHook", "setCreator", "payNonce"]) {
       expect(names).toContain(fn);
     }
+  });
+  it("passkey ABIs expose the factory and the ERC-1271 check", () => {
+    const factory = passkeyAccountFactoryAbi.filter((x) => x.type === "function").map((x) => x.name);
+    expect(factory).toEqual(expect.arrayContaining(["createAccount", "getAddress", "implementation"]));
+    const account = passkeyAccountAbi.filter((x) => x.type === "function").map((x) => x.name);
+    expect(account).toEqual(expect.arrayContaining(["isValidSignature", "initialize", "signer"]));
+  });
+  it("passkey factory deployment is recorded and verified", () => {
+    const f = deployments.environments.staging.PasskeyAccountFactory;
+    expect(f.address).toMatch(/^0x[0-9a-fA-F]{40}$/);
+    expect(f.implementation).toMatch(/^0x[0-9a-fA-F]{40}$/);
+    expect(f.verified).toBe(true);
   });
   it("staging deployment is recorded and verified", () => {
     const r = deployments.environments.staging.PaymentRouter;
