@@ -19,6 +19,12 @@
       "skillPath": "skills/dispatching-parallel-agents/SKILL.md",
       "computedHash": "b011107f17188e0b2898bb1856b5bac8b49537cc86e737c82126558a235bd62a"
     },
+    "ethskills": {
+      "source": "austintgriffith/ethskills",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "8f956fdfcd30a1e91a4524d784b43ece72ae3ca4e50a030288730f330a3bb7b6"
+    },
     "executing-plans": {
       "source": "obra/superpowers",
       "sourceType": "github",
