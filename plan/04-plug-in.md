@@ -25,15 +25,17 @@
 - [ ] Redeploy, verify, update `addresses.ts`, point the indexer at the new address
 - [ ] Commit line: `feat: let merchants delegate invoice creation`
 
-### Task 4.2: Magic-link login and onboarding
+### Task 4.2: Passkey sign-up and sign-in (no password, no code)
 
-**Files:** Create `services/api/src/{session.ts,email.ts,routes/auth.ts,routes/merchants.ts}`, `services/api/migrations/0004_auth.sql`, `apps/web/app/{login,onboarding}/page.tsx`
-**Produces:** tables `login_tokens(token_hash PK, email, expires_at, used_at)`, `sessions(id PK, merchant_id, expires_at)`. `POST /auth/magic-link {email}` (sends mail), `GET /auth/callback?token=` (sets `HttpOnly; Secure; SameSite=Lax` cookie `st_session`), `POST /v1/merchants` (onboarding: name, passkey public key `x`,`y` → creates the merchant's `PasskeyAccount` via the factory, sets it as `payout_address`, calls `setCreator` for the API's creator key, returns the first API key once). `sendEmail(to: string, subject: string, html: string): Promise<void>` uses the Cloudflare Email Sending binding.
+**Changed from the first plan:** magic-link email is dropped. A business signs up and signs in with a passkey (fingerprint, face or PIN), so there is no code to type and no mailbox in the loop. Email can still be added later for notices.
+**Files:** `packages/shared/src/webauthn.ts` (`verifyAssertion`), `services/api/{migrations/0004_passkey_auth.sql,src/routes/auth.ts,src/auth.ts}`, `apps/web/{lib/auth.ts,app/{signup,login,dashboard}}`, `apps/web/e2e/auth.spec.ts`
+**Produces:** tables `passkeys`, `auth_challenges`, `sessions`, and `merchants.status` (`pending` until activated). `POST /auth/register/options|verify` (passkey for the business, account address from the key), `POST /auth/activate` (the second prompt: the same passkey signs the router's `SetCreator` digest; one Multicall3 transaction creates the account and authorises the relayer to create invoices; the API key is returned once), `POST /auth/login/options|verify` (discoverable credential, no username), `GET /auth/session`, `POST /auth/logout`. `/v1` accepts an API key or the session cookie; cookie writes must come from our own app (CSRF). Limits: 10 sign-ups per IP per hour, 5 activations per IP per hour and 200 per day overall, because each one costs gas.
 
-- [ ] Failing tests: link works once; second use 400; after 15 minutes 400; sessions expire after 7 days; onboarding returns `sk_test_…` exactly once
-- [ ] Run → FAIL; implement; run → PASS
-- [ ] Live check: sign up with your Gmail, receive the email from `login@stenmont.com`
-- [ ] Commit line: `feat: add magic-link login and merchant onboarding`
+- [x] Failing tests first: 22 (registration options, challenge replay, wrong origin, activation digest, retry after chain failure, counter replay, sessions, CSRF, CORS)
+- [x] Run -> FAIL; implement; run -> PASS (API 141 tests, shared 34)
+- [x] Live check on staging: Playwright with a virtual authenticator signs up, signs out and signs back in; the activation transaction succeeded onchain and the relayer is the new account's creator
+- [x] Commit lines: `feat(shared): add server-side WebAuthn assertion verification`, `feat(api): passkey sign-up, activation and sign-in with sessions`, `feat(web): add passkey sign-up and sign-in pages`
+- Limitation: a lost passkey means a lost account until recovery exists (Phase 9: second passkey and recovery). Dashboard page is a shell until 4.7.
 
 ### Task 4.3: SubscriptionManager
 
