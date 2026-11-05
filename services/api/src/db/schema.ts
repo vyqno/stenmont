@@ -136,3 +136,59 @@ export const chainCursor = sqliteTable("chain_cursor", {
   name: text("name").primaryKey(),
   lastBlock: integer("last_block").notNull(),
 });
+
+// ---- relayer ---------------------------------------------------------------------------------------------------
+// Amounts are TEXT (wei or USDT base units) and converted to bigint in code. Gas tank rows carry a version so
+// concurrent updates are optimistic: UPDATE ... WHERE version = ?.
+
+export const relayerTxs = sqliteTable(
+  "relayer_txs",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id").notNull(), // 'platform' for faucet transfers
+    invoiceId: text("invoice_id"),
+    kind: text("kind").notNull(), // pay | deploy_pay | create_invoice | faucet
+    payer: text("payer"),
+    value: text("value"),
+    txHash: text("tx_hash"),
+    status: text("status").notNull(), // pending | sent | success | reverted | rejected
+    error: text("error"),
+    gasUsed: text("gas_used"),
+    wbtCost: text("wbt_cost"),
+    idempotencyKey: text("idempotency_key").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [uniqueIndex("relayer_txs_idem_uq").on(t.idempotencyKey), index("relayer_txs_merchant_idx").on(t.merchantId, t.createdAt)],
+);
+
+export const gasTanks = sqliteTable("gas_tanks", {
+  merchantId: text("merchant_id").primaryKey(),
+  wbtBalance: text("wbt_balance").notNull().default("0"), // wei the merchant has put up for gas
+  dailyCapWbt: text("daily_cap_wbt").notNull(), // most the relayer may spend for this merchant per UTC day
+  spentTodayWbt: text("spent_today_wbt").notNull().default("0"),
+  spentDay: text("spent_day").notNull(), // UTC date the spent amount belongs to
+  perPayerDailyCapUsdt: text("per_payer_daily_cap_usdt").notNull(),
+  version: integer("version").notNull().default(0),
+});
+
+export const payerUsage = sqliteTable(
+  "payer_usage",
+  {
+    merchantId: text("merchant_id").notNull(),
+    payer: text("payer").notNull(),
+    day: text("day").notNull(),
+    usdt: text("usdt").notNull().default("0"),
+  },
+  (t) => [primaryKey({ columns: [t.merchantId, t.payer, t.day] })],
+);
+
+export const rateLimits = sqliteTable(
+  "rate_limits",
+  {
+    key: text("key").notNull(),
+    bucket: integer("bucket").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.key, t.bucket] })],
+);
