@@ -2,3 +2,4 @@
 export * from "./paymentRouter";
 export * from "./passkeyAccountFactory";
 export * from "./passkeyAccount";
+export * from "./subscriptionManager";

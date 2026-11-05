@@ -96,3 +96,29 @@ export function buildTransferAuth(args: {
     message: args,
   };
 }
+
+/** Field order must match SubscriptionManager.SUBSCRIBE_TYPEHASH (a test pins it to the deployed contract). */
+export const subscribeTypes = {
+  Subscribe: [
+    { name: "id", type: "bytes32" },
+    { name: "payer", type: "address" },
+    { name: "merchant", type: "address" },
+    { name: "payout", type: "address" },
+    { name: "amount", type: "uint128" },
+    { name: "periodSeconds", type: "uint32" },
+    { name: "startAt", type: "uint64" },
+    { name: "maxCharges", type: "uint32" },
+    { name: "deadline", type: "uint256" },
+  ],
+} as const;
+
+export const cancelSubscriptionTypes = {
+  CancelSubscription: [
+    { name: "id", type: "bytes32" },
+    { name: "deadline", type: "uint256" },
+  ],
+} as const;
+
+export function subscriptionDomain(verifyingContract: Address) {
+  return { name: "Stenmont SubscriptionManager", version: "1", chainId: 1874, verifyingContract } as const satisfies TypedDataDomain;
+}
