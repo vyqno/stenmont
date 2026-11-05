@@ -16,6 +16,13 @@
           "attester": "0xd3887b5A9d79bA55539DF7F07aa933a2b2F41ade",
           "refundApprovalThreshold": "100000000"
         }
+      },
+      "PasskeyAccountFactory": {
+        "address": "0x5101c37647581c81b462436af2D7ac8ccD08D33A",
+        "deployBlock": 12314979,
+        "txHash": "0xaf386d5465cef666a0642fd9a0378d6451b85adca29844afe5cb47500a1cd451",
+        "verified": true,
+        "implementation": "0xf5cA54b1da9fc2E3CAF9CbD17C60D98554cB800C"
       }
     }
   }
