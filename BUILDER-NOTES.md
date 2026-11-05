@@ -97,3 +97,20 @@ Committed 00:15 on `cloudflare-stack` (up to `ef2de18`): readme, plan, MCP confi
 - 02:13 Task 3.1 done: `PasskeyAccount` and `PasskeyAccountFactory`, built on OpenZeppelin's WebAuthn signer. 21 new tests, a fork test through the real USDT, slither clean. Staging factory `0x5101c37647581c81b462436af2D7ac8ccD08D33A` (verified).
 - 02:13 Browser note: the passkey signature must be the six WebAuthn fields ABI-encoded flat, not as a struct. Recorded in `plan/03-gasless.md` for Task 3.3.
 - 02:13 Next: Task 3.2 (Durable Object relayer with caps and the account deploy-on-first-use), then 3.3 (pay page) and 3.4 (drain tests).
+
+---
+
+## How the gas works (for the README: Scale track)
+
+- **Who pays:** the merchant. Each merchant has a gas tank, an amount of WBT set aside for their customers' payments. The relayer sends the transaction and the real gas cost is taken from that tank after the receipt.
+- **Where the relayer's WBT comes from:** the relayer wallet is funded with WBT (the faucet for the test network); the tank is the accounting of who may use how much. The relayer refuses to work below a floor of 0.02 WBT, so it never runs dry mid-payment.
+- **What stops draining:** a customer's approval is bound to one invoice and one amount, and the token accepts it once; one transaction per approval; every payment is simulated first so bad requests cost nothing; 100 requests a minute per payer and per IP; a daily USDT cap per payer; a daily gas cap per merchant; budgets are reserved atomically so concurrent requests cannot overspend; busy is reported separately from a reached limit. Proven by attack tests and a live run on staging.
+
+---
+
+- 02:40 Task 3.2 done: Durable Object relayer (one transaction at a time, consecutive nonces), the public relay with limits and gas reservation, first-use account deployment in one Multicall3 transaction, gas tanks, faucet for test environments, CORS for our app only. 119 API tests.
+- 02:40 Task 3.3 done: the pay page. One button, a passkey for the account, test funds added automatically in test environments, no crypto words (enforced by a test). Playwright with a virtual authenticator passes on staging.
+- 02:40 Task 3.4 done: attack tests and a live drain run on staging. 15 concurrent replays sent one payment; 120 bad authorizations cost nothing.
+- 02:40 Found by the tests: simultaneous honest payments could be refused as "limit reached" while others held reservations. Now reported as busy and retried quietly by the pay page.
+- 02:40 Found by the tests: a Foundry-signed assertion and a browser-style assertion must use the same flat encoding; a real vector now pins TypeScript and Solidity together.
+- 02:40 Phase 3 complete on staging. Production still pending (needs its own router, factory, migrations, queue, cron and gas tank).

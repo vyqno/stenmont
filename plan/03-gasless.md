@@ -29,35 +29,38 @@
 
 ### Task 3.2: Relayer Durable Object with caps
 
-**Files:** Create `services/api/src/relayer/{do.ts,caps.ts,routes.ts}`, `services/api/migrations/0003_relayer.sql`, `services/api/test/relayer.test.ts`
-**Produces:** tables `relayer_txs(id, merchant_id, kind, request, tx_hash, status, gas_used, wbt_cost, idempotency_key UNIQUE)`, `gas_tanks(merchant_id PK, wbt_balance, daily_cap_wbt, spent_today_wbt, per_payer_daily_cap_usdt)`. Route `POST /relay/pay` body `{invoiceId, value, auth: {payer, validAfter, validBefore, nonce, signature}}` → `{txHash}` or `4xx {error:{code,message}}` with codes `gas_tank_empty`, `payer_cap`, `rate_limited`, `invalid_signature`, `duplicate`. `Relayer` is a Durable Object class holding the relayer key (Worker secret `RELAYER_PRIVATE_KEY`); it serialises sends so nonces never collide.
-**Function:** `checkCaps(db, merchantId, payer, valueUnits: bigint): Promise<"ok"|CapError>`.
+**Files:** `services/api/src/relayer/{sender,do,caps,relay}.ts`, `src/routes/{relay,gasTank}.ts`, `migrations/0003_relayer.sql`, `wrangler.jsonc` (Durable Object), tests `sender`, `relayer`, `cors`; `scripts/{fund-gas-tank,relay-pay}.ts`
+**Built:**
+- `Relayer` Durable Object (one instance) sends every relayer transaction through a `SerialSender`: one at a time, consecutive nonces, one retry on a stale nonce. Invoice creation now goes through it too, which fixes the Phase 2 nonce-collision limit.
+- `POST /relay/pay` (public): rate limits (100 per minute per payer and per IP) -> invoice must be payable -> free pre-check of tank and payer cap -> duplicate guard (one row per authorization) -> simulate (garbage costs nothing) -> relayer balance floor (0.02 WBT) -> atomic gas reservation (tank, daily cap) and payer reservation -> send -> receipt -> settle the real gas cost, release on failure.
+- A passkey account that does not exist yet is deployed and paid in one Multicall3 transaction; its address is checked against the key first.
+- "Busy" (other payments are holding the budget) is reported as 503 retry, never as the merchant's limit.
+- `POST /relay/account` (address, deployed, balance), `POST /relay/faucet` (test environments only, 5 test USDT, once per address per day, 5 per IP), `GET /v1/gas-tank`.
+- CORS: only our app origin (and localhost outside production) may call the public endpoints from a browser; `/v1` is never open to browsers.
+- Error codes (differs slightly from the first sketch): `invalid_authorization` (not `invalid_signature`), plus `invoice_not_payable`, `overpay`, `wrong_payer`, `account_mismatch`, `relayer_low`, `tx_reverted`, `timeout`, `busy`.
 
-- [ ] Failing tests: `duplicate nonce → 409 duplicate, no second tx`; `101st request in a minute from one payer → 429 rate_limited`; `payer over per_payer_daily_cap_usdt → payer_cap`; `gas tank empty → gas_tank_empty before any tx`; `simulate fails (bad signature) → invalid_signature, no gas spent`; `10 concurrent valid requests → 10 distinct nonces, all succeed`
-- [ ] Run → FAIL
-- [ ] Implement: validate, `checkCaps`, `simulateContract` (viem) against the router, then send through the Durable Object; record `relayer_txs`; decrement gas tank by actual `gasUsed * gasPrice`
-- [ ] Run → PASS
-- [ ] `npx wrangler secret put RELAYER_PRIVATE_KEY` (value from `.env`, never printed); `npx wrangler deploy`
-- [ ] Live check: `scripts/relay-demo.mjs` pays an invoice with `DEMO_PAYER` holding zero WBT: `cast balance $STENMONT_DEMO_PAYER_ADDRESS` stays `0` and the invoice is paid
-- [ ] Commit line: `feat: add gas relayer with caps`
+- [x] Failing tests first: 6 sender, 33 relayer, 5 CORS (119 API tests in total)
+- [x] Secrets: relayer key already in the Workers; faucet key pushed to staging only
+- [x] Live on staging: invoice created through the Durable Object, paid through the public relay by a payer holding 0 WBT (merchant tank charged the real cost, 0.0008 WBT)
+- [ ] Commit lines added to `commits.md`
 
 ### Task 3.3: Pay page with zero crypto steps
 
-**Files:** Create `apps/web/app/pay/[id]/page.tsx`, `apps/web/lib/passkey.ts`, `apps/web/app/api/passkey/route.ts`, `apps/web/e2e/pay.spec.ts`
-**Produces:** `createPasskeyAccount(): Promise<{address: Address, x: Hex, y: Hex}>` (WebAuthn create, then factory `getAddress`), `signAuthWithPasskey(digest: Hex): Promise<Hex>` (WebAuthn get with `challenge = digest`, returns the encoded assertion). The page shows amount, merchant name, one "Pay" button; no words "wallet", "gas", "chain", "USDT" beyond the amount formatted as `$12.50`.
-**Funding for the demo:** a "Add test funds" button (test environment only) transfers USDT from a funded demo wallet to the new account; production copy is out of scope.
+**Files:** `apps/web/app/pay/[id]/{page,PayClient}.tsx`, `apps/web/lib/{pay,passkey}.ts`, `packages/shared/src/webauthn.ts`, tests `web/test/pay.test.ts`, `shared/test/webauthn.test.ts`, `web/e2e/pay.spec.ts`
+**Built:** one screen: the merchant, the amount, one "Pay $X" button. The first tap creates a passkey and the account, adds test funds (test environments only), asks for Face ID, a fingerprint or the device PIN, and sends. "Busy" retries quietly with the same approval. Every message is plain words; a test fails if any message contains a crypto word.
+- Browser helpers in `shared`: DER signature parsing, low-s normalisation, key extraction from the registration, and the flat encoding. A real assertion generated outside Foundry is checked in TypeScript and in Solidity with the same bytes.
+- Playwright with a virtual authenticator, against staging: the customer pays and every distinct text on screen is checked for crypto words; a failed confirmation leaves the invoice open and the button usable; an unknown invoice shows a friendly page.
+- Limitation: the account is tied to the browser (the credential id and public key live in local storage); clearing site data loses the link. Recovery is out of scope.
 
-- [ ] Failing Playwright test with a virtual authenticator: open `/pay/<id>` for a seeded invoice, click Pay, expect text "Paid" and the invoice `status` = `paid` in the API; assert the page HTML contains none of `gas|WBT|seed|chain|wallet` (case-insensitive)
-- [ ] Run `pnpm --filter web e2e` → FAIL
-- [ ] Implement the page and helpers
-- [ ] Run → PASS
-- [ ] Commit line: `feat: add zero-crypto pay page with passkey`
+- [x] Unit tests (9) and cross-language vector tests
+- [x] Playwright, 3 tests, passing on staging (a full payment takes about 50 seconds including the faucet and the account deployment)
+- [ ] Commit lines added to `commits.md`
 
 ### Task 3.4: Drain protection under load
 
-**Files:** Create `services/api/test/drain.test.ts`, `scripts/drain-sim.mjs`
-
-- [ ] Test: 50 distinct payers each below caps, plus 1 payer replaying one signature 200 times; assert total relayer spend ≤ `daily_cap_wbt` and exactly one tx for the replay
-- [ ] Run → PASS (if FAIL, tighten `caps.ts` first)
-- [ ] Write the "how the business pays gas, how the relayer gets WBT, what stops draining" paragraph into `BUILDER-NOTES.md` for the README (Scale requires it)
-- [ ] Commit line: `test: add relayer drain protection tests`
+**Files:** `services/api/test/drain.test.ts`, `scripts/drain-sim.ts`
+- [x] Attack tests: 200 replays of one signature send one transaction (sequential and concurrent); 50 honest payers get through while a replayer costs one; one payer signing fresh authorizations endlessly is stopped by the rate limit and the gas cap; one IP rotating payer addresses is stopped at 100 a minute and by the cap; a flood of invalid authorizations spends nothing. Invariant checked every time: spend is at most the cap and tank plus spend never changes.
+- [x] Found and fixed: simultaneous honest payments could be refused as "limit reached" while others held reservations; now reported as busy and retried.
+- [x] Live on staging: 15 concurrent replays gave 1 success and 14 duplicates; 120 bad authorizations gave 85 rejections then 35 rate-limits; one payment onchain; the relayer and the merchant tank paid for that one only
+- [x] The gas paragraph for the README is in `BUILDER-NOTES.md`
+- [ ] Commit lines added to `commits.md`
