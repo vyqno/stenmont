@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { fromUnits } from "@stenmont/shared";
 import type { Db } from "./app";
 import type { ChainClient, RouterLog } from "./chain";
-import { chainCursor, invoices, payments } from "./db/schema";
+import { chainCursor, invoices, payments, refunds } from "./db/schema";
 import type { Env } from "./env";
 import { invoiceView } from "./lib/views";
 import { emitEvent } from "./webhooks";
@@ -84,6 +84,19 @@ async function apply(env: Env, db: Db, log: RouterLog): Promise<void> {
   }
 
   if (log.eventName === "InvoiceRefunded") {
+    await db
+      .insert(refunds)
+      .values({
+        id: crypto.randomUUID(),
+        invoiceId: inv.id,
+        toAddress: log.args.to,
+        value: log.args.value.toString(),
+        txHash: log.transactionHash,
+        logIndex: log.logIndex,
+        blockNumber: Number(log.blockNumber),
+        createdAt: now,
+      })
+      .onConflictDoNothing();
     if (log.args.refundedTotal > BigInt(inv.amountRefunded)) {
       await db.update(invoices).set({ amountRefunded: log.args.refundedTotal.toString(), updatedAt: now }).where(eq(invoices.id, inv.id));
     }

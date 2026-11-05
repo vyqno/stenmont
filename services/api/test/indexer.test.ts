@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { invoiceId } from "@stenmont/shared";
 import type { RouterLog } from "../src/chain";
-import { invoices, payments, webhookDeliveries, chainCursor } from "../src/db/schema";
+import { invoices, payments, refunds, webhookDeliveries, chainCursor } from "../src/db/schema";
 import { runIndexer } from "../src/indexer";
 import { baseEnv, MERCHANT_ADDRESS, seedMerchant } from "./helpers/app";
 import { newD1 } from "./helpers/d1";
@@ -148,5 +148,29 @@ describe("indexer: refunds and cancellation", () => {
     ];
     await u.run();
     expect((await u.invoice()).status).toBe("paid");
+  });
+});
+
+describe("indexer: refund ledger", () => {
+  it("records each refund once, even when the same block is read again", async () => {
+    const refund = (id: `0x${string}`): RouterLog => ({
+      eventName: "InvoiceRefunded",
+      args: { id, to: PAYER, value: 2_000_000n, refundedTotal: 2_000_000n },
+      transactionHash: H(9),
+      logIndex: 1,
+      blockNumber: 300n,
+    });
+    const d1 = newD1();
+    await seedMerchant(d1);
+    const id = (await seedInvoice(d1)) as `0x${string}`;
+    const chain = fakeChain({ getBlockNumber: async () => 1_000n, getRouterLogs: async (from, to) => [refund(id)].filter((l) => l.blockNumber >= from && l.blockNumber <= to) });
+    const env = { ...baseEnv(d1), WEBHOOKS: fakeQueue() } as unknown as ReturnType<typeof baseEnv>;
+    const db = dbOf(d1);
+    await runIndexer(env, db, chain);
+    await db.delete(chainCursor); // read the same blocks again
+    await runIndexer(env, db, chain);
+    const rows = await db.select().from(refunds);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ invoiceId: id, toAddress: PAYER, value: "2000000", txHash: H(9), logIndex: 1, blockNumber: 300 });
   });
 });

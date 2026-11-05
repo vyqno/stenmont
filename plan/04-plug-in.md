@@ -59,6 +59,8 @@
 - [ ] Run → FAIL; implement; run → PASS
 - [ ] Commit line: `feat: add refunds, subscriptions, reminders and CSV export`
 
+**Progress on 4.4:** done so far: refund ledger (the indexer records every refund once) and the accountant export (`GET /v1/exports/payments.csv`, generic and QuickBooks layouts, quoted and formula-safe, filtered by date). Still to do: refund request/submit through the merchant passkey, subscriptions, renewals and reminders cron.
+
 ### Task 4.5: SDK and React button
 
 **Files:** Create `packages/sdk/src/{index,client,webhooks}.ts`, `packages/react/src/{PayButton,index}.tsx`, tests

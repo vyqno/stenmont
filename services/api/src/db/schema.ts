@@ -115,6 +115,22 @@ export const payments = sqliteTable(
   (t) => [uniqueIndex("payments_tx_log_uq").on(t.txHash, t.logIndex), index("payments_invoice_idx").on(t.invoiceId)],
 );
 
+export const refunds = sqliteTable(
+  "refunds",
+  {
+    id: text("id").primaryKey(),
+    invoiceId: text("invoice_id").notNull(),
+    toAddress: text("to_address").notNull(),
+    value: text("value").notNull(),
+    txHash: text("tx_hash").notNull(),
+    logIndex: integer("log_index").notNull(),
+    blockNumber: integer("block_number").notNull(),
+    reason: text("reason"),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("refunds_tx_log_uq").on(t.txHash, t.logIndex), index("refunds_invoice_idx").on(t.invoiceId)],
+);
+
 export const paymentLinks = sqliteTable(
   "payment_links",
   {
