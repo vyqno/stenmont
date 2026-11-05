@@ -13,8 +13,11 @@
     "deploy:production": "test \"$STENMONT_CONFIRM_PRODUCTION\" = yes || (echo 'Refusing: set STENMONT_CONFIRM_PRODUCTION=yes after staging is verified and approved' && exit 1); wrangler d1 migrations apply DB --remote --env production && wrangler deploy --env production"
   },
   "dependencies": {
+    "@stenmont/shared": "workspace:*",
     "drizzle-orm": "^0.45.4",
-    "hono": "^4.13.16"
+    "hono": "^4.13.16",
+    "viem": "^2.57.16",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261104.1",
