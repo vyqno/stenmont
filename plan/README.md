@@ -10,7 +10,7 @@ One file per phase. Do phases in order; a phase starts only when the previous ph
 |---|---|---|---|---|
 | 0 | [00-prerequisites.md](00-prerequisites.md) | Accounts, tools, keys, funds, three spikes | none | not started |
 | 1 | [01-foundation.md](01-foundation.md) | Repo, shared package, Foundry, API Worker + D1, CI | none | in progress (1.1 to 1.5 done, 1.6 CI left) |
-| 2 | [02-get-paid.md](02-get-paid.md) | PaymentRouter, API, indexer, webhooks, first real USDT payment | Operate | in progress (router built and tested; deploy, API, indexer left) |
+| 2 | [02-get-paid.md](02-get-paid.md) | PaymentRouter, API, indexer, webhooks, first real USDT payment | Operate | done on staging (router, API, indexer, webhooks); production pending |
 | 3 | [03-gasless.md](03-gasless.md) | Relayer with caps, passkey account, zero-crypto pay page | Scale | not started |
 | 4 | [04-plug-in.md](04-plug-in.md) | SDK, example store, dashboard, refunds, renewals, reminders, export | Operate | not started |
 | 5 | [05-identity.md](05-identity.md) | ENSv2 names and roles, World IDKit, World Agent Pass | ENS, World x2 | not started |

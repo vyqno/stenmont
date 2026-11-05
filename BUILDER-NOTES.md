@@ -72,3 +72,24 @@ Committed 00:15 on `cloudflare-stack` (up to `ef2de18`): readme, plan, MCP confi
 - 01:34 First real payment: 1.00 official USDT. Payer went 30.00 to 29.00 USDT while holding 0 WBT (the relayer paid the gas), merchant 10.00 to 11.00, invoice Paid. Links above.
 - 01:34 `contracts/deployments/1874.json` is now the one source of truth for addresses. `packages/shared` is generated from it and from the contract ABI; CI fails if they drift.
 - 01:34 Next: Task 2.4 (API keys, invoices, payment links), then 2.5 (indexer, webhooks).
+
+---
+
+@me: while my agent is working i am focusing on the branding of the product i am building.
+
+---
+
+## Phase 2 end-to-end on staging (the full pipeline)
+
+- Delegation (merchant allows the relayer to create invoices): https://explorer.testnet.whitechain.io/tx/0x29280d4844f5a9dd3172029897be163e3eef3be71b8fc25fa6d7bd1043480bab
+- Invoice created through the API (`POST /v1/invoices` on `api-staging.stenmont.com`, created onchain by the relayer): https://explorer.testnet.whitechain.io/tx/0xa7b5f561d41c99a4d2b05adebce5e1b3cb461cf11c1a7f3847273c13a0e79d6f
+- That invoice paid with 2.50 official USDT: https://explorer.testnet.whitechain.io/tx/0xa574d203ded29f21fadec46cceabe269551e43c82caadf08d29d9487cc817a0d
+- The indexer marked it paid and delivered two signed webhooks (`invoice.created`, `invoice.paid`), both HTTP 200 on the first attempt.
+
+---
+
+- 01:58 Task 2.4 done: API keys, invoices (idempotent, validated, tenant-scoped), payment links, public pay data, webhook endpoints. The API creates invoices onchain through the router's delegation, so it never holds a merchant key.
+- 01:58 Task 2.5 done: chain indexer on a minute cron and signed webhooks on a queue with retries. 68 API tests, plus the full path run on staging against the real chain.
+- 01:58 Found while testing: invalid amounts like `-1` returned a 500 instead of a 400 (zod runs refinements after the regex fails). Fixed with a test.
+- 01:58 Found on staging: a new cron trigger takes several minutes to start after its first deploy. The cursor then advances normally.
+- 01:58 Open: production deploy needs a production router, then migrations, the production queue and cron. Phase 3 next: Durable Object relayer with caps, passkey account, zero-crypto pay page.

@@ -59,25 +59,29 @@ error Overpay(); error RefundTooLarge();
 
 ### Task 2.4: API keys, invoices, payment links
 
-**Files:** Create `services/api/src/{auth.ts,idempotency.ts,audit.ts,routes/invoices.ts,routes/links.ts}`, `services/api/migrations/0001_invoices.sql`, `services/api/test/{auth,invoices}.test.ts`
-**Produces:** D1 tables `customers(id, merchant_id, name, email)`, `invoices(id TEXT PK /*bytes32 hex*/, merchant_id, customer_id, number, status, amount TEXT, amount_paid TEXT, amount_refunded TEXT, due_date, meta_hash, created_at)`, `payments(id, invoice_id, payer, value TEXT, tx_hash, log_index, block, created_at, UNIQUE(tx_hash, log_index))`, `payment_links(id, merchant_id, slug, amount, reusable, active)`. Routes: `POST /v1/invoices` (body `{amount: string, customerEmail?, dueDate?, number?}` → `{id, payUrl, status}`), `GET /v1/invoices`, `GET /v1/invoices/:id`, `POST /v1/payment-links`, `GET /pay/:id` (public data for the pay page). Auth: `Authorization: Bearer sk_test_<32 hex>`; store `sha256` + 8-char prefix. Money-moving POSTs require `Idempotency-Key`.
-**Single scoping helper:** `scoped(db, merchantId)` is the only way routes query tenant tables.
+**Files:** `services/api/src/{app,auth,idempotency,audit,errors,chain,env}.ts`, `src/routes/{invoices,links,public,webhookEndpoints}.ts`, `src/lib/{crypto,validation,views}.ts`, `migrations/0002_api_core.sql`, tests in `services/api/test/`
+**Built (differs from the first sketch):**
+- Invoices are created onchain through the router's delegation: the merchant signs `setCreator` once (`scripts/delegate-creator.ts`) and the API uses the relayer key. The API never holds a merchant key.
+- A `customers` table is not needed yet; the invoice carries `customer_email`. Customers arrive with the dashboard (Phase 4).
+- Idempotency stores a pending marker first, so a concurrent duplicate gets 409; an error response releases the key.
+- Webhook endpoints reject non-https URLs and loopback or private hosts (no calls into our own network).
+- Known limit, fixed in Phase 3: `createInvoice` sends the relayer transaction directly, so two simultaneous creations can collide on the nonce. The Durable Object relayer serialises them.
 
-- [ ] Failing tests: `unauthorized → 401`; `valid key creates invoice → 201 with payUrl`; `same Idempotency-Key twice → identical response, one row`; `merchant A cannot read merchant B's invoice → 404`; `every create writes one audit_log row`
-- [ ] Run `pnpm --filter @stenmont/api test` → FAIL
-- [ ] Implement auth middleware, `scoped()`, idempotency, audit, routes. Invoice creation builds the `CreateInvoice` typed data for the merchant to sign (merchant signing arrives with the passkey account in Phase 3; in this phase the API holds a test merchant key `STENMONT_DEPLOYER_PRIVATE_KEY` (the test merchant) for the demo)
-- [ ] Run tests → PASS
-- [ ] Commit line: `feat: add API auth, invoices and payment links`
+- [x] Failing tests first, then implementation: auth (missing, malformed, wrong, revoked), invoices (create, validation, idempotency, duplicate number, chain failure, tenant isolation, list filters), public pay data (no internal fields), payment links, webhook endpoints (secret shown once)
+- [x] `pnpm --filter @stenmont/api test` green (45 tests at this point)
+- [x] Commit lines added to `commits.md`
 
 ### Task 2.5: Indexer (Cron) and webhooks (Queue)
 
-**Files:** Create `services/api/src/{indexer.ts,webhooks.ts,queue.ts}`, `services/api/migrations/0002_events.sql`, `services/api/test/{indexer,webhooks}.test.ts`
-**Produces:** table `chain_cursor(name PK, last_block)`, `webhook_endpoints(id, merchant_id, url, secret, events)`, `webhook_deliveries(id, endpoint_id, event_id, type, payload, status, attempts, next_attempt_at)`. `scheduled()` every minute; queue `stenmont-webhooks`. Webhook body `{id, type, created, data, livemode:false}`; header `Stenmont-Signature: t=<unix>,v1=<hex HMAC-SHA256 of "${t}.${body}">`. Event types: `invoice.created`, `invoice.partially_paid`, `invoice.paid`, `refund.created`, `invoice.cancelled`.
+**Files:** `services/api/src/{indexer,delivery,webhooks,events}.ts`, `src/lib/signature.ts`, `wrangler.jsonc` (cron, queue producer and consumer, router vars), tests
+**Built:**
+- Indexer: windows of at most 2,000 blocks, 2 confirmations behind the head, cursor advances only after a window is fully applied; payments unique per (tx, log index); invoice totals only move forward; events for unknown invoices ignored.
+- Webhooks: `Stenmont-Signature: t=<unix>,v1=<hex HMAC-SHA256 of "<t>.<body>">`, deliveries unique per (endpoint, event), retries with backoff (20s doubling, capped at 1 hour) up to 10 attempts, then `failed`. The payload bytes are fixed when the event is emitted.
+- Events: `invoice.created`, `invoice.partially_paid`, `invoice.paid`, `refund.created`, `invoice.cancelled`.
+- Note: a new cron trigger took about 8 minutes to start after the first deploy; later deploys do not repeat that.
 
-- [ ] Failing tests with a fake chain client: `getLogs window of 2000 blocks max`; `same log processed twice → one payments row`; `InvoicePaid(fullyPaid=true) → invoice.status paid + one invoice.paid delivery`; `failed delivery retries with backoff, gives up after 8 attempts → status failed`; `signature header verifies with the endpoint secret`
-- [ ] Run tests → FAIL
-- [ ] Implement `indexer.ts` (reads `chain_cursor`, `getLogs` for the router in ≤2000-block windows, decodes with the router ABI, upserts, enqueues) and the queue consumer (POST with signature; `message.retry({delaySeconds: 2**attempts * 10})`)
-- [ ] Run tests → PASS
-- [ ] Create the queue: `npx wrangler queues create stenmont-webhooks`; add producer/consumer bindings; `npx wrangler deploy`
-- [ ] End to end: run `scripts/first-payment.mjs` against the live API; within 1 minute the invoice shows `paid` and a test endpoint (webhook.site URL) receives exactly one `invoice.paid`
-- [ ] Commit line: `feat: add chain indexer and signed webhooks`
+- [x] Failing tests first (windows, cursor, RPC failure keeps the cursor, replays change nothing, older events never move an invoice backwards, backoff, give up, skip finished deliveries)
+- [x] `pnpm --filter @stenmont/api test` green (68 tests)
+- [x] Staging end to end, on the real chain: API created invoice, demo payer paid it, the indexer marked it paid, two webhooks (`invoice.created`, `invoice.paid`) delivered with HTTP 200 on the first attempt
+- [ ] Production: not deployed (needs a production router first, then migrations, queue, cron)
+- [ ] Commit lines added to `commits.md`
