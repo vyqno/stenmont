@@ -24,10 +24,11 @@
 ## Keys and funds (test only; keys go in `.env`, never in chat)
 
 - [x] Four wallets in `.env` (gitignored): `STENMONT_DEPLOYER`, `STENMONT_RELAYER`, `STENMONT_ATTESTER` (signs World/ENS attestations), `STENMONT_DEMO_PAYER`, each with `_ADDRESS` and `_PRIVATE_KEY`
-- [ ] WBT from https://faucet.testnet.whitechain.io (GitHub sign-in) to the deployer and relayer wallets (an older test wallet `0xc4b02aE9603D3d9CD5653760dbdF337F6c552c0A` already holds 0.9986 WBT and 75.21 USDT; send some to the new wallets)
-- [ ] Official USDT to `DEMO_PAYER` (faucet, or swap WBT at https://testnet.yetitrade.fi). Check: `cast call 0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7 "balanceOf(address)(uint256)" $STENMONT_DEMO_PAYER_ADDRESS --rpc-url https://rpc.testnet.whitechain.io` is above 0
-- [ ] Sepolia ETH to `DEPLOYER`; mint ENS MockUSDC `0x240b0316df57887dbbe58b586508b19e633a14aa`
-- [ ] Register `stenmont.eth` on Sepolia: `ens register commit stenmont.eth --owner $STENMONT_DEPLOYER_ADDRESS --chain sepolia`, wait 60 s, `ens register reveal …`
+- [x] WBT from https://faucet.testnet.whitechain.io (GitHub sign-in) to the deployer and relayer wallets (an older test wallet `0xc4b02aE9603D3d9CD5653760dbdF337F6c552c0A` already holds 0.9986 WBT and 75.21 USDT; send some to the new wallets) (funded: deployer 0.3, relayer 0.4)
+- [x] Official USDT to `DEMO_PAYER` (faucet, or swap WBT at https://testnet.yetitrade.fi). Check: `cast call 0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7 "balanceOf(address)(uint256)" $STENMONT_DEMO_PAYER_ADDRESS --rpc-url https://rpc.testnet.whitechain.io` is above 0 (demo payer 30 USDT; deployer 10 USDT)
+- [x] Sepolia ETH to `DEPLOYER` (2 ETH)
+- [ ] Mint ENS MockUSDC `0x240b0316df57887dbbe58b586508b19e633a14aa` on Sepolia
+- [ ] Register `stenmont.eth` on Sepolia (it is already registered on mainnet by the owner wallet; Sepolia is separate): `ens register commit stenmont.eth --owner $STENMONT_DEPLOYER_ADDRESS --chain sepolia`, wait 60 s, `ens register reveal …`
 - [ ] World Agent Pass app at https://auth.world.org/portal: name `Stenmont`, redirect `https://app.stenmont.com/auth/world/callback`, client secret (Basic), Orb accepted, Face Auth on → `WORLD_OIDC_CLIENT_ID`, `WORLD_OIDC_CLIENT_SECRET`
 - [ ] World IDKit app at https://developer.world.org with actions `enrol-business` and `allow-investor` → `WORLD_APP_ID`, `WORLD_RP_ID`, `WORLD_RP_SIGNING_KEY`
 

@@ -16,25 +16,12 @@
 ### Task 2.1: PaymentRouter, invoice lifecycle
 
 **Files:** Create `contracts/src/PaymentRouter.sol`, `contracts/src/interfaces/{IPaymentRouter,IUSDT,IClaimPayout}.sol` (`IPaymentRouter` declares the `Invoice`, `CreateInvoice` and `Auth` structs), `contracts/test/PaymentRouter.t.sol`, `contracts/test/mocks/MockUSDT.sol` (EIP-3009 mock for unit tests)
-**Produces (exact):**
-```solidity
-enum Status { None, Open, Paid, Cancelled }
-struct Invoice { address merchant; address payout; address hook; uint128 amount; uint128 paid; uint128 refunded; uint64 dueDate; Status status; bytes32 metaHash; }
-struct CreateInvoice { address merchant; bytes32 id; address payout; uint128 amount; uint64 dueDate; bytes32 metaHash; uint256 deadline; }
-struct Auth { address payer; uint256 validAfter; uint256 validBefore; bytes32 nonce; bytes signature; }
-function createInvoice(CreateInvoice calldata req, bytes calldata merchantSig) external;
-function cancel(bytes32 id, uint256 deadline, bytes calldata merchantSig) external;
-function invoices(bytes32 id) external view returns (Invoice memory);
-event InvoiceCreated(bytes32 indexed id, address indexed merchant, address payout, uint128 amount, uint64 dueDate, bytes32 metaHash);
-event InvoiceCancelled(bytes32 indexed id);
-error InvoiceExists(); error InvoiceNotOpen(); error Expired(); error BadSignature();
-```
-EIP-712 domain: name `"Stenmont PaymentRouter"`, version `"1"`. Merchant signatures verified with `SignatureChecker.isValidSignatureNow(merchant, digest, sig)` so smart accounts (ERC-1271) work.
+**Produces:** see `contracts/src/interfaces/IPaymentRouter.sol` and `contracts/src/PaymentRouter.sol` (source of truth). Built beyond the original sketch: merchant-scoped ids (`ref`), payment nonces derived from the invoice id (a relayer cannot redirect a signed payment), per-payer refund caps, payer lock, minimum partial payment, delegated creation, payout hook, pause, and human approval for large refunds.
 
-- [ ] Failing tests: `test_createInvoice_storesInvoiceAndEmits`, `test_createInvoice_twiceReverts_InvoiceExists`, `test_createInvoice_expiredDeadlineReverts_Expired`, `test_createInvoice_wrongSignerReverts_BadSignature`, `test_cancel_setsCancelled`, `test_cancel_paidInvoiceReverts_InvoiceNotOpen`
-- [ ] Run `cd contracts && forge test --match-contract PaymentRouterTest` → FAIL
-- [ ] Implement `createInvoice` and `cancel` per the signatures; store `status = Open`
-- [ ] Run the same command → PASS
+- [x] Failing tests: `test_createInvoice_storesInvoiceAndEmits`, `test_createInvoice_twiceReverts_InvoiceExists`, `test_createInvoice_expiredDeadlineReverts_Expired`, `test_createInvoice_wrongSignerReverts_BadSignature`, `test_cancel_setsCancelled`, `test_cancel_paidInvoiceReverts_InvoiceNotOpen`
+- [x] Run `cd contracts && forge test --match-contract PaymentRouterTest` → FAIL
+- [x] Implement `createInvoice` and `cancel` per the signatures; store `status = Open`
+- [x] Run the same command → PASS
 - [ ] Commit line: `feat: add PaymentRouter invoice creation and cancel`
 
 ### Task 2.2: PaymentRouter, pay and refund
@@ -51,11 +38,11 @@ error Overpay(); error RefundTooLarge();
 ```
 `pay` calls `usdt.receiveWithAuthorization(a.payer, address(this), value, …)`, then sends `value` to `invoice.payout` (or to `invoice.hook` and calls `IClaimPayout(hook).onPaid(id, value)` when `hook != address(0)`). `refund` pulls from the merchant with their authorization and forwards to `to`.
 
-- [ ] Failing tests: `test_pay_full_marksPaid_andForwardsToPayout`, `test_pay_partial_thenRest`, `test_pay_overpay_reverts`, `test_pay_afterPaid_reverts_InvoiceNotOpen`, `test_pay_afterCancel_reverts`, `test_refund_partial`, `test_refund_aboveRemaining_reverts_RefundTooLarge`, `test_pay_withHook_callsOnPaid` (hook is a mock)
-- [ ] Invariant test `invariant_routerHoldsNoUSDT`: handler fuzzes create/pay/refund/cancel; asserts `usdt.balanceOf(router) == 0` after every call
-- [ ] Run `forge test` → FAIL
-- [ ] Implement `pay` and `refund`
-- [ ] Run `forge test` → PASS (unit + 256 invariant runs)
+- [x] Failing tests: `test_pay_full_marksPaid_andForwardsToPayout`, `test_pay_partial_thenRest`, `test_pay_overpay_reverts`, `test_pay_afterPaid_reverts_InvoiceNotOpen`, `test_pay_afterCancel_reverts`, `test_refund_partial`, `test_refund_aboveRemaining_reverts_RefundTooLarge`, `test_pay_withHook_callsOnPaid` (hook is a mock)
+- [x] Invariant test `invariant_routerHoldsNoUSDT`: handler fuzzes create/pay/refund/cancel; asserts `usdt.balanceOf(router) == 0` after every call
+- [x] Run `forge test` → FAIL
+- [x] Implement `pay` and `refund`
+- [x] Run `forge test` → PASS (unit + 256 invariant runs)
 - [ ] Commit line: `feat: add PaymentRouter pay and refund`
 
 ### Task 2.3: Deploy and verify on Whitechain Sepolia, first real payment

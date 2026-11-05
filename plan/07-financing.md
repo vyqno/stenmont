@@ -18,8 +18,10 @@
 **Files:** Modify `contracts/src/PaymentRouter.sol`, tests; redeploy
 **Produces:** `function setHook(bytes32 id, address hook, uint256 deadline, bytes calldata merchantSig) external;` allowed only while `status == Open && paid == 0 && hook == address(0)`; event `HookSet(bytes32 indexed id, address hook)`; errors `HookLocked()`.
 
-- [ ] Failing tests: `test_setHook_beforePayment_ok`, `test_setHook_afterPartialPayment_reverts_HookLocked`, `test_setHook_twice_reverts_HookLocked`, `test_setHook_badSig_reverts_BadSignature`
-- [ ] Run `forge test` → FAIL; implement; run → PASS
+> Built in Task 2.1: `setHook` is part of `PaymentRouter` (with `HookLocked`, `NotAContract`). Only the redeploy step remains.
+
+- [x] Failing tests: `test_setHook_beforePayment_ok`, `test_setHook_afterPartialPayment_reverts_HookLocked`, `test_setHook_twice_reverts_HookLocked`, `test_setHook_badSig_reverts_BadSignature`
+- [x] Run `forge test` → FAIL; implement; run → PASS
 - [ ] Commit line: `feat: add invoice payout hook`
 
 ### Task 7.2: InvestorRegistry

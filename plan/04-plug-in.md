@@ -18,8 +18,10 @@
 **Files:** Modify `contracts/src/PaymentRouter.sol`, `contracts/test/PaymentRouter.t.sol`; redeploy with `script/DeployRouter.s.sol`
 **Produces:** `function setCreator(address creator, bool allowed, uint256 deadline, bytes calldata merchantSig) external;` `function createInvoiceAsCreator(CreateInvoice calldata req) external;` (reverts `NotCreator()` unless `creators[req.merchant][msg.sender]`), event `CreatorSet(address indexed merchant, address indexed creator, bool allowed)`.
 
-- [ ] Failing tests: `test_setCreator_thenCreateInvoiceAsCreator_works`, `test_createAsCreator_withoutDelegation_reverts_NotCreator`, `test_setCreator_revoked_thenCreateReverts`
-- [ ] Run `forge test` → FAIL; implement; run → PASS (all earlier tests still pass)
+> Built in Task 2.1: delegation (`setCreator`, `createInvoiceAsCreator`) is part of `PaymentRouter`. Only the redeploy step remains.
+
+- [x] Failing tests: `test_setCreator_thenCreateInvoiceAsCreator_works`, `test_createAsCreator_withoutDelegation_reverts_NotCreator`, `test_setCreator_revoked_thenCreateReverts`
+- [x] Run `forge test` → FAIL; implement; run → PASS (all earlier tests still pass)
 - [ ] Redeploy, verify, update `addresses.ts`, point the indexer at the new address
 - [ ] Commit line: `feat: let merchants delegate invoice creation`
 
