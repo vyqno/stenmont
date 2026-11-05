@@ -9,7 +9,10 @@
     "create-merchant": "tsx --env-file=../.env create-merchant.ts",
     "delegate-creator": "tsx --env-file=../.env delegate-creator.ts",
     "pay-invoice": "tsx --env-file=../.env pay-invoice.ts",
-    "spike:p256": "tsx --env-file=../.env spikes/p256.ts"
+    "spike:p256": "tsx --env-file=../.env spikes/p256.ts",
+    "fund-gas-tank": "tsx --env-file=../.env fund-gas-tank.ts",
+    "relay-pay": "tsx --env-file=../.env relay-pay.ts",
+    "drain-sim": "tsx --env-file=../.env drain-sim.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
