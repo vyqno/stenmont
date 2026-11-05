@@ -23,6 +23,17 @@
         "txHash": "0xaf386d5465cef666a0642fd9a0378d6451b85adca29844afe5cb47500a1cd451",
         "verified": true,
         "implementation": "0xf5cA54b1da9fc2E3CAF9CbD17C60D98554cB800C"
+      },
+      "SubscriptionManager": {
+        "address": "0x3e1C51d461e6adb0b087DC39d41942E084eba2DD",
+        "deployBlock": 12317092,
+        "txHash": "0x0db11fea4ed1b52ea82291680b2a7d5241efd8df79f7d55ab8574f768f2847a6",
+        "verified": true,
+        "constructor": {
+          "usdt": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+          "owner": "0x50c94c3021962047F10c9c58D80C4A7b73182a63",
+          "guardian": "0x50c94c3021962047F10c9c58D80C4A7b73182a63"
+        }
       }
     }
   }
