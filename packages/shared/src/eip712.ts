@@ -34,3 +34,38 @@ export function buildReceiveAuth(args: {
     message: args,
   };
 }
+
+/** Field order must match PaymentRouter.CREATE_INVOICE_TYPEHASH exactly (a test pins it to the deployed contract). */
+export const createInvoiceTypes = {
+  CreateInvoice: [
+    { name: "merchant", type: "address" },
+    { name: "ref", type: "bytes32" },
+    { name: "payout", type: "address" },
+    { name: "payerLock", type: "address" },
+    { name: "amount", type: "uint128" },
+    { name: "minPayment", type: "uint128" },
+    { name: "dueDate", type: "uint64" },
+    { name: "metaHash", type: "bytes32" },
+    { name: "deadline", type: "uint256" },
+  ],
+} as const;
+
+export function routerDomain(verifyingContract: Address) {
+  return {
+    name: "Stenmont PaymentRouter",
+    version: "1",
+    chainId: 1874,
+    verifyingContract,
+  } as const satisfies TypedDataDomain;
+}
+
+/** Merchant delegates invoice creation to a creator (the relayer). Pinned to the deployed typehash by a test. */
+export const setCreatorTypes = {
+  SetCreator: [
+    { name: "merchant", type: "address" },
+    { name: "creator", type: "address" },
+    { name: "allowed", type: "bool" },
+    { name: "deadline", type: "uint256" },
+    { name: "nonce", type: "uint256" },
+  ],
+} as const;
