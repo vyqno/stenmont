@@ -12,7 +12,11 @@ contract MockUSDT is ERC20, EIP712 {
         "ReceiveWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)"
     );
 
+    bytes32 public constant PERMIT_TYPEHASH =
+        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+
     mapping(address authorizer => mapping(bytes32 nonce => bool)) public authorizationState;
+    mapping(address owner => uint256) public nonces;
 
     constructor() ERC20("Tether USD", "USDT") EIP712("Tether USD", "1") {}
 
@@ -47,5 +51,16 @@ contract MockUSDT is ERC20, EIP712 {
         require(SignatureChecker.isValidSignatureNow(from, digest, signature), "invalid signature");
         authorizationState[from][nonce] = true;
         _transfer(from, to, value);
+    }
+
+    /// @notice EIP-2612 permit with the signature as `bytes` (ERC-1271 smart accounts work), like the real token.
+    function permit(address owner, address spender, uint256 value, uint256 deadline, bytes calldata signature)
+        external
+    {
+        require(block.timestamp <= deadline, "permit is expired");
+        bytes32 digest =
+            _hashTypedDataV4(keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, nonces[owner]++, deadline)));
+        require(SignatureChecker.isValidSignatureNow(owner, digest, signature), "invalid permit signature");
+        _approve(owner, spender, value);
     }
 }
