@@ -1,11 +1,12 @@
 import { drizzle, type DrizzleD1Database } from "drizzle-orm/d1";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { requireApiKey } from "./auth";
+import { isAppOrigin, requireAuth } from "./auth";
 import { viemChain, type ChainClient } from "./chain";
 import type { merchants } from "./db/schema";
 import type { Env } from "./env";
 import { fail } from "./errors";
+import { authRoutes } from "./routes/auth";
 import { invoiceRoutes } from "./routes/invoices";
 import { gasTankRoutes } from "./routes/gasTank";
 import { linkRoutes } from "./routes/links";
@@ -32,13 +33,18 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   });
 
   // Browsers may call only the public endpoints, and only from our own app (or localhost outside production).
-  const publicCors = cors({
-    origin: (origin, c) =>
-      origin === c.env.APP_URL || (c.env.ENVIRONMENT !== "production" && /^http:\/\/localhost:\d+$/.test(origin)) ? origin : null,
-    allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["content-type"],
+  const origin = (o: string, c: { env: Env }) => (isAppOrigin(o, c.env) ? o : null);
+  const publicCors = cors({ origin, allowMethods: ["GET", "POST", "OPTIONS"], allowHeaders: ["content-type"], maxAge: 600 });
+  // The sign-in and merchant API are for our own app only, and may carry the session cookie.
+  const appCors = cors({
+    origin,
+    credentials: true,
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowHeaders: ["content-type", "idempotency-key"],
     maxAge: 600,
   });
+  app.use("/auth/*", appCors);
+  app.use("/v1/*", appCors);
   app.use("/pay/*", publicCors);
   app.use("/l/*", publicCors);
   app.use("/relay/*", publicCors);
@@ -46,13 +52,14 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.get("/health", (c) => c.json({ ok: true }));
 
   const v1 = new Hono<AppEnv>();
-  v1.use("*", requireApiKey);
+  v1.use("*", requireAuth);
   v1.get("/me", (c) => c.json({ id: c.var.merchant.id, name: c.var.merchant.name }));
   v1.route("/invoices", invoiceRoutes);
   v1.route("/payment-links", linkRoutes);
   v1.route("/webhook-endpoints", webhookEndpointRoutes);
   v1.route("/gas-tank", gasTankRoutes);
   app.route("/v1", v1);
+  app.route("/auth", authRoutes);
   app.route("/relay", relayRoutes);
   app.route("/", publicRoutes);
 

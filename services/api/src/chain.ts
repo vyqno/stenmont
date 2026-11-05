@@ -1,6 +1,6 @@
 import { BaseError, createPublicClient, decodeErrorResult, encodeFunctionData, http, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { USDT_ADDRESS, passkeyAccountFactoryAbi, paymentRouterAbi, usdtAbi, whitechainSepolia } from "@stenmont/shared";
+import { MULTICALL3_ADDRESS, USDT_ADDRESS, multicall3Abi, passkeyAccountFactoryAbi, paymentRouterAbi, usdtAbi, whitechainSepolia } from "@stenmont/shared";
 import type { Env } from "./env";
 import type { Call } from "./relayer/sender";
 
@@ -14,6 +14,18 @@ export type CreateInvoiceRequest = {
   dueDate: bigint;
   metaHash: Hex;
   deadline: bigint;
+};
+
+/** Creates a business's passkey account and authorises the relayer to create invoices for it, in one transaction. */
+export type ActivateRequest = {
+  account: Address;
+  qx: Hex;
+  qy: Hex;
+  salt: Hex;
+  creator: Address;
+  deadline: bigint;
+  /** The passkey's signature over the router's SetCreator digest (six WebAuthn fields, ABI-encoded flat). */
+  signature: Hex;
 };
 
 type Base = { transactionHash: Hex; logIndex: number; blockNumber: bigint };
@@ -34,6 +46,10 @@ export type Receipt = { status: "success" | "reverted"; gasUsed: bigint; effecti
 export interface ChainClient {
   /** Creates the invoice onchain through the router's delegation (the relayer is the merchant's creator). Resolves after the receipt. */
   createInvoice(req: CreateInvoiceRequest): Promise<{ txHash: Hex }>;
+  /** Deploys the passkey account and registers the relayer as its invoice creator (Multicall3). Resolves after the receipt. */
+  activateMerchant(req: ActivateRequest): Promise<{ txHash: Hex }>;
+  /** The relayer wallet: the address merchants authorise to create invoices for them. */
+  relayerAddress(): Address;
   getBlockNumber(): Promise<bigint>;
   getRouterLogs(fromBlock: bigint, toBlock: bigint): Promise<RouterLog[]>;
   // relayer
@@ -101,6 +117,28 @@ export function viemChain(env: Env): ChainClient {
       const txHash = await sender().submit(call);
       const receipt = await wait(txHash);
       if (receipt.status !== "success") throw new Error(`createInvoice reverted in ${txHash}`);
+      return { txHash };
+    },
+    relayerAddress: () => relayer,
+    async activateMerchant(req) {
+      const createData = encodeFunctionData({ abi: passkeyAccountFactoryAbi, functionName: "createAccount", args: [req.qx, req.qy, req.salt] });
+      const delegateData = encodeFunctionData({
+        abi: paymentRouterAbi,
+        functionName: "setCreator",
+        args: [req.account, req.creator, true, req.deadline, req.signature],
+      });
+      const call = {
+        to: MULTICALL3_ADDRESS,
+        data: encodeFunctionData({
+          abi: multicall3Abi,
+          functionName: "aggregate3",
+          args: [[{ target: env.FACTORY_ADDRESS as Address, allowFailure: false, callData: createData }, { target: router, allowFailure: false, callData: delegateData }]],
+        }),
+      };
+      await estimate(call);
+      const txHash = await sender().submit(call);
+      const receipt = await wait(txHash);
+      if (receipt.status !== "success") throw new Error(`activateMerchant reverted in ${txHash}`);
       return { txHash };
     },
     getBlockNumber: () => publicClient.getBlockNumber(),

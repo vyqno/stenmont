@@ -33,11 +33,13 @@ describe("CORS: only our own app origin may call the public endpoints from a bro
     const prod = setup({}, { ENVIRONMENT: "production" });
     expect((await get(prod, "/relay/account", "http://localhost:3000", "OPTIONS")).headers.get("access-control-allow-origin")).toBeNull();
   });
-  it("never opens the merchant API (/v1) to browsers", async () => {
+  it("opens the merchant API (/v1) to our own app only, never to other websites", async () => {
     const t = setup();
     const key = await seedMerchant(t.db);
-    const res = await t.req("/v1/me", { key, headers: { origin: "https://app.test" } });
-    expect(res.status).toBe(200);
-    expect(res.headers.get("access-control-allow-origin")).toBeNull();
+    const own = await t.req("/v1/me", { key, headers: { origin: "https://app.test" } });
+    expect(own.headers.get("access-control-allow-origin")).toBe("https://app.test");
+    const other = await t.req("/v1/me", { key, headers: { origin: "https://evil.example" } });
+    expect(other.status).toBe(200);
+    expect(other.headers.get("access-control-allow-origin")).toBeNull();
   });
 });

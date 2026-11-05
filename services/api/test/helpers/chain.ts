@@ -1,6 +1,7 @@
-import { Rejected, type ChainClient } from "../../src/chain";
+import { Rejected, type ActivateRequest, type ChainClient } from "../../src/chain";
 import type { Call } from "../../src/relayer/sender";
 
+export const RELAYER_ADDRESS = "0xe4F5853650f40f04e920c62F6dE9e4e38D767B66" as const;
 export const PASSKEY_ADDRESS = "0x2222222222222222222222222222222222222222" as const;
 const hash = (n: number) => `0x${n.toString(16).padStart(64, "0")}` as `0x${string}`;
 
@@ -8,11 +9,20 @@ const hash = (n: number) => `0x${n.toString(16).padStart(64, "0")}` as `0x${stri
 export function fakeChain(overrides: Partial<ChainClient> = {}) {
   const calls: unknown[] = [];
   const sent: Call[] = [];
+  const activations: ActivateRequest[] = [];
   const counts = { estimate: 0 };
-  const chain: ChainClient & { calls: unknown[]; sent: Call[]; counts: typeof counts } = {
+  const chain: ChainClient & { calls: unknown[]; sent: Call[]; activations: ActivateRequest[]; counts: typeof counts } = {
     calls,
     sent,
+    activations,
     counts,
+    relayerAddress() {
+      return RELAYER_ADDRESS;
+    },
+    async activateMerchant(req) {
+      activations.push(req);
+      return { txHash: hash(5000 + activations.length) };
+    },
     async createInvoice(req) {
       calls.push(req);
       return { txHash: hash(calls.length) };

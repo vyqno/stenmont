@@ -16,6 +16,8 @@ export type Env = {
   APP_URL: string;
   API_URL: string;
   FACTORY_ADDRESS: string;
+  /** Parent domain for the session cookie, so the app and the API (sibling subdomains) share it. Unset = host-only. */
+  COOKIE_DOMAIN?: string;
   INDEXER_CONFIRMATIONS?: string;
   // secrets (wrangler secret)
   RELAYER_PRIVATE_KEY: string;

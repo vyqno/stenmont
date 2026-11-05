@@ -9,6 +9,7 @@ import { relayerTxs } from "../db/schema";
 import { fail } from "../errors";
 import { hitRateLimit } from "../relayer/caps";
 import { STATUS_OF, relayPay } from "../relayer/relay";
+import { clientIp } from "../lib/request";
 import { amountSchema, invalid } from "../lib/validation";
 
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
@@ -25,9 +26,6 @@ const payBody = z.strictObject({
   signature: z.string().regex(/^0x([0-9a-fA-F]{2}){1,2048}$/),
   account: z.strictObject({ qx: word, qy: word, salt: word }).optional(),
 });
-
-const clientIp = (c: { req: { header(n: string): string | undefined } }) =>
-  c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
 
 export const relayRoutes = new Hono<AppEnv>();
 

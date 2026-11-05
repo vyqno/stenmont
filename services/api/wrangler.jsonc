@@ -46,6 +46,7 @@
         "ROUTER_DEPLOY_BLOCK": "12312560",
         "FACTORY_ADDRESS": "0x5101c37647581c81b462436af2D7ac8ccD08D33A",
         "INDEXER_CONFIRMATIONS": "2",
+        "COOKIE_DOMAIN": ".stenmont.com",
         "APP_URL": "https://app-staging.stenmont.com",
         "API_URL": "https://api-staging.stenmont.com"
       },
@@ -75,6 +76,7 @@
         "ROUTER_DEPLOY_BLOCK": "0",
         "FACTORY_ADDRESS": "0x0000000000000000000000000000000000000000",
         "INDEXER_CONFIRMATIONS": "2",
+        "COOKIE_DOMAIN": ".stenmont.com",
         "APP_URL": "https://app.stenmont.com",
         "API_URL": "https://api.stenmont.com"
       },

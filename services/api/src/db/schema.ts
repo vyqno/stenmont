@@ -8,6 +8,36 @@ export const merchants = sqliteTable("merchants", {
   ensName: text("ens_name"),
   address: text("address"), // the onchain signer (EOA or smart account) that owns this merchant's invoices
   payoutAddress: text("payout_address"),
+  status: text("status").notNull().default("active"), // pending (signed up, account not yet activated) | active
+  createdAt: text("created_at").notNull(),
+});
+
+export const passkeys = sqliteTable("passkeys", {
+  id: text("id").primaryKey(), // WebAuthn credential id, base64url
+  merchantId: text("merchant_id").notNull(),
+  qx: text("qx").notNull(),
+  qy: text("qy").notNull(),
+  counter: integer("counter").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+});
+
+export const authChallenges = sqliteTable("auth_challenges", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull(), // register | activate | login
+  challenge: text("challenge").notNull(), // base64url of the exact bytes the passkey must sign
+  merchantId: text("merchant_id"),
+  data: text("data").notNull().default("{}"),
+  expiresAt: text("expires_at").notNull(),
+  claimedAt: text("claimed_at"), // short lock while a request is working on it
+  usedAt: text("used_at"),
+  createdAt: text("created_at").notNull(),
+});
+
+export const sessions = sqliteTable("sessions", {
+  tokenHash: text("token_hash").primaryKey(), // sha256 of the cookie value; the cookie itself is never stored
+  merchantId: text("merchant_id").notNull(),
+  passkeyId: text("passkey_id").notNull(),
+  expiresAt: text("expires_at").notNull(),
   createdAt: text("created_at").notNull(),
 });
 
