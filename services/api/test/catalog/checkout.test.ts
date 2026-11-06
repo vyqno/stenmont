@@ -134,7 +134,7 @@ describe("POST /v1/store/checkout", () => {
     expect((await t.req("/v1/store/checkout", { method: "POST", idem: "k", body: "{}" })).status).toBe(401);
   });
 
-  it("releases an unpaid reservation after it expires, but keeps stock for a paid one", async () => {
+  it("keeps expired reservations while invoices remain payable, and recognizes a late payment", async () => {
     const { t, a, mug, stock } = await shop({ inventory: 2 });
     const unpaid = (await (await post(t, a, "/v1/store/checkout", { items: [{ variantId: mug, quantity: 1 }] })).json()) as any;
     const paid = (await (await post(t, a, "/v1/store/checkout", { items: [{ variantId: mug, quantity: 1 }] })).json()) as any;
@@ -143,12 +143,15 @@ describe("POST /v1/store/checkout", () => {
     t.clock.now = new Date(t.clock.now.getTime() + 31 * 60_000);
     const orders = (await (await json(t, a, "GET", "/v1/store/orders")).json()) as any;
     const status = Object.fromEntries(orders.data.map((o: any) => [o.id, o.status]));
-    expect(status[unpaid.orderId]).toBe("released");
+    expect(status[unpaid.orderId]).toBe("reserved");
     expect(status[paid.orderId]).toBe("paid");
-    expect(await stock(mug)).toBe(1);
-    // releasing again changes nothing
-    await json(t, a, "GET", "/v1/store/orders");
-    expect(await stock(mug)).toBe(1);
+    expect(await stock(mug)).toBe(0);
+    // The original invoice can still be paid: its stock must not have been sold a second time.
+    expect((await post(t, a, "/v1/store/checkout", { items: [{ variantId: mug, quantity: 1 }] })).status).toBe(409);
+    await t.db.prepare("update invoices set status = 'paid' where id = ?").bind(unpaid.invoice.id).run();
+    const later = (await (await json(t, a, "GET", "/v1/store/orders")).json()) as any;
+    expect(later.data.find((o: any) => o.id === unpaid.orderId).status).toBe("paid");
+    expect(await stock(mug)).toBe(0);
   });
 
   it("shows a business only its own orders", async () => {
@@ -156,5 +159,39 @@ describe("POST /v1/store/checkout", () => {
     await post(t, a, "/v1/store/checkout", { items: [{ variantId: mug, quantity: 1 }] });
     expect(((await (await json(t, b, "GET", "/v1/store/orders")).json()) as any).data).toEqual([]);
     expect(((await (await json(t, a, "GET", "/v1/store/orders")).json()) as any).data).toHaveLength(1);
+  });
+});
+
+
+describe("authoritative stock release", () => {
+  it("releases once only after a confirmed empty unhooked cancellation", async () => {
+    const { t, a, mug, stock } = await shop({ inventory: 1 });
+    const made = await (await post(t, a, "/v1/store/checkout", { items: [{ variantId: mug, quantity: 1 }] })).json() as any;
+    await t.db.prepare("update invoices set status='cancelled' where id=?").bind(made.invoice.id).run();
+    t.clock.now = new Date(t.clock.now.getTime() + 31 * 60_000);
+    t.chain.invoiceState = async () => ({ status: 3, paid: 0n, hook: "0x0000000000000000000000000000000000000000" });
+    const orders = await (await json(t, a, "GET", "/v1/store/orders")).json() as any;
+    expect(orders.data[0].status).toBe("released");
+    expect(await stock(mug)).toBe(1);
+    await json(t, a, "GET", "/v1/store/orders");
+    expect(await stock(mug)).toBe(1);
+  });
+
+  it("holds stock for hosted expiry, RPC uncertainty, partial payment, financing and pending relay work", async () => {
+    for (const condition of ["hosted", "rpc", "paid", "hook", "pending", "indexed"]) {
+      const { t, a, mug, stock } = await shop({ inventory: 1 });
+      const made = await (await post(t, a, "/v1/store/checkout", { items: [{ variantId: mug, quantity: 1 }] })).json() as any;
+      await t.db.prepare("update invoices set status=? where id=?").bind(condition === "hosted" ? "expired" : "cancelled", made.invoice.id).run();
+      t.clock.now = new Date(t.clock.now.getTime() + 31 * 60_000);
+      t.chain.invoiceState = async () => {
+        if (condition === "rpc") throw new Error("RPC unavailable");
+        return { status: condition === "hosted" ? 1 : 3, paid: condition === "paid" ? 1n : 0n, hook: condition === "hook" ? "0x1111111111111111111111111111111111111111" : "0x0000000000000000000000000000000000000000" };
+      };
+      if (condition === "pending") await t.db.prepare("insert into relayer_txs(id,merchant_id,invoice_id,kind,payer,value,status,idempotency_key,created_at,updated_at) values('hold','m_1',?,'pay','payer','1','sent','hold',?,?)").bind(made.invoice.id,t.clock.now.toISOString(),t.clock.now.toISOString()).run();
+      if (condition === "indexed") await t.db.prepare("update invoices set amount_paid='1' where id=?").bind(made.invoice.id).run();
+      const orders = await (await json(t, a, "GET", "/v1/store/orders")).json() as any;
+      expect(orders.data[0].status, condition).toBe("reserved");
+      expect(await stock(mug), condition).toBe(0);
+    }
   });
 });

@@ -31,7 +31,7 @@ export async function placeOrder(c: Context<AppEnv>, input: z.infer<typeof cartS
   const { db, merchant } = c.var;
   {
     const now = c.var.now();
-    await settleOrders(db, merchant.id, now);
+    await settleOrders(db, merchant.id, now, c.var.chain);
 
     const qty = new Map<string, number>();
     for (const i of input.items) qty.set(i.variantId, (qty.get(i.variantId) ?? 0) + i.quantity);
@@ -107,7 +107,7 @@ checkoutRoutes.post("/checkout", async (c) => {
 });
 
 checkoutRoutes.get("/orders", async (c) => {
-  await settleOrders(c.var.db, c.var.merchantId, c.var.now());
+  await settleOrders(c.var.db, c.var.merchantId, c.var.now(), c.var.chain);
   const rows = await c.var.db.select().from(storeOrders).where(eq(storeOrders.merchantId, c.var.merchantId)).orderBy(desc(storeOrders.createdAt)).limit(100);
   return c.json({
     data: rows.map((o) => ({ id: o.id, status: o.status, total: fromUnits(BigInt(o.total)), invoiceId: o.invoiceId, lines: JSON.parse(o.lines).map(({ tracked: _t, ...l }: OrderLine) => l), createdAt: o.createdAt })),

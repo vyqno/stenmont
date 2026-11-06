@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Hex } from "viem";
 import { toUnits } from "@stenmont/shared";
 import { createPasskey, loadPasskey, signDigest } from "../../../lib/passkey";
-import { ZERO_SALT, apiBase, formatAmount, friendly, isTestEnvironment } from "../../../lib/pay";
+import { ZERO_SALT, apiBase, formatAmount, friendly } from "../../../lib/pay";
 import { cancelDigest, permitDigest, permitValue, planCopy, subscribeDigest, signingTerms, type Terms } from "../../../lib/subscribe";
 
 type View =
@@ -55,18 +55,10 @@ export default function SubscribeClient({ id }: { id: string }) {
       step("Setting things up…");
       const key = loadPasskey() ?? (await createPasskey());
       const lookup = () => post(base, "/relay/account", { qx: key.qx, qy: key.qy, salt: ZERO_SALT });
-      let info = (await lookup()).json as { address: Hex; balance: string; permitNonce: string; subscriptionAllowance: string };
+      const info = (await lookup()).json as { address: Hex; balance: string; permitNonce: string; subscriptionAllowance: string };
 
       if (toUnits(info.balance) < toUnits(terms.segments?.[0]?.amount ?? terms.amount)) {
-        if (!isTestEnvironment(host)) throw new StepError("insufficient");
-        step("Adding test funds…");
-        const faucet = await post(base, "/relay/faucet", { address: info.address });
-        if (!faucet.ok && toUnits(info.balance) < toUnits(terms.amount)) throw new StepError(faucet.json.error?.code ?? "faucet_limit");
-        for (let i = 0; i < 25 && toUnits(info.balance) < toUnits(terms.amount); i++) {
-          await sleep(2_000);
-          info = (await lookup()).json as typeof info;
-        }
-        if (toUnits(info.balance) < toUnits(terms.amount)) throw new StepError("busy");
+        throw new StepError("insufficient");
       }
 
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 3_600);
@@ -99,7 +91,7 @@ export default function SubscribeClient({ id }: { id: string }) {
       setView({ kind: "active", terms });
     } catch (e) {
       const code = e instanceof StepError ? e.code : e instanceof DOMException && e.name === "NotAllowedError" ? "cancelled" : "unknown";
-      setView({ kind: "ready", terms, notice: code === "insufficient" ? "You don't have enough funds for the first payment." : friendly(code) });
+      setView({ kind: "ready", terms, notice: code === "insufficient" ? "You don't have enough funds for the first payment. Bring your own USDT before trying again." : friendly(code) });
     }
   }, []);
 
