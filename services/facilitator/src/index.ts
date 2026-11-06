@@ -4,6 +4,7 @@ import { z } from "zod";
 import { USDT_ADDRESS, buildTransferAuth } from "@stenmont/shared";
 import { transferCalldata, viemChain, type Auth, type Chain, type ChainEnv } from "./chain";
 import { D1Store, type SettlementStore } from "./store";
+import { D1Counters, D1Payees, DEFAULT_LIMITS, limitsFromEnv, type CounterStore, type Limits, type PayeeStore } from "./guard";
 
 export const NETWORK = "eip155:1874";
 const MIN_WBT_DEFAULT = 20_000_000_000_000_000n; // 0.02 WBT, same floor as the API relayer
@@ -34,14 +35,50 @@ type Requirements = z.infer<typeof requirementsSchema>;
 type Payload = z.infer<typeof payloadSchema>;
 type Verdict = { ok: true; payer: Address; auth: Auth } | { ok: false; reason: string; payer?: Address };
 
-export type Deps = { chain: Chain; store: SettlementStore; now: () => number; minWbtWei?: bigint };
+export type Deps = {
+  chain: Chain;
+  store: SettlementStore;
+  now: () => number;
+  minWbtWei?: bigint;
+  /** Only these payees are served. The Worker always sets it; left out only in tests of the core checks. */
+  payees?: PayeeStore;
+  counters?: CounterStore;
+  limits?: Limits;
+};
 
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 const bad = (reason: string, payer?: Address): Verdict => ({ ok: false, reason, payer });
 
+async function payeeAllowed(d: Deps, payTo: string) {
+  return !d.payees || (await d.payees.isAllowed(payTo));
+}
+
+/** Counts one settlement against the global, payee and payer windows; all or nothing. Returns the buckets taken, or the refusal reason. */
+async function takeCaps(d: Deps, payer: Address, payTo: string): Promise<{ buckets: string[] } | { reason: string }> {
+  if (!d.counters) return { buckets: [] };
+  const l = d.limits ?? DEFAULT_LIMITS;
+  const day = Math.floor(d.now() / 86400);
+  const minute = Math.floor(d.now() / 60);
+  const plan: [string, number, string][] = [
+    [`payer:${payer.toLowerCase()}:${minute}`, l.perPayerMinute, "payer_rate_limited"],
+    [`payee:${payTo.toLowerCase()}:${day}`, l.perPayeeDay, "payee_daily_cap_reached"],
+    [`global:${day}`, l.globalDay, "global_daily_cap_reached"],
+  ];
+  const taken: string[] = [];
+  for (const [bucket, limit, reason] of plan) {
+    if (!(await d.counters.hit(bucket, limit))) {
+      for (const b of taken) await d.counters.unhit(b);
+      return { reason };
+    }
+    taken.push(bucket);
+  }
+  return { buckets: taken };
+}
+
 async function check(d: Deps, p: Payload, r: Requirements): Promise<Verdict> {
   const a = p.payload.authorization;
   const payer = getAddress(a.from);
+  if (!(await payeeAllowed(d, r.payTo))) return bad("payee_not_allowed", payer);
   if (r.scheme !== "exact" || p.accepted.scheme !== "exact") return bad("invalid_scheme", payer);
   if (r.network !== NETWORK || p.accepted.network !== NETWORK) return bad("invalid_network", payer);
   if (!same(r.asset, USDT_ADDRESS) || !same(p.accepted.asset, USDT_ADDRESS)) return bad("invalid_exact_evm_payload_asset", payer);
@@ -79,8 +116,17 @@ async function settle(d: Deps, p: Payload, r: Requirements) {
     return fail("settlement_failed", v.payer);
   }
 
+  const caps = await takeCaps(d, v.payer, r.payTo);
+  if ("reason" in caps) return fail(caps.reason, v.payer);
+  const giveBack = async () => {
+    for (const b of caps.buckets) await d.counters!.unhit(b);
+  };
+
   const key = `${v.payer}:${v.auth.nonce}`.toLowerCase();
-  if (!(await d.store.claim(key))) return fail("duplicate_settlement", v.payer, (await d.store.get(key))?.tx ?? "");
+  if (!(await d.store.claim(key))) {
+    await giveBack();
+    return fail("duplicate_settlement", v.payer, (await d.store.get(key))?.tx ?? "");
+  }
 
   let tx: Hex;
   try {
@@ -88,6 +134,7 @@ async function settle(d: Deps, p: Payload, r: Requirements) {
   } catch (e) {
     console.error("send failed:", e instanceof Error ? e.name : "error");
     await d.store.release(key); // nothing was broadcast
+    await giveBack();
     return fail("settlement_failed", v.payer);
   }
   await d.store.setTx(key, tx);
@@ -95,6 +142,7 @@ async function settle(d: Deps, p: Payload, r: Requirements) {
     const receipt = await d.chain.waitForReceipt(tx);
     if (receipt.status !== "success") {
       await d.store.release(key); // reverted: the authorization is still unused
+      await giveBack();
       return fail("invalid_transaction_state", v.payer, tx);
     }
   } catch {
@@ -121,7 +169,13 @@ export function createApp(d: Deps) {
   return app;
 }
 
-type Env = ChainEnv & { DB: D1Database; MIN_FACILITATOR_WBT_WEI?: string };
+type Env = ChainEnv & {
+  DB: D1Database;
+  MIN_FACILITATOR_WBT_WEI?: string;
+  SETTLE_MAX_PER_PAYEE_DAY?: string;
+  SETTLE_MAX_GLOBAL_DAY?: string;
+  SETTLE_MAX_PER_PAYER_MINUTE?: string;
+};
 
 export default {
   fetch(req: Request, env: Env) {
@@ -129,6 +183,9 @@ export default {
       chain: viemChain(env),
       store: new D1Store(env.DB),
       now: () => Math.floor(Date.now() / 1000),
+      payees: new D1Payees(env.DB),
+      counters: new D1Counters(env.DB),
+      limits: limitsFromEnv(env),
       minWbtWei: env.MIN_FACILITATOR_WBT_WEI ? BigInt(env.MIN_FACILITATOR_WBT_WEI) : undefined,
     });
     return app.fetch(req);

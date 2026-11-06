@@ -1,0 +1,10 @@
+{
+  "name": "@stenmont/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "vitest run", "lint": "tsc --noEmit" },
+  "dependencies": { "@stenmont/shared": "workspace:*", "viem": "^2.57.16" },
+  "devDependencies": { "@types/node": "^26.6.6", "typescript": "^7.0.2", "vitest": "^5.1.0" }
+}

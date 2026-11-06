@@ -21,8 +21,12 @@ Failure handling: send error or revert frees the claim; receipt timeout keeps it
 ## Config
 Secret: `FACILITATOR_PRIVATE_KEY`. Vars: `WHITECHAIN_RPC`, `MIN_FACILITATOR_WBT_WEI` (default 0.02 WBT). Bindings: `DB` (D1, `migrations/0001_settlements.sql`), `SENDER` (Durable Object).
 
+## Caps and allowlist
+Only registered payees are served (`payee_not_allowed`, checked first: no chain call, no claim; applies to /verify and /settle). Add one with `wrangler d1 execute <db> --env staging --command "INSERT INTO payees (address) VALUES ('0x...lowercase')"` (migration `0002_guard.sql`; no public admin endpoint).
+After verification and before gas: per-payer rate (`payer_rate_limited`), per-payee daily (`payee_daily_cap_reached`), global daily (`global_daily_cap_reached`). A failed send or revert gives the allowance back. Vars: `SETTLE_MAX_PER_PAYER_MINUTE` (10), `SETTLE_MAX_PER_PAYEE_DAY` (1000), `SETTLE_MAX_GLOBAL_DAY` (5000).
+
 ## Limits (honest)
-- No rate limiting or per-payer caps yet (the API relayer's caps are not ported).
+- Caps are fixed windows (UTC day / minute) in D1, not a sliding window.
 - Only `exact` + EIP-3009 on USDT; no Permit2, no counterfactual (ERC-6492) accounts.
 - A `settlement_pending` claim is not auto-reconciled.
 - Not deployed; never run against the live chain yet.

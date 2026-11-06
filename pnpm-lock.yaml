@@ -249,6 +249,25 @@ importers:
         specifier: ^4.157.0
         version: 4.157.0(@cloudflare/workers-types@5.20261104.1)(@types/node@20.19.43)
 
+  packages/agent:
+    dependencies:
+      '@stenmont/shared':
+        specifier: workspace:*
+        version: link:../shared
+      viem:
+        specifier: ^2.57.16
+        version: 2.57.16(typescript@7.0.2)(zod@4.6.7)
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.6
+        version: 26.6.6
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.1.0
+        version: 5.1.0(@types/node@26.6.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.36.0)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/react:
     devDependencies:
       '@types/node':
@@ -287,6 +306,28 @@ importers:
 
   packages/shared:
     dependencies:
+      viem:
+        specifier: ^2.57.16
+        version: 2.57.16(typescript@7.0.2)(zod@4.6.7)
+    devDependencies:
+      '@types/node':
+        specifier: ^26.6.6
+        version: 26.6.6
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.1.0
+        version: 5.1.0(@types/node@26.6.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.36.0)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/x402:
+    dependencies:
+      '@stenmont/shared':
+        specifier: workspace:*
+        version: link:../shared
+      hono:
+        specifier: ^4.13.16
+        version: 4.13.16
       viem:
         specifier: ^2.57.16
         version: 2.57.16(typescript@7.0.2)(zod@4.6.7)

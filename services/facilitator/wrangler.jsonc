@@ -10,7 +10,10 @@
   "vars": {
     "ENVIRONMENT": "local",
     "WHITECHAIN_RPC": "https://rpc.testnet.whitechain.io",
-    "MIN_FACILITATOR_WBT_WEI": "20000000000000000"
+    "MIN_FACILITATOR_WBT_WEI": "20000000000000000",
+    "SETTLE_MAX_PER_PAYEE_DAY": "1000",
+    "SETTLE_MAX_GLOBAL_DAY": "5000",
+    "SETTLE_MAX_PER_PAYER_MINUTE": "10"
   },
   "durable_objects": { "bindings": [{ "name": "SENDER", "class_name": "Sender" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sender"] }],
@@ -25,7 +28,10 @@
       "vars": {
         "ENVIRONMENT": "staging",
         "WHITECHAIN_RPC": "https://rpc.testnet.whitechain.io",
-        "MIN_FACILITATOR_WBT_WEI": "20000000000000000"
+        "MIN_FACILITATOR_WBT_WEI": "20000000000000000",
+        "SETTLE_MAX_PER_PAYEE_DAY": "1000",
+        "SETTLE_MAX_GLOBAL_DAY": "5000",
+        "SETTLE_MAX_PER_PAYER_MINUTE": "10"
       },
       "durable_objects": { "bindings": [{ "name": "SENDER", "class_name": "Sender" }] },
       "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sender"] }],
