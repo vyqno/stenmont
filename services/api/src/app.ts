@@ -22,6 +22,7 @@ import { oauthGrantRoutes, oauthRoutes } from "./routes/oauth";
 import { gasTankRoutes } from "./routes/gasTank";
 import { linkRoutes } from "./routes/links";
 import { publicRoutes } from "./routes/public";
+import { publicClaimRoutes } from "./routes/publicClaims";
 import { refundRoutes } from "./routes/refunds";
 import { siteRoutes, switchRoutes } from "./routes/siteStatus";
 import { relayRoutes } from "./routes/relay";
@@ -75,6 +76,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.use("/relay/*", publicCors);
   app.use("/invest/*", publicCors);
   app.use("/store/*", publicCors);
+  app.use("/public/*", publicCors);
 
   app.get("/health", (c) => c.json({ ok: true }));
 
@@ -107,6 +109,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.route("/auth", authRoutes);
   app.route("/invest", investRoutes);
   app.route("/store", storePublicRoutes);
+  app.route("/public", publicClaimRoutes);
   app.route("/relay", relayRoutes);
   app.route("/relay", subscriptionRelayRoutes);
   app.route("/", subscriptionPublicRoutes);

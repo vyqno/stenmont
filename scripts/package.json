@@ -16,7 +16,8 @@
     "ens-setup": "tsx --env-file=../.env ens-setup.ts",
     "agent-pays": "tsx --env-file=../.env agent-pays.ts",
     "shopify-import": "tsx --env-file=../.env shopify-import-demo.ts",
-    "test": "vitest run"
+    "tokenization-lifecycle": "tsx --env-file=../.env tokenization-lifecycle.ts",
+    "test": "vitest run --exclude tokenization-lifecycle.test.ts && tsx --test tokenization-lifecycle.test.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
