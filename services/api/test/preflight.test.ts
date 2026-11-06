@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import { gasTanks, subscriptions, webhookDeliveries } from "../src/db/schema";
+import { gasTanks, subscriptions, webhookDeliveries, webhookEndpoints } from "../src/db/schema";
 import { runPreflight } from "../src/preflight";
 import { runRenewals } from "../src/renewals";
 import { baseEnv, seedMerchant, setup } from "./helpers/app";
@@ -90,7 +90,8 @@ describe("renewal pre-flight", () => {
     expect(e.data.subscription.kind).toBe("instalment");
     const deliveries = await w.db.select().from(webhookDeliveries);
     expect(deliveries).toHaveLength(1);
-    expect(deliveries[0]!.endpointId).not.toContain("m_2");
+    const [ep] = await w.db.select().from(webhookEndpoints).where(eq(webhookEndpoints.id, deliveries[0]!.endpointId));
+    expect(ep!.merchantId).toBe("m_1");
   });
   it("never blocks the charge: a flagged subscription is still charged when due, and the flag clears", async () => {
     const w = await world({ balance: 0n });

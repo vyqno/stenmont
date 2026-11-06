@@ -59,7 +59,7 @@ export async function runRenewals(env: Env, db: Db, chain: ChainClient, now: Dat
     const resync = async () => {
       const st = await chain.subscriptionState(sub.id as Hex);
       const status = st.status === "completed" ? "completed" : st.status === "cancelled" ? "cancelled" : sub.status;
-      await db.update(subscriptions).set({ charges: st.charges, nextChargeAt: Number(st.nextCharge), status, failedAttempts: 0, retryAt: null, updatedAt: stamp }).where(eq(subscriptions.id, sub.id));
+      await db.update(subscriptions).set({ charges: st.charges, nextChargeAt: Number(st.nextCharge), status, failedAttempts: 0, retryAt: null, atRiskReason: null, atRiskAt: null, updatedAt: stamp }).where(eq(subscriptions.id, sub.id));
       return { st, status };
     };
 
