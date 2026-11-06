@@ -71,3 +71,5 @@ function transferClaim(bytes32 invoiceId, address to) external;                 
 - [ ] Commit line: `feat: add investor page and sell-invoice flow`
 
 **Stretch (only if time remains):** order financing in stages (trade finance) and supplier programme. Write their own plan files first.
+
+**Progress (contracts):** `InvestorRegistry`, `InvoiceClaim` and `ReputationRegistry` are built and tested locally (see BUILDER-NOTES.md, 11:40). Still to do for this phase: the router change (block `cancel` after a sale), reputation wiring, deployment to staging, the API and investor portal, and the live sell, settle and default demo.
