@@ -33,15 +33,15 @@ const WEBHOOK_RULES = `The webhook handler must:
 - read the Stenmont-Signature header, which looks like t=<unix seconds>,v1=<hex>;
 - compute HMAC-SHA256 with STENMONT_WEBHOOK_SECRET over the text "<t>.<raw body>" and compare it to v1 in constant time (the header can carry two v1 values while a secret is being rotated; accepting either is correct);
 - refuse the request with 400 if the signature is wrong or t is more than 300 seconds from now;
-- on type "invoice.paid", mark the order paid using event.data.invoice.metadata.order (an event can arrive twice, so marking it paid must be safe to repeat);
+- on type "invoice.paid", find the order using event.data.invoice.metadata.order, but only mark it paid when event.data.invoice.id matches its stored invoice id, the invoice amount matches the stored order amount using integer base-unit comparison, and amountPaid covers that full amount. Metadata alone never authorizes fulfilment. Reject a mismatch. Repeated valid events must be safe;
 - answer 200 for any other event type, including "site.test" (the dashboard sends that one to check your handler);
 - answer within a few seconds, and never log the secret or the full signature.`;
 
 const CHECKOUT_RULES = `Creating the checkout (on the server only):
-- POST <API>/v1/invoices with headers "Authorization: Bearer <STENMONT_API_KEY>", "Content-Type: application/json" and "Idempotency-Key: <a new UUID per attempt>".
+- POST <API>/v1/invoices with headers "Authorization: Bearer <STENMONT_API_KEY>", "Content-Type: application/json" and "Idempotency-Key: <the order’s saved checkout UUID>"; create this UUID once with the order, and use the same saved key after double-clicks, timeouts and retries.
 - Body: {"amount": "<price as a decimal string with at most 6 decimals, in dollars>", "successUrl": "<page on the site to return to>", "cancelUrl": "<page on the site to return to>", "metadata": {"order": "<the shop's own order id>"}}. successUrl and cancelUrl must be public https addresses.
 - Work out the amount on the server from the shop's own price list or order, never from a number the browser sent.
-- The response has "payUrl". Send the customer to it. They pay with a passkey; nothing to install, no wallet, no gas.
+- The response has "id" and "payUrl". Save the returned invoice id on the order before redirecting, and reuse that invoice for later clicks. Handle an early webhook by retrying it until the invoice binding is stored. Send the customer to payUrl. They pay with a passkey; nothing to install, no wallet, no gas.
 - Errors come back as {"error": {"code", "message"}}. A 403 "payments_paused" means the owner paused payments in the dashboard: show "Payments are temporarily unavailable" and stop.`;
 
 const STEPS: Record<Platform, string> = {
@@ -114,11 +114,11 @@ ${CHECKOUT_RULES}
 
 ${WEBHOOK_RULES}
 
-Register the webhook endpoint with POST ${api}/v1/webhook-endpoints, body {"url": "<your handler's public https address>"}, using the owner's API key from the environment. The response contains the signing secret exactly once: store it as STENMONT_WEBHOOK_SECRET without printing it.
+Register the webhook endpoint with POST ${api}/v1/webhook-endpoints, body {"url": "<your handler's public https address>"}, using the owner's API key from the environment and an Idempotency-Key header holding a saved UUID for this webhook registration. The response contains the signing secret exactly once: store it as STENMONT_WEBHOOK_SECRET without printing it.
 
 TEST PAYMENT
 1. Create an invoice for "1.00" with successUrl and cancelUrl pages on the site, and print its payUrl.
-2. Ask the owner to open the payUrl and pay with a passkey (about ten seconds; the test network gives them test funds automatically). You cannot do this step for them.
+2. Ask the owner to pay using a supported payer account that already holds test USDT. Do not fund wallets with the merchant’s, relayer’s or platform’s USDT. If a funded payer cannot use the hosted flow yet, stop and identify the missing payment path; never imply an unbuilt wallet option exists. You cannot sign for the owner. A separately authorized existing-wallet relay test may prove the receipt, but label that route accurately.
 3. Confirm your webhook handler marked the order paid, and show the owner where.
 
 DONE MEANS

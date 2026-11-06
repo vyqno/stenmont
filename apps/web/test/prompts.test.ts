@@ -82,3 +82,13 @@ describe("prompt details", () => {
     expect(buildPrompt({ ...base, platform: "html", businessName: "x".repeat(500) })).not.toContain("x".repeat(100));
   });
 });
+
+it("requires retry-safe checkout, invoice-bound fulfilment and a payer's own test funds",()=>{
+  const text=buildPrompt({...base,platform:"other"});
+  expect(text).not.toContain("a new UUID per attempt");
+  expect(text).toContain("same saved key");
+  expect(text).toContain("stored invoice id");
+  expect(text).toContain("stored order amount");
+  expect(text).not.toContain("gives them test funds automatically");
+  expect(text).toContain("Do not fund wallets");
+});
