@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cancelDigest, describePeriod, permitDigest, planCopy, subscribeDigest, type Terms } from "../lib/subscribe";
+import { cancelDigest, describePeriod, permitDigest, planCopy, subscribeDigest, permitValue, signingTerms, type Terms } from "../lib/subscribe";
 
 const MANAGER = "0x3e1C51d461e6adb0b087DC39d41942E084eba2DD";
 const PAYER = "0x2222222222222222222222222222222222222222";
@@ -55,7 +55,7 @@ describe("plan copy", () => {
   it("tells a buyer what a pay-in-3 plan will take, in plain words", () => {
     const c = planCopy(plan);
     expect(c.title).toBe("Pay Acme in 3 parts");
-    expect(c.schedule).toBe("3 payments of $33.333333, one every 30 days. The first is taken now.");
+    expect(c.schedule).toBe("First payment $33.333333 now, then 2 payments of $33.333333, one every 30 days.");
     expect(c.total).toBe("Total $100.00");
     expect(c.forBusiness).toBe("A payment plan for Globex Ltd. Business purchases only.");
     expect(c.button).toBe("Start paying in 3 parts");
@@ -70,5 +70,20 @@ describe("plan copy", () => {
   it("never uses crypto words", () => {
     const text = JSON.stringify([planCopy(plan), planCopy(terms)]);
     expect(text).not.toMatch(/\b(gas|wbt|usdt|seed|chain|wallet|crypto|ethereum|token|blockchain|permit|allowance)\b/i);
+  });
+});
+
+
+describe("remainder-first signing", () => {
+  it("signs both bounded agreements and allows exactly the aggregate total", () => {
+    const plan: Terms = { ...terms, kind: "instalment", maxCharges: 3, amount: "33.333333", total: "100", segments: [
+      { id: terms.id, amount: "33.333334", maxCharges: 1, startAt: terms.startAt },
+      { id: `0x${"cd".repeat(32)}`, amount: "33.333333", maxCharges: 2, startAt: terms.startAt + terms.periodSeconds },
+    ] };
+    expect(permitValue(plan, "5")).toBe(105_000_000n);
+    const agreements = signingTerms(plan);
+    expect(agreements.map(a => [a.amount, a.maxCharges])).toEqual([["33.333334", 1], ["33.333333", 2]]);
+    expect(subscribeDigest(agreements[0]!, PAYER, 1n)).not.toBe(subscribeDigest(agreements[1]!, PAYER, 1n));
+    expect(planCopy(plan).schedule).toContain("$33.333334 now");
   });
 });

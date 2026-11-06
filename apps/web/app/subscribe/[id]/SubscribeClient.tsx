@@ -5,11 +5,12 @@ import type { Hex } from "viem";
 import { toUnits } from "@stenmont/shared";
 import { createPasskey, loadPasskey, signDigest } from "../../../lib/passkey";
 import { ZERO_SALT, apiBase, formatAmount, friendly, isTestEnvironment } from "../../../lib/pay";
-import { cancelDigest, permitDigest, permitValue, planCopy, subscribeDigest, type Terms } from "../../../lib/subscribe";
+import { cancelDigest, permitDigest, permitValue, planCopy, subscribeDigest, signingTerms, type Terms } from "../../../lib/subscribe";
 
 type View =
   | { kind: "loading" }
   | { kind: "missing" }
+  | { kind: "awaiting" }
   | { kind: "ready"; terms: Terms; notice?: string }
   | { kind: "working"; terms: Terms; step: string }
   | { kind: "active"; terms: Terms; ended?: boolean };
@@ -36,6 +37,7 @@ export default function SubscribeClient({ id }: { id: string }) {
       .then(async (r) => (r.ok ? ((await r.json()) as Terms) : null))
       .then((t) => {
         if (!alive) return;
+        if (t?.preparationRequired) return setView({ kind: "awaiting" });
         if (!t) return setView({ kind: "missing" });
         setView(t.status === "offered" ? { kind: "ready", terms: t } : t.status === "active" ? { kind: "active", terms: t } : { kind: "missing" });
       })
@@ -55,7 +57,7 @@ export default function SubscribeClient({ id }: { id: string }) {
       const lookup = () => post(base, "/relay/account", { qx: key.qx, qy: key.qy, salt: ZERO_SALT });
       let info = (await lookup()).json as { address: Hex; balance: string; permitNonce: string; subscriptionAllowance: string };
 
-      if (toUnits(info.balance) < toUnits(terms.amount)) {
+      if (toUnits(info.balance) < toUnits(terms.segments?.[0]?.amount ?? terms.amount)) {
         if (!isTestEnvironment(host)) throw new StepError("insufficient");
         step("Adding test funds…");
         const faucet = await post(base, "/relay/faucet", { address: info.address });
@@ -69,7 +71,9 @@ export default function SubscribeClient({ id }: { id: string }) {
 
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 3_600);
       step("Confirm the agreement on your device…");
-      const payerSig = await signDigest(key, subscribeDigest(terms, info.address, deadline));
+      const segmentSignatures = [];
+      for (const agreement of signingTerms(terms)) segmentSignatures.push(await signDigest(key, subscribeDigest(agreement, info.address, deadline)));
+      const payerSig = segmentSignatures[0]!;
       step("Confirm once more to allow the payments…");
       const permitDeadline = deadline;
       const permitSig = await signDigest(key, permitDigest(terms, info.address, { allowance: info.subscriptionAllowance, nonce: BigInt(info.permitNonce), deadline: permitDeadline }));
@@ -80,6 +84,7 @@ export default function SubscribeClient({ id }: { id: string }) {
         payer: info.address,
         deadline: deadline.toString(),
         payerSig,
+        segmentSignatures,
         permitValue: permitValue(terms, info.subscriptionAllowance).toString(),
         permitDeadline: permitDeadline.toString(),
         permitSig,
@@ -104,8 +109,10 @@ export default function SubscribeClient({ id }: { id: string }) {
     setView({ kind: "working", terms, step: "Confirm on your device…" });
     try {
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 3_600);
-      const payerSig = await signDigest(key, cancelDigest(terms, deadline));
-      const res = await post(apiBase(location.hostname), "/relay/subscription-cancel", { id: terms.id, deadline: deadline.toString(), payerSig });
+      const segmentSignatures = [];
+      for (const agreement of signingTerms(terms)) segmentSignatures.push(await signDigest(key, cancelDigest(agreement, deadline)));
+      const payerSig = segmentSignatures[0]!;
+      const res = await post(apiBase(location.hostname), "/relay/subscription-cancel", { id: terms.id, deadline: deadline.toString(), payerSig, segmentSignatures });
       if (!res.ok) throw new StepError(res.json.error?.code ?? "chain_error");
       setView({ kind: "active", terms, ended: true });
     } catch (e) {
@@ -114,10 +121,11 @@ export default function SubscribeClient({ id }: { id: string }) {
     }
   }, []);
 
-  const copy = view.kind === "loading" || view.kind === "missing" ? null : planCopy(view.terms);
+  const copy = view.kind === "loading" || view.kind === "missing" || view.kind === "awaiting" ? null : planCopy(view.terms);
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-12" data-testid="subscribe-page">
       {view.kind === "loading" && <p role="status">Loading…</p>}
+      {view.kind === "awaiting" && <p role="status">The business needs to prepare this replacement payment plan before you can agree. Ask them to open Subscriptions and prepare the plan.</p>}
       {view.kind === "missing" && (
         <>
           <h1 className="text-2xl font-semibold">This subscription isn&apos;t available</h1>
@@ -131,7 +139,7 @@ export default function SubscribeClient({ id }: { id: string }) {
             <p className="text-muted">{copy!.title}</p>
             {copy!.forBusiness && <p className="mt-0.5 text-xs text-muted" data-testid="for-business">{copy!.forBusiness}</p>}
             <h1 className="amount mt-1 text-5xl font-bold tracking-tight" data-testid="amount">
-              {formatAmount(view.terms.amount)}
+              {formatAmount(view.terms.segments?.[0]?.amount ?? view.terms.amount)}
             </h1>
             <p className="mt-2 text-muted" data-testid="schedule">
               {copy!.schedule}

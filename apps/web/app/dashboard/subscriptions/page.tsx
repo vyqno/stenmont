@@ -1,8 +1,10 @@
 "use client";
 
+import { b64urlDecode, b64urlEncode, encodeWebAuthnSignature, parseDerSignature } from "@stenmont/shared";
+import { hexToBytes, type Hex } from "viem";
 import { useState } from "react";
 import { Badge, Card, money } from "../../../components/ui";
-import { AuthError, api } from "../../../lib/auth";
+import { AuthError, api, signChallenge } from "../../../lib/auth";
 import { isTestEnvironment } from "../../../lib/pay";
 import { useApi } from "../../../lib/useApi";
 
@@ -40,9 +42,36 @@ export default function Subscriptions() {
     }
   }
 
+  async function prepare(id: string) {
+    setBusy(id); setFormError("");
+    try {
+      const terms = await api.get<{ deadline: string; digest: Hex }>(`/v1/subscriptions/${id}/prepare-terms`);
+      const assertion = await signChallenge(b64urlEncode(hexToBytes(terms.digest)));
+      const der = parseDerSignature(b64urlDecode(assertion.signature));
+      const signature = encodeWebAuthnSignature({ r: der.r, s: der.s, authenticatorData: b64urlDecode(assertion.authenticatorData), clientDataJSON: new TextDecoder().decode(b64urlDecode(assertion.clientDataJSON)) });
+      await api.post(`/v1/subscriptions/${id}/prepare`, { deadline: terms.deadline, signature });
+      reload();
+    } catch (e) { setFormError(e instanceof AuthError ? e.message : "Preparation failed. Try again."); }
+    finally { setBusy(""); }
+  }
+
   async function cancel(id: string) {
     setBusy(id);
-    await api.post(`/v1/subscriptions/${id}/cancel`).catch(() => null);
+    try {
+      const sub = data?.data.find(s => s.id === id);
+      let body = {};
+      if (sub?.kind === "instalment" && sub.payer) {
+        const terms = await api.get<{ deadline: string; agreements: { id: string; digest: Hex }[] }>(`/v1/subscriptions/${id}/cancel-terms`);
+        const signatures = [];
+        for (const agreement of terms.agreements) {
+          const assertion = await signChallenge(b64urlEncode(hexToBytes(agreement.digest)));
+          const der = parseDerSignature(b64urlDecode(assertion.signature));
+          signatures.push({ id: agreement.id, signature: encodeWebAuthnSignature({ r: der.r, s: der.s, authenticatorData: b64urlDecode(assertion.authenticatorData), clientDataJSON: new TextDecoder().decode(b64urlDecode(assertion.clientDataJSON)) }) });
+        }
+        body = { deadline: terms.deadline, signatures };
+      }
+      await api.post(`/v1/subscriptions/${id}/cancel`, body);
+    } catch (e) { setFormError(e instanceof AuthError ? e.message : "Cancellation failed. Try again."); }
     setBusy("");
     reload();
   }
@@ -94,6 +123,7 @@ export default function Subscriptions() {
                 <Badge tone={TONE[s.status] ?? "wait"}>{s.status.replace("_", " ")}</Badge>
                 {s.nextChargeAt && <span className="text-sm text-muted">next {s.nextChargeAt.slice(0, 10)}</span>}
                 <span className="ml-auto" />
+                {s.kind === "instalment" && s.status === "offered" && <div className="text-sm"><p>Preparing cancels the original invoice payment link, then fixes the final balance for this replacement plan.</p><button type="button" disabled={busy === s.id} onClick={() => prepare(s.id)} className="rounded border border-line px-3 py-1">Prepare replacement plan</button></div>}
                 {s.status === "offered" && (
                   <button type="button" onClick={() => navigator.clipboard.writeText(s.subscribeUrl).then(() => setCopied(s.id))} className="rounded border border-line px-3 py-1 text-sm hover:border-brand">
                     {copied === s.id ? "Copied" : "Copy link"}

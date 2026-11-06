@@ -16,8 +16,10 @@ export type Terms = {
   manager: Address;
   /** `instalment` = an invoice paid in parts (business to business). Absent or `subscription` = a normal subscription. */
   kind?: string;
+  preparationRequired?: boolean;
   total?: string;
   payerBusinessName?: string | null;
+  segments?: { id: Hex; amount: string; maxCharges: number; startAt: number }[];
 };
 
 /** The digest the customer's passkey signs to agree to these terms. */
@@ -42,12 +44,19 @@ export function subscribeDigest(t: Terms, payer: Address, deadline: bigint): Hex
 
 /** The permit lets the agreement charge, and no more: all charges the terms allow, on top of what is already approved. */
 export function permitDigest(t: Terms, payer: Address, p: { allowance: string; nonce: bigint; deadline: bigint }): Hex {
-  const cap = toUnits(t.amount) * BigInt(t.maxCharges);
+  const cap = planCap(t);
   return hashTypedData(buildPermit({ owner: payer, spender: t.manager, value: toUnits(p.allowance) + cap, nonce: p.nonce, deadline: p.deadline }));
 }
 
 export function permitValue(t: Terms, allowance: string): bigint {
-  return toUnits(allowance) + toUnits(t.amount) * BigInt(t.maxCharges);
+  return toUnits(allowance) + planCap(t);
+}
+
+export function planCap(t: Terms): bigint {
+  return t.segments?.reduce((sum, s) => sum + toUnits(s.amount) * BigInt(s.maxCharges), 0n) ?? toUnits(t.amount) * BigInt(t.maxCharges);
+}
+export function signingTerms(t: Terms): Terms[] {
+  return t.segments?.map(s => ({ ...t, ...s, segments: undefined })) ?? [t];
 }
 
 export function cancelDigest(t: Pick<Terms, "id" | "manager">, deadline: bigint): Hex {
@@ -67,16 +76,17 @@ export function planCopy(t: Terms) {
   const spaced = describePeriod(t.periodSeconds);
   const visibility = `${t.merchantName} can see whether each payment will go through, so they can warn you before one fails.`;
   if (t.kind === "instalment" && t.total) {
+    const first = t.segments?.[0]?.amount ?? t.amount;
     return {
       title: `Pay ${t.merchantName} in ${t.maxCharges} parts`,
-      schedule: `${t.maxCharges} payments of ${formatAmount(t.amount)}, one every ${spaced}. The first is taken now.`,
+      schedule: `First payment ${formatAmount(first)} now, then ${t.maxCharges - 1} payments of ${formatAmount(t.amount)}, one every ${spaced}.`,
       total: `Total ${formatAmount(t.total)}`,
       forBusiness: `A payment plan for ${t.payerBusinessName ?? "your business"}. Business purchases only.`,
       button: `Start paying in ${t.maxCharges} parts`,
       working: "Starting your payment plan…",
       done: "Your payment plan has started",
-      doneText: `${t.merchantName} will take ${formatAmount(t.amount)} every ${spaced}, ${t.maxCharges} times in all. Nothing more is ever taken.`,
-      consent: "You confirm twice with Face ID, your fingerprint or your device PIN. Only the amounts shown can be taken, and you can stop the plan any time.",
+      doneText: `${t.merchantName} takes ${formatAmount(first)} first, then ${formatAmount(t.amount)} every ${spaced}, ${t.maxCharges} payments in all.`,
+      consent: `Confirm ${t.segments?.length === 2 ? "both agreements and permission for the total" : "the agreement and payment permission"} on your device. Only the amounts shown can be taken; you can stop the plan any time.`,
       visibility,
     };
   }
