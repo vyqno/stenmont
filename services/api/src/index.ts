@@ -6,6 +6,7 @@ import { handleQueue } from "./delivery";
 import type { Env, WebhookJob } from "./env";
 import { runIndexer } from "./indexer";
 import { runPreflight } from "./preflight";
+import { runGasRecovery } from "./relayer/recovery";
 import { runReminders } from "./reminders";
 import { runRenewals } from "./renewals";
 import { purgeShopifyOauth } from "./shopifyOauth/store";
@@ -26,6 +27,7 @@ export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
     const db = drizzle(env.DB);
     const chain = viemChain(env);
+    ctx.waitUntil(runGasRecovery({db,chain,now:new Date(_event.scheduledTime)}));
     ctx.waitUntil(runIndexer(env, db, chain));
     ctx.waitUntil(runClaimIndexer(env, db, chain));
     ctx.waitUntil(runRenewals(env, db, chain, new Date(_event.scheduledTime)));

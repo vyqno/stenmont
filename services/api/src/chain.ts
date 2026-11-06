@@ -119,6 +119,8 @@ export interface ChainClient {
   /** Hands the transaction to the single Durable Object sender; resolves with the hash, not the receipt. */
   sendTransaction(call: Call): Promise<Hex>;
   waitForReceipt(hash: Hex): Promise<Receipt>;
+  /** Read-only confirmed receipt lookup; null means pending/not found. Never broadcasts. */
+  lookupReceipt?(hash: Hex): Promise<Receipt | null>;
 }
 
 const errorString = [{ type: "error", name: "Error", inputs: [{ name: "message", type: "string" }] }] as const;
@@ -325,5 +327,17 @@ export function viemChain(env: Env): ChainClient {
     relayerBalance: () => publicClient.getBalance({ address: relayer }),
     sendTransaction: (call) => sender().submit(call),
     waitForReceipt: wait,
+    async lookupReceipt(hash) {
+      const reader=createPublicClient({chain:whitechainSepolia,transport:http(env.WHITECHAIN_RPC,{timeout:5000,retryCount:0})});
+      try {
+        const receipt=await reader.getTransactionReceipt({hash});
+        const head=await reader.getBlockNumber();
+        if(head-receipt.blockNumber+1n<BigInt(Math.max(1,Number(env.INDEXER_CONFIRMATIONS??2))))return null;
+        return {status:receipt.status,gasUsed:receipt.gasUsed,effectiveGasPrice:receipt.effectiveGasPrice};
+      } catch(error) {
+        if(error instanceof Error && error.name==="TransactionReceiptNotFoundError")return null;
+        throw error;
+      }
+    },
   };
 }

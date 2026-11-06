@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { app } from "../src";
+import worker, { app } from "../src";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const CREATING = "0x" + "11".repeat(32);
 const OPEN = "0x" + "22".repeat(32);
@@ -137,4 +139,19 @@ describe("install-store maintenance", () => {
     expect(t.data.has("retired:abandoned")).toBe(false);
   });
 
+});
+
+
+describe("staging scheduled cleanup",()=>{
+  it("runs the same guarded cleanup and preserves the paid receipt",async()=>{
+    const w=fixture(),pending:Promise<unknown>[]=[];
+    worker.scheduled({} as ScheduledController,w.env,{waitUntil:(promise:Promise<unknown>)=>{pending.push(promise);}} as unknown as ExecutionContext);
+    await Promise.all(pending);
+    expect(w.invoices.map(invoice=>invoice.status)).toEqual(["failed","expired","paid"]);
+  });
+  it("enables the existing15-minute trigger only on staging",()=>{
+    const config=JSON.parse(readFileSync(join(import.meta.dirname,"../wrangler.jsonc"),"utf8"));
+    expect(config.env.staging.triggers.crons).toEqual(["*/15 * * * *"]);
+    expect(config.triggers).toBeUndefined(); expect(config.env.production).toBeUndefined();
+  });
 });

@@ -1,5 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { Db } from "../app";
+import type { Receipt } from "../chain";
+import type { Hex } from "viem";
+import { reserveJournal, settleJournal, markJournalSent } from "./gasJournal";
 import { gasTanks, payerUsage, rateLimits } from "../db/schema";
 
 export const RATE_LIMIT_PER_MINUTE = 100;
@@ -113,27 +116,29 @@ export class GasHold {
     private readonly merchantId: string,
     readonly amount: bigint,
     private readonly now: Date,
+    private readonly journalId: string,
   ) {}
 
   /** Charges `actual`, returns the rest. A second call does nothing. If writing fails it throws and may be retried. */
-  async settle(actual: bigint): Promise<void> {
+  async settle(actual: bigint, receipt?: Receipt): Promise<void> {
     if (this.done) return;
     this.done = true;
     try {
-      await settleGas(this.db, this.merchantId, this.amount, actual, this.now);
+      await settleJournal(this.db, this.journalId, actual, receipt, this.now);
     } catch (e) {
       this.done = false;
       throw e;
     }
   }
 
+  sent = (hash: Hex, payment?: {id:string;payer:string;value:bigint}) => markJournalSent(this.db,this.journalId,hash,payment);
   release = () => this.settle(0n);
 }
 
 /** Reserves gas and hands back the hold that must be settled or released, or the reason it was refused. */
 export async function holdGas(db: Db, merchantId: string, amount: bigint, now: Date): Promise<GasHold | CapError> {
-  const r = await reserveGas(db, merchantId, amount, now);
-  return r === "ok" ? new GasHold(db, merchantId, amount, now) : r;
+  const r = await reserveJournal(db, merchantId, amount, now);
+  return ["gas_tank_empty","gas_cap_reached","busy","payer_cap"].includes(r) ? r as CapError : new GasHold(db, merchantId, amount, now, r);
 }
 
 async function writePayer(db: Db, merchantId: string, payer: string, day: string, change: (used: bigint) => bigint | "payer_cap", attempts = ATTEMPTS): Promise<"ok" | CapError> {

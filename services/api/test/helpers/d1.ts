@@ -19,7 +19,9 @@ class Stmt {
     const r = this.db.prepare(this.sql).get(...this.params) as Record<string, unknown> | undefined;
     return r ? (col ? r[col] : r) : null;
   }
-  async run() {
+  async run() { return this.executeBatch(); }
+  /** D1 batches execute atomically without yielding between SQL statements. */
+  executeBatch() {
     const statement = this.db.prepare(this.sql);
     if (statement.columns().length) {
       const results = statement.all(...this.params);
@@ -53,7 +55,7 @@ export class FakeD1 {
     this.raw.exec("BEGIN");
     try {
       const out = [];
-      for (const s of stmts) out.push(await s.run());
+      for (const s of stmts) out.push(s.executeBatch());
       this.raw.exec("COMMIT");
       return out;
     } catch (e) {

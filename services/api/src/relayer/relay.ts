@@ -246,11 +246,12 @@ export async function relayPay(ctx: { db: Db; chain: ChainClient; env: Env; now:
   try {
     txHash = await chain.sendTransaction({ ...call, gas: gasLimit });
   } catch (e) {
-    await release();
-    console.error("send failed", e);
-    return fail("chain_error");
+    // A failed RPC response does not prove that the network rejected the signed transaction.
+    // Keep authorization, payer allowance and gas held; retrying this authorization must not broadcast again.
+    console.error("send response uncertain; reservations stay held", e);
+    return fail("timeout");
   }
-  await db.update(relayerTxs).set({ status: "sent", txHash, updatedAt: now.toISOString() }).where(eq(relayerTxs.id, rowId));
+  await hold.sent(txHash, {id:rowId,payer:i.payer,value:i.value});
 
   // 9. wait for the receipt and settle the real cost
   let receipt;
@@ -262,10 +263,9 @@ export async function relayPay(ctx: { db: Db; chain: ChainClient; env: Env; now:
   }
   const actual = receipt.gasUsed * receipt.effectiveGasPrice;
   // If settling cannot be written the full reservation stays charged: the merchant is over- never under-charged.
-  await hold.settle(actual).catch((e) => console.error("gas settlement failed; reservation stays held", e));
+  await hold.settle(actual, receipt).catch((e) => console.error("gas settlement failed; reservation stays held", e));
   const done = { gasUsed: receipt.gasUsed.toString(), wbtCost: actual.toString(), updatedAt: now.toISOString() };
   if (receipt.status !== "success") {
-    await releasePayer(db, merchantId, i.payer, i.value, now).catch((e) => console.error("payer release failed", e));
     await db.update(relayerTxs).set({ ...done, status: "reverted" }).where(eq(relayerTxs.id, rowId));
     return fail("tx_reverted", txHash);
   }
