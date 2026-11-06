@@ -67,6 +67,7 @@ it("closes an explicitly requested staging interim snapshot, includes actual rec
  expect(response.status).toBe(201);
  const data=await response.json() as any;
  expect(data.bundle.closeKind).toBe("interim_staging");
+ expect(data.bundle.sourceCutoffAt).toBe("2026-11-06T12:00:00.000Z");
  expect(data.bundle.snapshot.lines).toHaveLength(1);
  await insert("after","34");
  t.clock.now=new Date("2026-11-06T12:01:00Z");
