@@ -64,6 +64,9 @@ export const FRIENDLY: Record<string, string> = {
   timeout: "Your payment is taking longer than usual. It may still go through.",
   faucet_limit: "Test funds were already added today.",
   cancelled: "The confirmation was cancelled.",
+  subscription_rejected: "This agreement couldn't be approved. Please try again.",
+  not_available: "This subscription is no longer available.",
+  not_found: "We couldn't find this subscription.",
 };
 
 export const friendly = (code: string) => FRIENDLY[code] ?? "Something went wrong. Please try again.";
