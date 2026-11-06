@@ -1,4 +1,5 @@
 "use client";
+import { IdentitySignIn } from "../../../components/IdentitySignIn";
 
 import { useState } from "react";
 import { Badge, Card } from "../../../components/ui";
@@ -99,6 +100,7 @@ export default function Settings() {
           </dl>
         )}
       </Card>
+      <IdentitySignIn link />
     </div>
   );
 }

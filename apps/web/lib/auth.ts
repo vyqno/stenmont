@@ -1,3 +1,4 @@
+import { turnstileToken } from "./turnstile";
 import { apiBase, b64urlDecode, b64urlEncode } from "./pay";
 
 export type Merchant = { id: string; name: string; account: string; credentialId?: string };
@@ -72,7 +73,7 @@ type RegisterOptions = {
  * Resolves with the API key, which the server shows only once.
  */
 export async function signUp(businessName: string): Promise<{ apiKey: string; merchant: Merchant }> {
-  const reg = await call<RegisterOptions>("POST", "/auth/register/options", { businessName });
+  const reg = await call<RegisterOptions>("POST", "/auth/register/options", { businessName, turnstileToken: await turnstileToken("signup") });
   const o = reg.options;
   const created = await ceremony(
     () =>
@@ -101,7 +102,9 @@ export async function signUp(businessName: string): Promise<{ apiKey: string; me
         },
       }) as Promise<PublicKeyCredential | null>,
   );
-  return call("POST", "/auth/activate", assertion(approved, done.activation.challengeId));
+  const result = await call<{apiKey:string;merchant:Merchant}>("POST", "/auth/activate", { ...assertion(approved, done.activation.challengeId), turnstileToken: await turnstileToken("activate") });
+  // Identity linking is explicit in settings; activation always requires this passkey.
+  return result;
 }
 
 /** Sign in with a saved passkey: no username, no password, no code. */

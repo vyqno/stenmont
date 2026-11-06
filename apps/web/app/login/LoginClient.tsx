@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { IdentitySignIn } from "../../components/IdentitySignIn";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthError, signIn } from "../../lib/auth";
@@ -35,6 +36,7 @@ export default function LoginClient() {
           {error}
         </p>
       )}
+      <IdentitySignIn />
       <p className="text-sm">
         New here? <Link href="/signup" className="underline">Create your business</Link>
       </p>
