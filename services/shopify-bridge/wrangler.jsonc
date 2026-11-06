@@ -1,0 +1,23 @@
+{
+  // Top level = local development only. Staging is the only deployed environment for now.
+  // Secrets (SHOPIFY_CLIENT_ID, SHOPIFY_CLIENT_SECRET, STENMONT_API_KEY, STENMONT_WEBHOOK_SECRET, BRIDGE_ADMIN_TOKEN)
+  // (optional: SHOPIFY_ADMIN_TOKEN, SHOPIFY_WEBHOOK_SECRET) live in Cloudflare via `wrangler secret put <NAME> --env staging`, never here.
+  // Empty vars below are filled in by the owner (see docs/SHOPIFY_BRIDGE.md). Empty means "not set": the bridge refuses to run.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stenmont-shopify-bridge-dev",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "vars": { "SHOPIFY_SHOP_DOMAIN": "", "SHOP_URL": "", "ALLOWED_ORIGINS": "", "STENMONT_API_URL": "http://localhost:8787", "RATE_PER_USD": "" },
+  "kv_namespaces": [{ "binding": "STATE", "id": "local-only" }],
+  "env": {
+    "staging": {
+      "name": "stenmont-shopify-bridge-staging",
+      "workers_dev": false,
+      "routes": [{ "pattern": "shopify-bridge-staging.stenmont.com", "custom_domain": true }],
+      "vars": { "SHOPIFY_SHOP_DOMAIN": "", "SHOP_URL": "", "ALLOWED_ORIGINS": "", "STENMONT_API_URL": "https://api-staging.stenmont.com", "RATE_PER_USD": "" },
+      // Create it first: wrangler kv namespace create STATE --env staging, then paste the id here.
+      "kv_namespaces": [{ "binding": "STATE", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }]
+    }
+  }
+}
