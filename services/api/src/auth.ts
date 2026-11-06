@@ -83,6 +83,7 @@ export async function sessionMerchant(c: Context<AppEnv>): Promise<Merchant | nu
 export async function sessionContext(c: Context<AppEnv>): Promise<{ merchant: Merchant; passkeyId: string } | null> {
   const token = sessionToken(c);
   const recovery = async () => {
+    if (!SAFE_METHODS.has(c.req.method)) return null;
     const identity = await openIdentity(c);
     if (!identity?.merchant_id) return null;
     const [merchant] = await c.var.db.select().from(merchants).where(eq(merchants.id,identity.merchant_id));
@@ -112,7 +113,10 @@ export const requireAuth = createMiddleware<AppEnv>(async (c, next) => {
   if (authorization) return requireApiKey(c, next);
   const session = await sessionContext(c);
   const merchant = session?.merchant;
-  if (!merchant) return fail(c, 401, "unauthorized", "Missing or invalid API key");
+  if (!merchant) {
+    if (!SAFE_METHODS.has(c.req.method) && await openIdentity(c)) return fail(c,403,"passkey_required","Use your business passkey for this action.");
+    return fail(c,401,"unauthorized","Missing or invalid API key");
+  }
   if (!SAFE_METHODS.has(c.req.method) && !session?.passkeyId) return fail(c,403,"passkey_required","Use your business passkey for this action.");
   if (!SAFE_METHODS.has(c.req.method) && !isAppOrigin(c.req.header("origin"), c.env)) {
     return fail(c, 403, "csrf", "This request must come from the Stenmont app");

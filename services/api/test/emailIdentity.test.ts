@@ -53,5 +53,6 @@ it("links only with an existing passkey session; recovered dashboard access cann
   expect((await t.req("/v1/me", {headers:{cookie:identityCookie}})).status).toBe(200);
   // A revoked/expired passkey cookie must not shadow a freshly verified recovery identity.
   expect((await t.req("/v1/me", {headers:{cookie:`${identityCookie}; __Secure-stenmont_test=${"b".repeat(64)}`}})).status).toBe(200);
+  expect((await t.req("/auth/siwe/wallets/0x1111111111111111111111111111111111111111", {method:"DELETE",headers:{origin:t.env.APP_URL,cookie:identityCookie}})).status).toBe(401);
   expect((await t.req("/v1/invoices", {method:"POST",headers:{origin:t.env.APP_URL,cookie:identityCookie},body:"{}"})).status).toBe(403);
 });
