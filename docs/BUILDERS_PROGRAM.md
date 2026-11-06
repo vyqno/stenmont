@@ -45,7 +45,7 @@ Each business that adopts the kit brings its customers' USDT flows to Whitechain
 
 ## Distribution plan (plans, not results)
 
-1. Developers and agents: publish the SDK and React packages (the npm organisation is reserved; publishing waits on the founder), keep `llms.txt` and the docs current, list the MCP server.
+1. Developers and agents: publish the SDK and React packages (built and install-tested, not yet published; that is the founder's decision), keep `llms.txt` and the docs current, list the MCP server.
 2. Stores that already exist: the Shopify import (CSV, token and one-click connect) lowers the cost of moving a catalogue; plugins for Shopify and WooCommerce are a later milestone, not built.
 3. Freelancers, studios and exporters billing across borders: payment links and invoices with no code; start with a small closed pilot.
 4. Partners: Whitechain's builder network, and accounting firms through the export formats.
