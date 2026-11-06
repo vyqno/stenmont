@@ -153,8 +153,9 @@ export default function SubscribeClient({ id }: { id: string }) {
                   {view.notice}
                 </p>
               )}
-              <button type="button" onClick={() => subscribe(view.terms)} className="rounded-lg bg-brand px-6 py-4 text-lg font-medium text-white">
+              <button type="button" onClick={() => subscribe(view.terms)} className="rounded-lg bg-brand px-6 py-4 text-lg font-medium text-on-brand">
                 {copy!.button}
+
               </button>
               <p className="text-sm text-muted">{copy!.consent}</p>
               <p className="text-sm text-muted" data-testid="visibility">{copy!.visibility}</p>

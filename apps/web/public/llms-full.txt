@@ -16,7 +16,7 @@ Everything below is the TEST NETWORK (Whitechain Sepolia, test USDT). No real mo
 
 Server to server: send the business's API key as "Authorization: Bearer $STENMONT_API_KEY". The key looks like sk_test_ followed by 32 hex characters. The business creates it in the dashboard (Settings, API keys) and it is shown once. Keep it in an environment variable or the host's secret settings. Never put it in browser code, theme files, HTML, logs or a repository. Never ask for it in a chat.
 
-Every POST to /v1/ needs an "Idempotency-Key" header (any unique string up to 255 characters, a UUID is fine). Repeating a request with the same key returns the first answer instead of doing it twice.
+Every POST to /v1/ needs an "Idempotency-Key" header (any unique string up to 255 characters, a UUID is fine). Persist the key with the order before the first attempt. Reuse the same key and body on every retry. Save the returned invoice ID and amount before redirecting. Repeating a request with the same key returns the first answer instead of doing it twice.
 
 Errors are JSON: {"error": {"code": "...", "message": "..."}}. Codes you will meet: invalid_request (400, with details), idempotency_key_required (400), unauthorized (401), payments_paused (403, the business paused payments in the dashboard), invoice_number_taken (409), rate_limited (429), chain_error (502, the invoice could not be created onchain; try again).
 
@@ -36,19 +36,20 @@ The response includes id, number, status, amount, amountPaid, amountRefunded, me
 curl -X POST https://api-staging.stenmont.com/v1/invoices \
   -H "Authorization: Bearer $STENMONT_API_KEY" \
   -H "Content-Type: application/json" \
-  -H "Idempotency-Key: $(uuidgen)" \
+  -H "Idempotency-Key: $ORDER_CHECKOUT_KEY" \
   -d '{"amount":"25.00","successUrl":"https://shop.example/thanks","cancelUrl":"https://shop.example","metadata":{"order":"1042"}}'
 ```
 
 ```js
 // Server side only. The API key must never reach a browser.
-async function createCheckout(order) {
+// Persist a UUID as order.checkoutKey before the first attempt; reuse it on retries.
+async function createCheckout(order, saveInvoice) {
   const res = await fetch(`${process.env.STENMONT_API_URL}/v1/invoices`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${process.env.STENMONT_API_KEY}`,
       "content-type": "application/json",
-      "idempotency-key": crypto.randomUUID(),
+      "idempotency-key": order.checkoutKey,
     },
     body: JSON.stringify({
       amount: order.total, // dollars, as a string with at most 6 decimals, for example "25.00"
@@ -59,7 +60,8 @@ async function createCheckout(order) {
   });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error.code + ": " + body.error.message);
-  return body.payUrl; // send the customer here
+  await saveInvoice(order.id, { invoiceId: body.id, total: order.total });
+  return body.payUrl; // send the customer here only after the binding is saved
 }
 ```
 
@@ -75,7 +77,7 @@ Register an endpoint: POST https://api-staging.stenmont.com/v1/webhook-endpoints
 
 Event types: invoice.created, invoice.partially_paid, invoice.paid, invoice.cancelled, invoice.reminder, refund.created, subscription.created, subscription.charged, subscription.past_due, subscription.cancelled, claim.funded, claim.settled, claim.defaulted. The dashboard's site check also sends site.test to your endpoint; answer 2xx.
 
-Delivery is a POST with a JSON body {id, type, created, data, livemode} and these headers: Stenmont-Signature, Stenmont-Event-Id, Content-Type: application/json. Answer with any 2xx within 10 seconds. Anything else is retried up to 10 times, starting after 20 seconds and doubling up to one hour. Delivery is at least once, so the same event id can arrive twice: make your handler safe to repeat.
+Delivery is a POST with a JSON body {id, type, created, data, livemode} and these headers: Stenmont-Signature, Stenmont-Event-Id, Content-Type: application/json. Answer with any 2xx within 10 seconds. Anything else is retried up to 10 times, starting after 20 seconds and doubling up to one hour. Delivery is at least once. After signature verification, load the stored order binding and check invoice ID, status and amount. Atomically mark the order paid once and deduplicate event IDs; never fulfil from metadata or a success redirect alone.
 
 ```json
 {
@@ -147,17 +149,29 @@ With the SDK:
 ```ts
 import { verifyWebhook } from "@stenmont/sdk";
 
-export async function handleWebhook(rawBody: string, signatureHeader: string) {
-  // Throws if the signature is wrong or the timestamp is more than 5 minutes old.
-  const event = await verifyWebhook<{ invoice: { metadata: { order?: string } } }>(
-    rawBody,
-    signatureHeader,
-    process.env.STENMONT_WEBHOOK_SECRET!,
+// Your order-store adapter must load the durable binding and atomically deduplicate fulfilment.
+export async function handleWebhook(rawBody: string, signatureHeader: string, orders: {
+  get: (id: string) => Promise<{ invoiceId: string; total: string } | null>;
+  markPaidOnce: (id: string, eventId: string) => Promise<unknown>;
+}) {
+  const event = await verifyWebhook<{ invoice: { id: string; status: string; amount: string; amountPaid: string; metadata: { order?: string } } }>(
+    rawBody, signatureHeader, process.env.STENMONT_WEBHOOK_SECRET!,
   );
-  if (event.type === "invoice.paid") {
-    // Safe to run twice: an event can be delivered more than once.
-    await markOrderPaid(event.data.invoice.metadata.order);
+  if (event.type !== "invoice.paid") return;
+  const invoice = event.data.invoice;
+  const orderId = invoice.metadata.order;
+  const order = orderId ? await orders.get(orderId) : null;
+  // Exact micro-units, never floating point; tolerate API decimal normalization.
+  const units = (value: string) => {
+    if (!/^\d+(?:\.\d{1,6})?$/.test(value)) throw new Error("invoice mismatch");
+    const [whole, fraction = ""] = value.split(".");
+    return BigInt(whole!) * 1_000_000n + BigInt(fraction.padEnd(6, "0"));
+  };
+  if (!order || !orderId || order.invoiceId !== invoice.id || invoice.status !== "paid" ||
+      units(order.total) !== units(invoice.amount) || units(invoice.amountPaid) < units(order.total)) {
+    throw new Error("invoice mismatch");
   }
+  await orders.markPaidOnce(orderId, event.id);
 }
 ```
 
@@ -173,14 +187,16 @@ const stenmont = new Stenmont({
   baseUrl: process.env.STENMONT_API_URL, // https://api-staging.stenmont.com while testing; the default is production
 });
 
-export async function createCheckout(order: { id: string; total: string }) {
+// Persist checkoutKey with the order before the first attempt; reuse the same body/key.
+export async function createCheckout(order: { id: string; total: string; checkoutKey: string }, saveInvoice: (id: string, record: { invoiceId: string; total: string }) => Promise<void>) {
   const session = await stenmont.checkout.sessions.create({
     amount: order.total,
     successUrl: `https://shop.example/orders/${order.id}`,
     cancelUrl: "https://shop.example/cart",
     metadata: { order: order.id },
-  });
-  return session.url; // send the customer here
+  }, { idempotencyKey: order.checkoutKey });
+  await saveInvoice(order.id, { invoiceId: session.id, total: order.total });
+  return session.url; // send the customer here only after the binding is saved
 }
 ```
 
@@ -238,7 +254,7 @@ Client configuration (Claude Code .mcp.json style):
 }
 ```
 
-Sign-in with OAuth instead of an API key is planned and not available yet.
+OAuth with PKCE is available for scoped agent connections; see https://app-staging.stenmont.com/docs/mcp.
 
 ## x402: charge an AI agent per request
 
@@ -282,7 +298,7 @@ The agent's limits are checked before anything is signed: per request, per day, 
 2. They add the site's address (https only). The page shows a DNS TXT record to add: name _stenmont.<host>, value stenmont-verify=<token>.
 3. They pick their platform (Next.js, plain HTML, Shopify theme, WooCommerce, Webflow, other), copy the prompt and paste it into their AI coding agent.
 4. The agent builds a server-side checkout, a webhook handler and a Pay button, following the rules above, and keeps the key out of client code.
-5. A test payment: the agent creates a 1.00 invoice with successUrl on the site and gives the owner its payUrl; the owner pays with a passkey (test funds are added automatically).
+5. A test payment: the agent creates a 1.00 invoice with successUrl on the site and gives the owner its payUrl; the owner pays with a passkey (use an already-funded payer account; Stenmont does not supply payment funds).
 6. The dashboard shows four checks, each with a time: site reachable, domain verified (DNS), webhook answers 2xx to a signed site.test event, test payment paid. A live/paused switch stops new invoices (403 payments_paused) and shows customers a "temporarily unavailable" page.
 
 ## Limits you should know about

@@ -39,7 +39,7 @@ export function WorldVerify() {
       <div className="mt-3 flex flex-wrap items-center gap-3">
         {enrolled === true && <Badge tone="ok">Verified</Badge>}
         {enrolled === false && (
-          <button type="button" onClick={start} className="rounded bg-brand px-4 py-2 text-sm font-medium text-white" data-testid="world-start">
+          <button type="button" onClick={start} className="rounded bg-brand px-4 py-2 text-sm font-medium text-on-brand" data-testid="world-start">
             Verify with World ID
           </button>
         )}

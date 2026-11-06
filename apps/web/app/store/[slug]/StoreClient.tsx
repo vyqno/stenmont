@@ -40,6 +40,7 @@ export default function StoreClient({ slug }: { slug: string }) {
   const shop = state.kind === "ready" ? state.shop : null;
   return (
     <ShopFrame slug={slug} shop={shop}>
+      {state.kind === "ready" && <h1 className="mb-6 text-3xl font-semibold">Products</h1>}
       {thanks && (
         <div className="mb-6 rounded border border-line bg-surface p-4" data-testid="thanks" role="status">
           <p className="font-medium">Thank you for your order.</p>
@@ -61,7 +62,8 @@ export default function StoreClient({ slug }: { slug: string }) {
             return (
               <li key={p.handle}>
                 <Link href={`/store/${slug}/${p.handle}`} className="block" data-testid="product-card">
-                  <div className="aspect-square overflow-hidden rounded bg-surface">
+                  <div className="grid aspect-square place-items-center overflow-hidden rounded bg-grey">
+                    {!p.images[0] && <span className="px-4 text-center text-sm text-muted">No image supplied</span>}
                     {p.images[0] && (
                       // eslint-disable-next-line @next/next/no-img-element -- merchant-supplied https image; no loader for arbitrary hosts
                       <img src={p.images[0].url} alt={p.images[0].alt || p.title} loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />

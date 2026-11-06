@@ -80,7 +80,7 @@ export function SellButton({ invoiceId, face, onDone }: { invoiceId: string; fac
       )}
       <p className="text-xs text-muted">You will confirm twice on your device.</p>
       <div className="flex gap-2">
-        <button type="button" onClick={sell} disabled={!quote || step === "working"} className="rounded bg-brand px-3 py-1 font-medium text-white disabled:opacity-50" data-testid="sell-submit">
+        <button type="button" onClick={sell} disabled={!quote || step === "working"} className="rounded bg-brand px-3 py-1 font-medium text-on-brand disabled:opacity-50" data-testid="sell-submit">
           {step === "working" ? "Confirm on your device…" : "List for investors"}
         </button>
         <button type="button" onClick={() => setStep("closed")} disabled={step === "working"} className="rounded border border-line px-3 py-1 disabled:opacity-50">Close</button>

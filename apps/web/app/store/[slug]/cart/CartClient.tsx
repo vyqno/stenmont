@@ -105,7 +105,7 @@ export default function CartClient({ slug }: { slug: string }) {
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" className="mt-1 block w-full max-w-sm rounded border border-line bg-background p-2" data-testid="email" />
             </label>
             {notice && <p role="alert" className="rounded border border-danger p-3 text-sm text-danger" data-testid="notice">{notice}</p>}
-            <button type="button" onClick={checkout} disabled={busy || missing > 0} className="rounded-lg bg-brand px-6 py-3 text-lg font-medium text-white disabled:opacity-40" data-testid="checkout">
+            <button type="button" onClick={checkout} disabled={busy || missing > 0} className="rounded-lg bg-brand px-6 py-3 text-lg font-medium text-on-brand disabled:opacity-40" data-testid="checkout">
               {busy ? "Placing your order…" : "Check out"}
             </button>
           </div>

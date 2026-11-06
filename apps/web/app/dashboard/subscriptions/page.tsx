@@ -98,7 +98,7 @@ export default function Subscriptions() {
             Most payments
             <input value={max} onChange={(e) => setMax(e.target.value)} required type="number" min={1} max={10000} className="amount rounded border border-line bg-transparent px-3 py-2 text-base" />
           </label>
-          <button disabled={creating} className="rounded bg-brand px-4 py-2 font-medium text-white disabled:opacity-50">{creating ? "Creating…" : "Create subscription"}</button>
+          <button disabled={creating} className="rounded bg-brand px-4 py-2 font-medium text-on-brand disabled:opacity-50">{creating ? "Creating…" : "Create subscription"}</button>
         </form>
         {formError && <p role="status" className="mt-2 text-sm text-danger">{formError}</p>}
         <p className="mt-2 text-sm text-muted">Send the link to your customer. They approve once, and you can stop charging any time.</p>

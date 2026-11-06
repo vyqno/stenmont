@@ -33,7 +33,7 @@ export function statusOf(i: Invoice, now = Date.now()): { label: string; tone: "
 const TONES = {
   ok: "bg-mint text-navy",
   wait: "bg-surface text-foreground border border-line",
-  warn: "bg-warn text-navy",
+  warn: "bg-warn text-white",
   bad: "bg-danger text-white",
   off: "bg-line text-navy",
 } as const;
