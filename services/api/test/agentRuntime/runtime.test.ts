@@ -60,3 +60,15 @@ it("concurrent messages on one conversation admit one provider turn",async()=>{
  expect((await post(`/v1/agent/conversations/${id}/messages`,{message:"two"})).status).toBe(409);release();expect(await first.text()).toContain('"text":"ok"');
  expect((await t.db.prepare("SELECT count(*) n FROM agent_usage").first() as any).n).toBe(1);
 });
+it("historic failed key validations do not consume a permanent synthetic conversation allowance",async()=>{
+ const w=await world();
+ for(let i=0;i<21;i++)await w.t.db.prepare("INSERT INTO agent_usage(id,merchant_id,conversation_id,provider,reserved,actual,created_at,status) VALUES(?,?,?,?,?,?,?,?)").bind(`historic-${i}`,"m_1","key-validation","openai",1024,1024,"2026-10-06T12:00:00.000Z","settled").run();
+ const r=await w.post("/v1/agent/keys",{provider:"openai",key:"fixture-only"});expect(r.status).toBe(200);
+});
+it("key validation still refuses exhausted same-day and per-minute budgets before calling provider",async()=>{
+ const w=await world();
+ for(let i=0;i<5;i++)await w.t.db.prepare("INSERT INTO agent_usage(id,merchant_id,conversation_id,provider,reserved,actual,created_at,status) VALUES(?,?,?,?,?,?,?,?)").bind(`daily-${i}`,"m_1",`daily-${i}`,"openai",10000,10000,w.t.clock.now.toISOString(),"settled").run();
+ expect((await w.post("/v1/agent/keys",{provider:"openai",key:"fixture-only"})).status).toBe(429);expect(w.f.calls).toBe(0);
+ const rate=await world();for(let i=0;i<10;i++)await rate.t.db.prepare("INSERT INTO agent_usage(id,merchant_id,conversation_id,provider,reserved,actual,created_at,status) VALUES(?,?,?,?,?,?,?,?)").bind(`rate-${i}`,"m_1",`rate-${i}`,"openai",1,1,rate.t.clock.now.toISOString(),"settled").run();
+ expect((await rate.post("/v1/agent/keys",{provider:"openai",key:"fixture-only"})).status).toBe(429);expect(rate.f.calls).toBe(0);
+});

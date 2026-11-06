@@ -35,7 +35,7 @@ agentRuntimeRoutes.post("/keys",async c=>{
  const p=z.strictObject({provider,key:z.string().min(8).max(512).regex(/^[^\s]+$/)}).safeParse(await c.req.json().catch(()=>null));
  if(!p.success)return fail(c,400,"invalid_input","Choose a provider and supply its key.");
  if(!c.env.AGENT_KEY_SECRET||c.env.AGENT_KEY_SECRET.length<32)return fail(c,503,"agent_unconfigured","Key storage is not configured.");
- const hold=await reserve(c.env.DB,c.var.merchantId,"key-validation",p.data.provider,1024,c.var.now());if(!hold)return fail(c,429,"usage_limit_reached","Assistant usage limit reached.");
+ const hold=await reserve(c.env.DB,c.var.merchantId,`key-validation:${crypto.randomUUID()}`,p.data.provider,1024,c.var.now());if(!hold)return fail(c,429,"usage_limit_reached","Assistant usage limit reached.");
  try{
   const result=await complete(p.data.provider,p.data.key,"Reply with JSON only.",'Return {"text":"ok"}',c.var.fetch,32);
   await settle(c.env.DB,hold,Math.min(1024,result.tokens??1024));
