@@ -287,3 +287,6 @@ Each section is a set of staging slices, using the same test-first and completio
 - [x] Sir authorized exact2.00 test-USDT investor setup; successful receipt and balance verified, no WBT transfer. Preserve sir’s Brave profile.
 - [ ] Merchant tier3 World prerequisite blocks the normal1.00 invoice listing (actual403); then investor proof/funding and full certificate journey.
 - [x] Pay-page null/zero buyer-lock label fixed with rendered regression;389 web tests and typecheck passed.
+
+- [x] World real-app environment diagnosis and exact staging-deployment/production-proof fixture coverage; portal IDs/signer matched.
+- [ ] Fresh real World retry after staging API production-proof override; successful proof/listing not yet claimed.

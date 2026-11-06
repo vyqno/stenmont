@@ -185,3 +185,23 @@ funds if insufficient, unresolved provider configuration, pushes and the video.
 [financing routes](../services/api/src/routes/financing.ts),
 [public certificate](../services/api/src/routes/publicClaims.ts), and
 [versioned API interfaces](API-VERSION-ROUTING.md).
+
+## Real-app environment correction (2026-11-07)
+
+The staging Worker explicitly sets `WORLD_ENVIRONMENT=production` for genuine
+World App proofs; its own `ENVIRONMENT` remains `staging`. This changes neither
+production deployment nor token network. Merchant and investor widgets use the
+fresh API setup response; reopen an old widget after deployment. Wrong-environment
+proofs remain refused; fixture success is not a real identity result.
+
+Portal app/RP IDs and the actual API RP signature signer matched on readback. The
+latest audit refusal was `integrity_verification_failed`; that alone does not prove
+the reported phone error was an environment mismatch. The public listing form was
+incomplete and showed `https://docs.world.org/` as App URL. No allowed-origin
+control or public-production approval was established by this read-only check; no
+listing was submitted, configuration saved, or credential rotated.
+
+World's [integration guide](https://docs.world.org/world-id/idkit/integrate) uses
+production for genuine app requests and staging for the simulator. After the
+configuration change, sir must retry the real flow. Capture the resulting API
+status/refusal code without logging the proof, signature, nonce or nullifier.

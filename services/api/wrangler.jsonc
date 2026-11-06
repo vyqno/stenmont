@@ -44,6 +44,7 @@
       "vars": {
         "ENVIRONMENT": "staging",
         "INVOICE_CREATION_PAUSED": "yes",
+        "WORLD_ENVIRONMENT": "production",
         "INVOICE_DEFAULT_VERSION": "2",
         "INVOICE_ACCEPTANCE_MERCHANT_ID": "m_6e8e647cb8f588bd",
         "INVOICE_ACCEPTANCE_MERCHANT_IDS": "m_6e8e647cb8f588bd,m_59b0e58672a6ba81",
