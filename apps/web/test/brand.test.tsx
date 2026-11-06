@@ -30,10 +30,10 @@ describe("brand accessibility", () => {
     expect(css()).toContain(":focus-visible");
     expect(css()).toContain("prefers-reduced-motion");
   });
-  it("explains the financing condition and test network beside the candidate headline", () => {
+  it("explains financing conditions and the test network beside the platform headline", () => {
     const html = renderToStaticMarkup(<Home />);
-    expect(html).toContain("Get paid the day you invoice.");
-    expect(html).toContain("Financing depends on investor funding");
+    expect(html).toContain("Your business, on stablecoins.");
+    expect(html).toContain("eligibility, human approval and investor funding apply");
     expect(html).toContain("test network");
     expect(html).toContain('href="/signup"');
     expect(html).toContain('href="/docs"');

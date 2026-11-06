@@ -8,11 +8,12 @@ describe("landing product examples", () => {
     expect(html).toContain('role="tablist"');
     expect(html).toContain('role="tabpanel"');
     expect(html).toContain("Sample data");
+    expect(html).toContain("Sample storefront catalogue");
     expect(html).toContain("Get paid");
     expect(html).toContain("Books");
-    expect(html).toContain("Sell invoices");
+    expect(html).toContain("Capital");
     expect(html).toContain("Agents");
-    expect(html).toContain("Financing depends on investor funding");
+    expect(html).toContain("Funding is not guaranteed.");
   });
 });
 
