@@ -1,6 +1,6 @@
 CREATE TABLE agent_conversations (
  id TEXT PRIMARY KEY, merchant_id TEXT NOT NULL REFERENCES merchants(id), created_at TEXT NOT NULL,
- tools TEXT NOT NULL DEFAULT '[]'
+ busy INTEGER NOT NULL DEFAULT 0, tools TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX agent_conversations_merchant ON agent_conversations(merchant_id);
 CREATE TABLE agent_messages (
@@ -18,3 +18,7 @@ CREATE TABLE agent_usage (
  created_at TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','settled'))
 );
 CREATE INDEX agent_usage_merchant_time ON agent_usage(merchant_id,created_at);
+CREATE TABLE agent_results (
+ id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL REFERENCES agent_conversations(id), content TEXT NOT NULL
+);
+CREATE INDEX agent_results_conversation ON agent_results(conversation_id);

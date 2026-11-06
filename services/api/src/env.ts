@@ -5,6 +5,9 @@ import type { Relayer } from "./relayer/do";
 
 export type Env = {
   DB: D1Database;
+  AGENT_ENABLED?: string;
+  GEMINI_API_KEY?: string;
+  AGENT_KEY_SECRET?: string;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
   GOOGLE_CLIENT_ID?: string;
