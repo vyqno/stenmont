@@ -4,9 +4,9 @@ pragma solidity 0.8.38;
 import {PaymentRouterV2} from "../../src/PaymentRouterV2.sol";
 import {ReputationRegistryV2} from "../../src/ReputationRegistryV2.sol";
 import {IPaymentRouterV2} from "../../src/interfaces/IPaymentRouterV2.sol";
+import {MockWallet} from "../mocks/MockWallet.sol";
 import {BaseV2} from "./BaseV2.t.sol";
 import {MockHookV2, ReentrantHookV2} from "./MockHookV2.sol";
-import {MockWallet} from "../mocks/MockWallet.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
@@ -24,6 +24,7 @@ contract GasBurnerReputationV2 {
 }
 
 import {RouterV2RegressionBase} from "./RouterV2RegressionBase.t.sol";
+
 contract RouterV2Regression1Test is RouterV2RegressionBase {
     function test_constructor_setsConfig() public view {
         assertEq(address(router.usdt()), address(usdt));
@@ -32,6 +33,7 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         assertEq(router.attester(), attester);
         assertEq(router.refundApprovalThreshold(), THRESHOLD);
     }
+
     function test_constructor_zeroAddressesRevert() public {
         vm.expectRevert(IPaymentRouterV2.ZeroAddress.selector);
         new PaymentRouterV2(address(0), owner, guardian, attester, THRESHOLD);
@@ -42,17 +44,20 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableInvalidOwner.selector, address(0)));
         new PaymentRouterV2(address(usdt), address(0), guardian, attester, THRESHOLD);
     }
+
     function test_ids_areMerchantScoped() public view {
         assertTrue(router.invoiceIdOf(merchant, REF1) != router.invoiceIdOf(payer, REF1));
         assertTrue(router.invoiceIdOf(merchant, REF1) != router.invoiceIdOf(merchant, REF2));
         assertEq(router.invoiceIdOf(merchant, REF1), keccak256(abi.encode(merchant, REF1)));
     }
+
     function test_nonces_areDistinctPerKindIdAndSalt() public view {
         bytes32 id = router.invoiceIdOf(merchant, REF1);
         assertTrue(router.payNonce(id, payout, S1) != router.payNonce(id, payout, S2));
         assertTrue(router.payNonce(id, payout, S1) != router.refundNonce(id, payer, S1));
         assertTrue(router.refundNonce(id, payer, S1) != router.refundNonce(id, payer2, S1));
     }
+
     function test_create_storesInvoiceAndEmits() public {
         IPaymentRouterV2.CreateInvoice memory r = _req(REF1, AMOUNT);
         r.payerLock = payer;
@@ -78,6 +83,7 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         assertEq(uint8(inv.status), uint8(IPaymentRouterV2.Status.Open));
         assertEq(inv.metaHash, r.metaHash);
     }
+
     function test_create_twice_reverts_InvoiceExists() public {
         IPaymentRouterV2.CreateInvoice memory r = _req(REF1, AMOUNT);
         _create(r);
@@ -85,6 +91,7 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         vm.expectRevert(IPaymentRouterV2.InvoiceExists.selector);
         router.createInvoice(r, sig);
     }
+
     function test_create_sameRefDifferentMerchants_bothWork() public {
         _create(_req(REF1, AMOUNT));
         IPaymentRouterV2.CreateInvoice memory r2 = _req(REF1, AMOUNT);
@@ -93,6 +100,7 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         router.createInvoice(r2, sig);
         assertEq(uint8(router.invoices(router.invoiceIdOf(payer, REF1)).status), uint8(IPaymentRouterV2.Status.Open));
     }
+
     function test_create_expiredDeadline_reverts() public {
         IPaymentRouterV2.CreateInvoice memory r = _req(REF1, AMOUNT);
         bytes memory sig = _sig(merchantPk, _createHash(r));
@@ -100,18 +108,21 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         vm.expectRevert(IPaymentRouterV2.Expired.selector);
         router.createInvoice(r, sig);
     }
+
     function test_create_deadlineBoundary_isInclusive() public {
         IPaymentRouterV2.CreateInvoice memory r = _req(REF1, AMOUNT);
         bytes memory sig = _sig(merchantPk, _createHash(r));
         vm.warp(r.deadline);
         router.createInvoice(r, sig);
     }
+
     function test_create_wrongSigner_reverts() public {
         IPaymentRouterV2.CreateInvoice memory r = _req(REF1, AMOUNT);
         bytes memory sig = _sig(payerPk, _createHash(r));
         vm.expectRevert(IPaymentRouterV2.BadSignature.selector);
         router.createInvoice(r, sig);
     }
+
     function test_create_tamperedField_reverts() public {
         IPaymentRouterV2.CreateInvoice memory r = _req(REF1, AMOUNT);
         bytes memory sig = _sig(merchantPk, _createHash(r));
@@ -123,6 +134,7 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         vm.expectRevert(IPaymentRouterV2.BadSignature.selector);
         router.createInvoice(r, sig);
     }
+
     function test_create_invalidInputs_revert() public {
         IPaymentRouterV2.CreateInvoice memory r = _req(REF1, 0);
         bytes memory sig = _sig(merchantPk, _createHash(r));
@@ -141,11 +153,13 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         vm.expectRevert(IPaymentRouterV2.InvalidInvoice.selector);
         router.createInvoice(r, sig);
     }
+
     function test_create_minPaymentEqualToAmount_ok() public {
         IPaymentRouterV2.CreateInvoice memory r = _req(REF1, AMOUNT);
         r.minPayment = AMOUNT;
         _create(r);
     }
+
     function test_create_smartAccountMerchant_viaERC1271() public {
         MockWallet wallet = new MockWallet(merchant);
         IPaymentRouterV2.CreateInvoice memory r = _req(REF1, AMOUNT);
@@ -153,6 +167,7 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         router.createInvoice(r, _sig(merchantPk, _createHash(r)));
         assertEq(router.invoices(router.invoiceIdOf(address(wallet), REF1)).merchant, address(wallet));
     }
+
     function test_create_smartAccountMerchant_wrongOwnerSigReverts() public {
         MockWallet wallet = new MockWallet(merchant);
         IPaymentRouterV2.CreateInvoice memory r = _req(REF1, AMOUNT);
@@ -161,6 +176,7 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         vm.expectRevert(IPaymentRouterV2.BadSignature.selector);
         router.createInvoice(r, sig);
     }
+
     function test_create_whenPaused_reverts() public {
         IPaymentRouterV2.CreateInvoice memory r = _req(REF1, AMOUNT);
         bytes memory sig = _sig(merchantPk, _createHash(r));
@@ -169,6 +185,7 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         vm.expectRevert(Pausable.EnforcedPause.selector);
         router.createInvoice(r, sig);
     }
+
     function test_creator_setThenCreate_works() public {
         bytes memory sig = _creatorSig(merchantPk, merchant, relayer, true, T0 + 1 days, 0);
         vm.expectEmit(true, true, false, true, address(router));
@@ -182,12 +199,14 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         router.createInvoiceAsCreator(r);
         assertEq(uint8(router.invoices(router.invoiceIdOf(merchant, REF1)).status), uint8(IPaymentRouterV2.Status.Open));
     }
+
     function test_creator_notDelegated_reverts() public {
         IPaymentRouterV2.CreateInvoice memory r = _req(REF1, AMOUNT);
         vm.prank(relayer);
         vm.expectRevert(IPaymentRouterV2.NotCreator.selector);
         router.createInvoiceAsCreator(r);
     }
+
     function test_creator_revoked_thenCreateReverts() public {
         router.setCreator(
             merchant, relayer, true, T0 + 1 days, _creatorSig(merchantPk, merchant, relayer, true, T0 + 1 days, 0)
@@ -201,12 +220,14 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         vm.expectRevert(IPaymentRouterV2.NotCreator.selector);
         router.createInvoiceAsCreator(r);
     }
+
     function test_creator_signatureCannotBeReplayed() public {
         bytes memory sig = _creatorSig(merchantPk, merchant, relayer, true, T0 + 1 days, 0);
         router.setCreator(merchant, relayer, true, T0 + 1 days, sig);
         vm.expectRevert(IPaymentRouterV2.BadSignature.selector);
         router.setCreator(merchant, relayer, true, T0 + 1 days, sig);
     }
+
     function test_creator_badSigAndExpiredAndZero_revert() public {
         bytes memory bad = _creatorSig(payerPk, merchant, relayer, true, T0 + 1 days, 0);
         vm.expectRevert(IPaymentRouterV2.BadSignature.selector);
@@ -219,6 +240,7 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         vm.expectRevert(IPaymentRouterV2.ZeroAddress.selector);
         router.setCreator(merchant, address(0), true, T0 + 1 days, good);
     }
+
     function test_creator_expiredRequestReverts() public {
         router.setCreator(
             merchant, relayer, true, T0 + 1 days, _creatorSig(merchantPk, merchant, relayer, true, T0 + 1 days, 0)
@@ -229,6 +251,7 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         vm.expectRevert(IPaymentRouterV2.Expired.selector);
         router.createInvoiceAsCreator(r);
     }
+
     function test_creator_delegationIsPerMerchant() public {
         router.setCreator(
             merchant, relayer, true, T0 + 1 days, _creatorSig(merchantPk, merchant, relayer, true, T0 + 1 days, 0)
@@ -239,6 +262,7 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         vm.expectRevert(IPaymentRouterV2.NotCreator.selector);
         router.createInvoiceAsCreator(r);
     }
+
     function test_pay_full_marksPaid_forwardsToPayout_emits() public {
         bytes32 id = _newInvoice(REF1, AMOUNT);
         IPaymentRouterV2.Auth memory a = _payAuth(payerPk, id, AMOUNT, S1);
@@ -257,6 +281,7 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         assertEq(usdt.balanceOf(address(router)), 0);
         assertEq(router.remaining(id), 0);
     }
+
     function test_pay_partialThenRest() public {
         bytes32 id = _newInvoice(REF1, AMOUNT);
         _pay(id, 30e6, payerPk, S1);
@@ -269,6 +294,7 @@ contract RouterV2Regression1Test is RouterV2RegressionBase {
         assertEq(usdt.balanceOf(payout), AMOUNT);
         assertEq(usdt.balanceOf(address(router)), 0);
     }
+
     function test_pay_minimum_belowReverts_finalRemainderAllowed() public {
         IPaymentRouterV2.CreateInvoice memory r = _req(REF1, AMOUNT);
         r.minPayment = 30e6;
