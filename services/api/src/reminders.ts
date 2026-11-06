@@ -1,6 +1,6 @@
-import { and, inArray, isNotNull, lt } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lt } from "drizzle-orm";
 import type { Db } from "./app";
-import { invoices } from "./db/schema";
+import { invoices, subscriptions } from "./db/schema";
 import type { Env } from "./env";
 import { invoiceView } from "./lib/views";
 import { emitEvent } from "./webhooks";
@@ -27,8 +27,13 @@ export async function runReminders(env: Env, db: Db, now: Date): Promise<{ sent:
     .select()
     .from(invoices)
     .where(and(inArray(invoices.status, ["open", "partially_paid"]), isNotNull(invoices.dueDate), lt(invoices.dueDate, horizon)));
+  // An invoice the buyer is paying in parts (or has finished paying that way) is not chased.
+  const onPlan = new Set(
+    (await db.select({ id: subscriptions.invoiceId }).from(subscriptions).where(and(eq(subscriptions.kind, "instalment"), inArray(subscriptions.status, ["active", "completed"])))).map((r) => r.id),
+  );
   let sent = 0;
   for (const inv of rows) {
+    if (onPlan.has(inv.id)) continue;
     const stage = stageOf(Date.parse(inv.dueDate!), now.getTime());
     if (!stage) continue;
     const queued = await emitEvent(db, env.WEBHOOKS, inv.merchantId, {

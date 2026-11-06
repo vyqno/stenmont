@@ -5,7 +5,7 @@ import { z } from "zod";
 import { MULTICALL3_ADDRESS, fromUnits, multicall3Abi, passkeyAccountFactoryAbi, subscriptionManagerAbi, toUnits } from "@stenmont/shared";
 import type { AppEnv } from "../app";
 import { audit } from "../audit";
-import { merchants, subscriptions } from "../db/schema";
+import { invoices, merchants, subscriptions } from "../db/schema";
 import { fail } from "../errors";
 import { runIdempotent } from "../idempotency";
 import { randomHex } from "../lib/crypto";
@@ -14,11 +14,13 @@ import { amountSchema, idSchema, invalid } from "../lib/validation";
 import { hitRateLimit } from "../relayer/caps";
 import { issueAccountToken } from "./account";
 import { sendFromTank, type TankSend } from "../relayer/tankSend";
+import { eventType } from "../instalments";
 import { emitEvent } from "../webhooks";
 
 type Row = typeof subscriptions.$inferSelect;
-const view = (r: Row, appUrl: string) => ({
+export const subscriptionView = (r: Row, appUrl: string) => ({
   id: r.id,
+  kind: r.kind,
   status: r.status === "subscribing" ? "offered" : r.status,
   amount: fromUnits(BigInt(r.amount)),
   periodSeconds: r.periodSeconds,
@@ -29,7 +31,19 @@ const view = (r: Row, appUrl: string) => ({
   nextChargeAt: r.status === "active" || r.status === "past_due" ? new Date(r.nextChargeAt * 1000).toISOString() : null,
   subscribeUrl: `${appUrl}/subscribe/${r.id}`,
   createdAt: r.createdAt,
+  atRisk: r.atRiskReason ? { reason: r.atRiskReason, since: r.atRiskAt } : null,
+  ...(r.kind === "instalment" && r.total
+    ? {
+        invoiceId: r.invoiceId,
+        payerBusinessName: r.payerBusinessName,
+        count: r.maxCharges,
+        each: fromUnits(BigInt(r.amount)),
+        total: fromUnits(BigInt(r.total)),
+        rounding: fromUnits(BigInt(r.total) - BigInt(r.amount) * BigInt(r.maxCharges)),
+      }
+    : {}),
 });
+const view = subscriptionView;
 
 const createBody = z.strictObject({
   amount: amountSchema,
@@ -63,6 +77,12 @@ subscriptionRoutes.post("/", async (c) => {
       failedAttempts: 0,
       retryAt: null,
       subscribeTx: null,
+      kind: "subscription",
+      invoiceId: null,
+      payerBusinessName: null,
+      total: null,
+      atRiskReason: null,
+      atRiskAt: null,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     };
@@ -72,7 +92,10 @@ subscriptionRoutes.post("/", async (c) => {
 });
 
 subscriptionRoutes.get("/", async (c) => {
-  const rows = await c.var.db.select().from(subscriptions).where(eq(subscriptions.merchantId, c.var.merchantId)).orderBy(desc(subscriptions.createdAt), desc(subscriptions.id)).limit(100);
+  const kind = c.req.query("kind");
+  if (kind !== undefined && kind !== "subscription" && kind !== "instalment") return fail(c, 400, "invalid_request", "kind must be subscription or instalment");
+  const mine = eq(subscriptions.merchantId, c.var.merchantId);
+  const rows = await c.var.db.select().from(subscriptions).where(kind ? and(mine, eq(subscriptions.kind, kind)) : mine).orderBy(desc(subscriptions.createdAt), desc(subscriptions.id)).limit(100);
   return c.json({ data: rows.map((r) => view(r, c.env.APP_URL)) });
 });
 
@@ -109,6 +132,8 @@ subscriptionPublicRoutes.get("/pay/subscription/:id", async (c) => {
   const [m] = await c.var.db.select().from(merchants).where(eq(merchants.id, r.merchantId));
   return c.json({
     id: r.id,
+    kind: r.kind,
+    ...(r.kind === "instalment" && r.total ? { total: fromUnits(BigInt(r.total)), payerBusinessName: r.payerBusinessName } : {}),
     status: r.status === "subscribing" ? "offered" : r.status,
     merchantName: m?.name ?? "",
     merchantAddress: m?.address ?? null,
@@ -164,6 +189,11 @@ subscriptionRelayRoutes.post("/subscribe", async (c) => {
   if (!sub) return fail(c, 404, "not_found", "Not found");
   const [m] = await db.select().from(merchants).where(eq(merchants.id, sub.merchantId));
   if (!m?.address) return fail(c, 409, "merchant_not_ready", "This business is not ready yet.");
+  if (sub.kind === "instalment") {
+    // A plan covers an invoice nobody has paid. If it was paid or cancelled meanwhile, agreeing to it would charge twice.
+    const [inv] = sub.invoiceId ? await db.select().from(invoices).where(eq(invoices.id, sub.invoiceId)) : [];
+    if (!inv || inv.status !== "open") return fail(c, 409, "invoice_not_payable", "This invoice can no longer be paid in parts.");
+  }
   const taken = await db.update(subscriptions).set({ status: "subscribing", updatedAt: now.toISOString() }).where(and(eq(subscriptions.id, sub.id), eq(subscriptions.status, "offered"))).returning({ id: subscriptions.id });
   if (taken.length === 0) return fail(c, 409, "not_available", "This subscription is not available.");
   const back = () => db.update(subscriptions).set({ status: "offered" }).where(eq(subscriptions.id, sub.id));
@@ -212,7 +242,7 @@ subscriptionRelayRoutes.post("/subscribe", async (c) => {
   }
   await db.update(subscriptions).set({ status: "active", payer: b.payer, subscribeTx: sent.txHash, updatedAt: now.toISOString() }).where(eq(subscriptions.id, sub.id));
   await audit(db, { merchantId: sub.merchantId, actor: `payer:${b.payer}`, action: "subscription.created", payload: { id: sub.id, txHash: sent.txHash } });
-  await emitEvent(db, c.env.WEBHOOKS, sub.merchantId, { id: `evt_sub_created_${sub.id}`, type: "subscription.created", data: { subscription: view({ ...sub, status: "active", payer: b.payer }, c.env.APP_URL) } });
+  await emitEvent(db, c.env.WEBHOOKS, sub.merchantId, { id: `evt_sub_created_${sub.id}`, type: eventType(sub.kind, sub.kind === "instalment" ? "started" : "created"), data: { subscription: view({ ...sub, status: "active", payer: b.payer }, c.env.APP_URL) } });
   const accountToken = await issueAccountToken(c.env, b.payer, now);
   return c.json({ status: "active", txHash: sent.txHash, ...(accountToken ? { accountToken } : {}) });
 });
@@ -234,6 +264,6 @@ subscriptionRelayRoutes.post("/subscription-cancel", async (c) => {
   if (!sent.ok) return failSend(c, sent);
   await db.update(subscriptions).set({ status: "cancelled", updatedAt: now.toISOString() }).where(eq(subscriptions.id, sub.id));
   await audit(db, { merchantId: sub.merchantId, actor: `payer:${sub.payer}`, action: "subscription.cancelled", payload: { id: sub.id, txHash: sent.txHash } });
-  await emitEvent(db, c.env.WEBHOOKS, sub.merchantId, { id: `evt_sub_cancelled_${sub.id}`, type: "subscription.cancelled", data: { subscription: view({ ...sub, status: "cancelled" }, c.env.APP_URL) } });
+  await emitEvent(db, c.env.WEBHOOKS, sub.merchantId, { id: `evt_sub_cancelled_${sub.id}`, type: eventType(sub.kind, "cancelled"), data: { subscription: view({ ...sub, status: "cancelled" }, c.env.APP_URL) } });
   return c.json({ status: "cancelled", txHash: sent.txHash });
 });

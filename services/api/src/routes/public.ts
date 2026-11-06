@@ -1,8 +1,8 @@
-import { and, eq, notInArray } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { fromUnits } from "@stenmont/shared";
 import type { AppEnv } from "../app";
-import { invoices, merchants, paymentLinks } from "../db/schema";
+import { invoices, merchants, paymentLinks, subscriptions } from "../db/schema";
 import { fail } from "../errors";
 import { idSchema } from "../lib/validation";
 import { isPaused } from "../sites/switch";
@@ -23,7 +23,18 @@ publicRoutes.get("/pay/:id", async (c) => {
   const amount = BigInt(row.inv.amount);
   const paid = BigInt(row.inv.amountPaid);
   const open = row.inv.status === "open" || row.inv.status === "partially_paid";
+  // A business-to-business invoice may be offered in parts: the pay page links to the plan while it can still be taken up.
+  const [plan] =
+    row.inv.status === "open"
+      ? await c.var.db
+          .select()
+          .from(subscriptions)
+          .where(and(eq(subscriptions.invoiceId, row.inv.id), eq(subscriptions.kind, "instalment"), inArray(subscriptions.status, ["offered", "subscribing"])))
+          .orderBy(desc(subscriptions.createdAt))
+          .limit(1)
+      : [];
   return c.json({
+    instalments: plan ? { count: plan.maxCharges, each: fromUnits(BigInt(plan.amount)), url: `${c.env.APP_URL}/subscribe/${plan.id}` } : null,
     id: row.inv.id,
     number: row.inv.number,
     status: row.inv.status,

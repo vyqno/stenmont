@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { Rejected } from "../src/chain";
 import { gasTanks, invoices, subscriptions, webhookDeliveries } from "../src/db/schema";
 import { splitInstalments } from "../src/instalments";
+import { runReminders } from "../src/reminders";
 import { runRenewals } from "../src/renewals";
 import { baseEnv, seedMerchant, setup } from "./helpers/app";
 import { dbOf, fakeQueue, seedEndpoint } from "./helpers/fixtures";
@@ -199,5 +200,20 @@ describe("cancel and tenant isolation", () => {
     expect((await json(await w.t.req("/v1/subscriptions", { key: w.other }))).data).toEqual([]);
     expect((await w.t.req(`/v1/subscriptions/${inv.instalmentPlan.id}`, { key: w.other })).status).toBe(404);
     expect((await w.t.req(`/v1/subscriptions/${inv.instalmentPlan.id}/cancel`, { method: "POST", key: w.other })).status).toBe(404);
+  });
+});
+
+describe("reminders", () => {
+  it("do not chase an invoice the buyer is paying in parts", async () => {
+    const w = await world();
+    const due = new Date(Date.parse("2026-11-06T12:00:00Z") - 10 * 86_400_000).toISOString();
+    const inv = await json(await w.invoice({ ...B2B, dueDate: due }));
+    const alone = await json(await w.invoice({ amount: "5", dueDate: due }));
+    await seedEndpoint(w.t.db);
+    const env = { ...baseEnv(w.t.db), WEBHOOKS: fakeQueue() } as unknown as ReturnType<typeof baseEnv>;
+    const seen = async () => (await w.db.select().from(webhookDeliveries).where(eq(webhookDeliveries.type, "invoice.reminder"))).map((d) => JSON.parse(d.payload).data.invoice.id);
+    await w.subscribe(inv.instalmentPlan.id);
+    await runReminders(env, w.db, new Date("2026-11-06T12:00:00Z"));
+    expect(await seen()).toEqual([alone.id]); // the one on a plan is not nagged
   });
 });

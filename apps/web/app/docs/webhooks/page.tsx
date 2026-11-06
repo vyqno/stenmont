@@ -14,7 +14,7 @@ export default function Webhooks() {
       <p><code>POST {API_URL}/v1/webhook-endpoints</code> with <code>{`{"url": "https://your-site.example/webhooks/stenmont"}`}</code>. The address must be public https. Add <code>events</code> to receive only some types. The response contains <code>secret</code> (starts with <code>whsec_</code>) <strong>once</strong>. Keep it as <code>STENMONT_WEBHOOK_SECRET</code>.</p>
 
       <h2>Events</h2>
-      <p><code>invoice.created</code>, <code>invoice.partially_paid</code>, <code>invoice.paid</code>, <code>invoice.cancelled</code>, <code>invoice.reminder</code>, <code>refund.created</code>, <code>subscription.created</code>, <code>subscription.charged</code>, <code>subscription.past_due</code>, <code>subscription.cancelled</code>, <code>claim.funded</code>, <code>claim.settled</code>, <code>claim.defaulted</code>. The Connect page also sends <code>site.test</code> to check your handler; answer it with 2xx.</p>
+      <p><code>invoice.created</code>, <code>invoice.partially_paid</code>, <code>invoice.paid</code>, <code>invoice.cancelled</code>, <code>invoice.reminder</code>, <code>refund.created</code>, <code>subscription.created</code>, <code>subscription.charged</code>, <code>subscription.past_due</code>, <code>subscription.cancelled</code>, <code>subscription.at_risk</code>, <code>instalment.started</code>, <code>instalment.charged</code>, <code>instalment.failed</code>, <code>instalment.completed</code>, <code>instalment.cancelled</code>, <code>claim.funded</code>, <code>claim.settled</code>, <code>claim.defaulted</code>. The Connect page also sends <code>site.test</code> to check your handler; answer it with 2xx.</p>
       <Code name="webhookEvent" />
 
       <h2>Delivery</h2>
