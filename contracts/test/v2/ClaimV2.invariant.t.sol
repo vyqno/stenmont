@@ -5,8 +5,8 @@ import {InvestorRegistry} from "../../src/InvestorRegistry.sol";
 import {InvoiceClaimV2} from "../../src/InvoiceClaimV2.sol";
 import {PaymentRouterV2} from "../../src/PaymentRouterV2.sol";
 import {IPaymentRouterV2} from "../../src/interfaces/IPaymentRouterV2.sol";
-import {ClaimBaseV2} from "./ClaimBaseV2.t.sol";
 import {MockUSDT} from "../mocks/MockUSDT.sol";
+import {ClaimBaseV2} from "./ClaimBaseV2.t.sol";
 import {console2} from "forge-std/Test.sol";
 
 /// @dev Random, always-valid sequences: create+list, fund, pay (before and after funding), transfer, revoke and
