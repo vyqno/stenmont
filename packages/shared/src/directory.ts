@@ -13,6 +13,10 @@ export const TOKEN_KEY = "stenmont.token";
 export const REFUND_KEY = "stenmont.refund";
 export const LIMITS_KEY = "stenmont.limits";
 export const DIRECTORY_KEYS = [PAY_KEY, X402_KEY, TOKEN_KEY, REFUND_KEY, LIMITS_KEY] as const;
+export const COLLECTIONS_KEY = "stenmont.collections";
+export const A2A_KEY = "stenmont.a2a";
+/** Independently published policies share the registrar-only permission boundary. */
+export const REGISTRAR_KEYS = [...DIRECTORY_KEYS, COLLECTIONS_KEY, A2A_KEY] as const;
 export type DirectoryKey = (typeof DIRECTORY_KEYS)[number];
 
 /** The accepted token, as `eip155:<chain>/erc20:<address>`. Always derived from our chain config, never typed by a person. */

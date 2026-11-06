@@ -3,6 +3,7 @@ CREATE TABLE a2a_access (
   merchant_id TEXT PRIMARY KEY REFERENCES merchants(id),
   enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN (0,1)),
   skills TEXT NOT NULL DEFAULT '[]',
+  ens_tx TEXT,
   updated_at TEXT NOT NULL
 );
 CREATE TABLE a2a_tasks (
@@ -16,3 +17,6 @@ CREATE TABLE a2a_tasks (
   UNIQUE(merchant_id,message_id)
 );
 CREATE INDEX a2a_tasks_merchant_created ON a2a_tasks(merchant_id,created_at);
+
+-- Older enrollments have unknown proof provenance and must not be relabelled as real proofs.
+ALTER TABLE world_enrollments ADD COLUMN proof_environment TEXT;

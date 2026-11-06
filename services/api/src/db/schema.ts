@@ -192,6 +192,7 @@ export const worldEnrollments = sqliteTable(
     id: text("id").primaryKey(),
     merchantId: text("merchant_id").notNull(),
     action: text("action").notNull(),
+    proofEnvironment: text("proof_environment"), // null for historical records: never infer proof provenance from current config
     nullifier: text("nullifier").notNull(), // decimal text of the 256-bit number
     verifiedAt: text("verified_at").notNull(),
   },

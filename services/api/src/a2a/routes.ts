@@ -2,9 +2,11 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { fromUnits, toUnits } from "@stenmont/shared";
+import { A2A_KEY, fromUnits, toUnits } from "@stenmont/shared";
 import type { AppEnv } from "../app";
 import { ensNames, invoices, merchants, products, variants } from "../db/schema";
+import type { Address } from "viem";
+import { hitRateLimit } from "../relayer/caps";
 import { fail } from "../errors";
 import { covers, parseScopes } from "../oauth/scopes";
 import { sha256Hex } from "../lib/crypto";
@@ -15,8 +17,8 @@ const payload = z.object({ skill: z.enum(SKILLS), input: object.default({}) }).s
 const send = z.object({ message: z.object({ messageId: id, role: z.literal("ROLE_USER"), parts: z.tuple([z.object({ data: payload }).strict()]), taskId: id.optional(), contextId: id.optional() }).strict(), configuration: z.object({ acceptedOutputModes: z.array(z.string()).optional(), returnImmediately: z.boolean().optional() }).strict().optional() }).strict();
 const invoiceInput = z.object({ invoiceId: id }).strict();
 const draftInput = z.object({ number: z.string().min(1).max(80), amount: z.string().regex(/^\d{1,9}(?:\.\d{1,6})?$/), customerEmail: z.email().max(254).optional(), dueDate: z.iso.date().optional() }).strict();
-type Access = { enabled: number; skills: string };
-async function access(db: D1Database, merchant: string) { return db.prepare("SELECT enabled,skills FROM a2a_access WHERE merchant_id=?").bind(merchant).first<Access>(); }
+type Access = { enabled: number; skills: string; ens_tx?: string | null };
+async function access(db: D1Database, merchant: string) { return db.prepare("SELECT enabled,skills,ens_tx FROM a2a_access WHERE merchant_id=?").bind(merchant).first<Access>(); }
 const skillList = (a: Access | null) => { try { const v = JSON.parse(a?.skills ?? "[]"); return Array.isArray(v) ? SKILLS.filter(s => v.includes(s)) : []; } catch { return []; } };
 export const a2aPublicRoutes = new Hono<AppEnv>();
 a2aPublicRoutes.get("/.well-known/agent-card.json", c => c.json(agentCard(c.env.API_URL, "stenmont", "platform", SKILLS), 200, { "cache-control": "no-store" }));
@@ -30,7 +32,7 @@ export const agentAccessRoutes = new Hono<AppEnv>();
 agentAccessRoutes.get("/", async c => {
   const a = await access(c.env.DB, c.var.merchantId);
   const [ens] = await c.var.db.select().from(ensNames).where(eq(ensNames.merchantId, c.var.merchantId));
-  return c.json({ enabled: !!a?.enabled, skills: skillList(a), availableSkills: SKILLS.map(id => ({ id, scope: scopeFor(id) })), cardUrl: `${c.env.API_URL}/a2a/${encodeURIComponent(c.var.merchantId)}/agent-card.json`, ens: { name: ens?.name ?? null, record: "stenmont.a2a", status: "publication_pending" } });
+  return c.json({ enabled: !!a?.enabled, skills: skillList(a), availableSkills: SKILLS.map(id => ({ id, scope: scopeFor(id) })), cardUrl: `${c.env.API_URL}/a2a/${encodeURIComponent(c.var.merchantId)}/agent-card.json`, ens: { name: ens?.name ?? null, record: "stenmont.a2a", status: a?.ens_tx ? "published" : "publication_pending", txHash: a?.ens_tx ?? null } });
 });
 agentAccessRoutes.put("/", bodyLimit({ maxSize: 4096, onError: c => c.json({ error: { code: "too_large" } }, 413) }), async c => {
   const parsed = z.object({ enabled: z.boolean(), skills: z.array(z.enum(SKILLS)).max(5) }).strict().safeParse(await c.req.json().catch(() => null));
@@ -38,6 +40,19 @@ agentAccessRoutes.put("/", bodyLimit({ maxSize: 4096, onError: c => c.json({ err
   await c.env.DB.prepare("INSERT INTO a2a_access (merchant_id,enabled,skills,updated_at) VALUES (?,?,?,?) ON CONFLICT(merchant_id) DO UPDATE SET enabled=excluded.enabled,skills=excluded.skills,updated_at=excluded.updated_at")
     .bind(c.var.merchantId, Number(parsed.data.enabled), JSON.stringify([...new Set(parsed.data.skills)]), c.var.now().toISOString()).run();
   return c.json({ ok: true });
+});
+agentAccessRoutes.post("/publish-ens", async c => {
+  const a = await access(c.env.DB, c.var.merchantId);
+  if (!a?.enabled) return fail(c, 409, "agent_disabled", "Enable agent access first");
+  const [ens] = await c.var.db.select().from(ensNames).where(and(eq(ensNames.merchantId, c.var.merchantId), eq(ensNames.status, "active")));
+  if (!ens) return fail(c, 409, "ens_required", "Claim an ENS name first");
+  if (!(await hitRateLimit(c.var.db, `a2a:publish:${c.var.merchantId}`, 3, 3600, c.var.now()))) return fail(c, 429, "rate_limited", "Try again later");
+  const cardUrl = `${c.env.API_URL}/a2a/${encodeURIComponent(c.var.merchantId)}/agent-card.json`;
+  try {
+    const txHash = await c.var.ens.setTextRecords({ name: ens.name, resolver: ens.resolver as Address, records: { [A2A_KEY]: cardUrl } });
+    await c.env.DB.prepare("UPDATE a2a_access SET ens_tx=? WHERE merchant_id=?").bind(txHash, c.var.merchantId).run();
+    return c.json({ record: A2A_KEY, value: cardUrl, txHash });
+  } catch { return fail(c, 502, "ens_unavailable", "Registrar could not publish the discovery record"); }
 });
 export const a2aRoutes = new Hono<AppEnv>();
 a2aRoutes.post("/:merchantId", bodyLimit({ maxSize: 16384, onError: c => c.json({ error: { code: "too_large" } }, 413) }), async c => {

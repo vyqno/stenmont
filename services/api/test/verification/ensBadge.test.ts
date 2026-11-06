@@ -1,6 +1,6 @@
 import { decodeFunctionData, type Address, type Hex } from "viem";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AGENT_CONTEXT_KEY, BUSINESS_GRANTED_KEYS, DIRECTORY_KEYS, PAY_KEY, PROFILE_KEY, TIER_KEY, TOKEN_KEY, dnsName, permissionedResolverAbi } from "@stenmont/shared";
+import { AGENT_CONTEXT_KEY, BUSINESS_GRANTED_KEYS, A2A_KEY, REGISTRAR_KEYS, DIRECTORY_KEYS, PAY_KEY, PROFILE_KEY, TIER_KEY, TOKEN_KEY, dnsName, permissionedResolverAbi } from "@stenmont/shared";
 import type { Env } from "../../src/env";
 
 // The real ENS client, with the chain reads and the single sender stubbed: we look at exactly what it would send.
@@ -102,7 +102,7 @@ describe("lockPayout keeps the tier record writable by the registrar", () => {
     const multi = calls.find((c) => c.fn === "multicall");
     expect(multi).toBeTruthy();
     const order = calls.filter((c) => c.fn !== "multicall").map((c) => (c.fn === "grantSetterRoles" ? `grant:${grantedKey(c)}` : c.fn));
-    expect(order).toEqual([`grant:${PROFILE_KEY}`, `grant:${TIER_KEY}`, ...DIRECTORY_KEYS.map((k) => `grant:${k}`), "revokeRootRoles"]);
+    expect(order).toEqual([`grant:${PROFILE_KEY}`, `grant:${TIER_KEY}`, ...REGISTRAR_KEYS.map((k) => `grant:${k}`), "revokeRootRoles"]);
   });
 });
 
@@ -144,4 +144,17 @@ describe("directory records are platform-only", () => {
     const granted = decoded().filter((c) => c.fn === "grantSetterRoles").map(grantedKey);
     for (const k of DIRECTORY_KEYS) expect(granted).toContain(k);
   });
+});
+
+it("reserves A2A writes to the registrar and retains its permission after payout lock", async () => {
+  expect(DIRECTORY_KEYS).toHaveLength(5);
+  expect(BUSINESS_GRANTED_KEYS).not.toContain(A2A_KEY);
+  const client = viemEns(env);
+  await client.grantProfileRole({ name: NAME, resolver: RESOLVER, member: MEMBER });
+  await client.lockPayout({ name: NAME, resolver: RESOLVER });
+  const grants = decoded().filter(c => c.fn === "grantSetterRoles" && grantedKey(c) === A2A_KEY);
+  expect(grants).toHaveLength(1);
+  expect(grants[0]!.args[1]).not.toBe(MEMBER);
+  await client.setTextRecords({ name: NAME, resolver: RESOLVER, records: { [A2A_KEY]: "https://api.example/a2a/m1/agent-card.json" } });
+  expect(decoded().some(c => c.fn === "setText" && c.args[1] === A2A_KEY)).toBe(true);
 });

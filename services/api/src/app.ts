@@ -1,3 +1,4 @@
+import { a2aTrustRoutes } from "./a2a/trust";
 import { a2aPublicRoutes, a2aRoutes, agentAccessRoutes } from "./a2a/routes";
 import { drizzle, type DrizzleD1Database } from "drizzle-orm/d1";
 import { Hono } from "hono";
@@ -116,6 +117,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/import/shopify", shopifyConnectRoutes);
   app.route("/v1", v1);
   app.route("/", a2aPublicRoutes);
+  app.route("/", a2aTrustRoutes);
   app.route("/", oauthRoutes);
   app.route("/webhooks/kyc", kycWebhookRoutes);
   app.route("/auth/world", worldAuthRoutes);
