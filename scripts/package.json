@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "seed-demo": "tsx seed-demo.ts",
     "first-payment": "tsx --env-file=../.env first-payment.ts",
     "lint": "tsc --noEmit",
     "create-merchant": "tsx --env-file=../.env create-merchant.ts",
