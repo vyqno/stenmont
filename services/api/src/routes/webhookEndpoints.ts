@@ -6,6 +6,7 @@ import { audit } from "../audit";
 import { webhookEndpoints } from "../db/schema";
 import { EVENT_TYPES } from "../events";
 import { fail } from "../errors";
+import { runIdempotent, type IdempotentResult } from "../idempotency";
 import { randomHex } from "../lib/crypto";
 import { invalid, isPublicHttpsUrl } from "../lib/validation";
 
@@ -20,24 +21,31 @@ const view = (r: Row) => ({ id: r.id, url: r.url, events: JSON.parse(r.events) a
 export const webhookEndpointRoutes = new Hono<AppEnv>();
 
 webhookEndpointRoutes.post("/", async (c) => {
-  const parsed = createSchema.safeParse(await c.req.json().catch(() => null));
-  if (!parsed.success) return invalid(c, parsed.error);
-  const { db, merchantId } = c.var;
-  const existing = await db.select({ id: webhookEndpoints.id }).from(webhookEndpoints).where(eq(webhookEndpoints.merchantId, merchantId));
-  if (existing.length >= 10) return fail(c, 409, "too_many_endpoints", "A business can have at most 10 webhook endpoints.");
-  const id = crypto.randomUUID();
-  const secret = `whsec_${randomHex(24)}`;
-  await db.insert(webhookEndpoints).values({
-    id,
-    merchantId,
-    url: parsed.data.url,
-    secret,
-    events: JSON.stringify(parsed.data.events),
-    createdAt: new Date().toISOString(),
-  });
-  await audit(db, { merchantId, actor: `merchant:${merchantId}`, action: "webhook_endpoint.created", payload: { id, url: parsed.data.url } });
-  const [row] = await db.select().from(webhookEndpoints).where(eq(webhookEndpoints.id, id));
-  return c.json({ ...view(row!), secret }, 201); // the only time the secret is returned
+  const create = async (): Promise<IdempotentResult | Response> => {
+    const parsed = createSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return invalid(c, parsed.error);
+    const { db, merchantId } = c.var;
+    const existing = await db.select({ id: webhookEndpoints.id }).from(webhookEndpoints).where(eq(webhookEndpoints.merchantId, merchantId));
+    if (existing.length >= 10) return fail(c, 409, "too_many_endpoints", "A business can have at most 10 webhook endpoints.");
+    const id = crypto.randomUUID();
+    const secret = `whsec_${randomHex(24)}`;
+    await db.insert(webhookEndpoints).values({
+      id,
+      merchantId,
+      url: parsed.data.url,
+      secret,
+      events: JSON.stringify(parsed.data.events),
+      createdAt: new Date().toISOString(),
+    });
+    await audit(db, { merchantId, actor: `merchant:${merchantId}`, action: "webhook_endpoint.created", payload: { id, url: parsed.data.url } });
+    const [row] = await db.select().from(webhookEndpoints).where(eq(webhookEndpoints.id, id));
+    // A saved key replays this same logical creation response; GET never exposes it.
+    return { status: 201, body: { ...view(row!), secret } };
+  };
+  // Existing clients without a key keep their one-shot creation behavior.
+  if (c.req.header("idempotency-key") !== undefined) return runIdempotent(c, c.var.merchantId, create);
+  const out = await create();
+  return out instanceof Response ? out : c.json(out.body as object, out.status);
 });
 
 webhookEndpointRoutes.get("/", async (c) => {

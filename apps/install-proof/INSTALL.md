@@ -1,0 +1,33 @@
+# Isolated staging install proof
+
+This is the exported original demo store with its fake payment endpoint removed. All amounts come from the server's catalogue/order. The $1.00 Test payment item exists for the install check. Only a valid signed `invoice.paid` event with the stored invoice ID, matching integer base-unit amount and fully covered amountPaid marks its order paid. Orders persist their checkout UUID before requesting an invoice, reuse it on retries, and save invoice ID/pay URL before redirecting. An early webhook receives 503 so delivery retries after binding persistence. Returning to an order page never does so. Order pages refresh until payment arrives.
+
+## Required owner/operator steps
+
+1. This installation uses its own KV namespace `stenmont-install-proof-staging-orders`, already configured in `wrangler.jsonc`. For a new installation, create a new namespace and replace both IDs. Never reuse the real store's namespace. Deploy only the new `stenmont-install-proof-staging` Worker with `npm run deploy:staging`. The custom domain is `install-proof-staging.stenmont.com`.
+2. Inject `STENMONT_API_KEY` using the host's secret settings or `wrangler secret put STENMONT_API_KEY --env staging`. Keep its value out of files, shell command arguments, and chat.
+3. Add this DNS TXT record exactly:
+   - name: `_stenmont.install-proof-staging.stenmont.com`
+   - value: `stenmont-verify=19a639ff77a0a7f80e00c8e8edc77fe7`
+4. With the API key injected into the registration process environment through your secret manager, run `node scripts/register-webhook.mjs`. It uses the saved per-install registration UUID in the script, registers `https://install-proof-staging.stenmont.com/webhooks/stenmont` and pipes the once-returned signing secret directly to Wrangler's staging secret setting. It never prints or saves that secret. The API can replay the same logical creation response, including its secret, for an authenticated retry with the same saved key; GET never exposes it. Wrangler must already be authenticated. If registration succeeds but secret injection fails, recover or rotate the endpoint secret in the dashboard before retrying; the script deliberately suppresses provider output. Do not run with shell tracing or network debug logging.
+5. Run `node scripts/test-payment.mjs`. It creates an own-store $1.00 order and invoice via the deployed checkout, prints its hosted pay URL and order-status page. Sir must use a supported payer account that already holds test USDT. This script cannot sign for him or fund wallets. If a funded payer cannot use the hosted flow, stop and identify the missing payment path. A separately authorized existing-wallet relay test may prove receipt but must be labelled accurately.
+6. Verify the corresponding order page says **Paid** after the webhook, then open the Stenmont dashboard Connect page and press **Check again**. Confirm all four checks green: site reachable, domain verified, webhook answered, test payment paid.
+
+## Observed staging run — 2026-11-06
+
+- A separate coding agent received the browser-generated installation prompt and public docs, then integrated the hackathon demo store. No credentials were passed to the agent. The resulting code is isolated in this package.
+- Deployed only `stenmont-install-proof-staging` and its separate KV namespace; the existing example store was not redeployed. Server API and signing secrets were piped into staging secret storage without printing or writing their values to repository files.
+- Real Chromium checkout created order `b9de74b76b16`, waited 8.2 seconds for invoice confirmation and redirected to hosted invoice `0xe17c6c37432b86492f12f14be0187c0a23adf281963a7bab4b6ad7685fd1d727`.
+- The existing funded test payer paid 1.00 test USDT through the public relay. Payer WBT remained zero; no wallet was funded. [Successful testnet transaction](https://explorer.testnet.whitechain.io/tx/0xa25e6e73e3dcaf747ef99a37fa818572fd78f5252e513b3b28aff514242c3d71). This proves the relay route, not a hosted passkey payment.
+- After sir added the TXT record, the Connect panel showed Ready with all four checks passed. The real order page reports Paid. Further evidence is recorded in `docs/INSTALL-ACCEPTANCE.md`.
+- The first checkout timed out at eight seconds, leaving an unpaid `creating` invoice and in-progress retry key. One separate diagnostic invoice is also unpaid. No funds were sent to either. A regression test failed before extending the storefront wait to 60 seconds and passed afterward.
+
+Do not claim four green checks until the real panel reports them. Closing a request can still leave an API idempotency operation unfinished; durable recovery of abandoned invoice creation remains separate work. The test store does not repair or rewrite API database state.
+
+## Validation and limitations
+
+Run `npm test` and `npm run lint`. All 37 local tests pass. Local tests mock the invoice API and in-memory storage; they exercise invalid/old/future signatures, raw-body tampering, rotated signatures, duplicate delivery, site.test, server prices, paused errors, saved checkout-key reuse after timeouts and double clicks, early webhook retry, invoice/amount mismatches, exact integer comparison and the redirect path. They do not prove deployed bindings, DNS, API authentication or passkey settlement.
+
+The exported baseline extended an absent monorepo tsconfig; this copy has a standalone strict config. The isolated workspace package uses the same library families as the original demo. Workers KV is inherited from the demo and eventually consistent: a return page can briefly show pending after a webhook. Order creation writes immutable order data including the saved checkout UUID; the invoice binding and paid marker live in separate keys so late concurrent checkout responses cannot overwrite payment status. All concurrent invoice requests share the order's UUID and rely on the provider's idempotency contract. This remains a demo store, with no production shipping/fulfilment pipeline.
+
+The updated prompt specifies saved checkout/registration UUIDs, invoice/amount reconciliation and a funded supported payer. It leaves deployment/storage provisioning and recovery after once-only-secret injection failure to host/operator setup; those require the owner's host access. The registration UUID is saved in the script and must remain stable on retries; use a new UUID only for a deliberately new registration. This installation's green-check definition was observed after those operator steps succeeded.

@@ -307,3 +307,39 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 - 15:58 Clean-line realignment complete on chatgpt-work-2, descended from integration/clean: 16 own commits replayed with original dates; protected local files retained; reachable-history vendor-token scan passed. Resolved additive auth-route/env-example conflicts without removing Shopify/SIWE routes. Identity migration moved to 0023 with idempotent creation for staging compatibility. Linked email and Google Workspace proofs now feed the integrated verification store. Combined full suite: 1137 passed; lint exits 0 with one existing warning; web typecheck passes. No deployment performed during realignment.
 
 - 15:58 Local checkpoint: docs(auth): define payout recovery boundaries and design gates. Staging/live evidence is recorded separately; no push.
+
+- 16:01 Local checkpoint: fix(auth): confine recovery sessions to read-only auth paths. Staging/live evidence is recorded separately; no push.
+
+- 16:12 Local checkpoint: fix(mcp): preserve the Workers fetch invocation context. Staging/live evidence is recorded separately; no push.
+
+- 16:16 Local checkpoint: fix(connect): require retry-safe and invoice-bound agent installation. Staging/live evidence is recorded separately; no push.
+
+- 16:23 Local checkpoint: test(install): cover prompt-built checkout and webhook reconciliation. Staging/live evidence is recorded separately; no push.
+
+- 16:23 Local checkpoint: feat(install): add isolated prompt-built staging checkout. Staging/live evidence is recorded separately; no push.
+
+- 16:23 Local checkpoint: chore(install): configure isolated staging storage and setup scripts. Staging/live evidence is recorded separately; no push.
+
+- 16:26 Local checkpoint: fix(install): allow checkout to wait for chain confirmation. Staging/live evidence is recorded separately; no push.
+
+- 16:29 Local checkpoint: docs(install): record isolated storefront setup and live proof. Staging/live evidence is recorded separately; no push.
+
+- 16:30 Local checkpoint: docs(install): record browser Inspector and settlement acceptance. Staging/live evidence is recorded separately; no push.
+
+- 16:30 Part V F2 staging checkpoint: API 2ad911e5, web 7f0a9015, MCP bbe35b64 and isolated install proof Worker 652c5212 deployed only from chatgpt-work-2 after notice; every post-deploy smoke passed 22/22. Migration 0023 applied to staging. One clean-run virtual-passkey business, one site, one additional server API key, one webhook endpoint, one separate KV/Worker, and one Inspector client/grant (revoked). The isolated store made two orders and three invoice records including one diagnostic request: one invoice paid 1.00 test USDT from the existing payer, two unpaid; the first abandoned request retains creating/in-progress state. No wallet funding, real email, Google/World login or production action. Real browser shows Paid order and Connect 3/4; only DNS TXT is pending sir because the Cloudflare login has no DNS-write permission. Inspector tools/list and list_invoices passed; wrong PKCE/unregistered redirect refused; revoked connection failed. Full suite 1176 passed, lint exit 0 with one existing warning, web typecheck/build passed; 37 install tests. Small commits bef594a, 02b8c98, 038ee15, 43b434e, f75e7eb, 40afaaf; no push. Detailed evidence and known abandoned-invoice limitation: docs/INSTALL-ACCEPTANCE.md. F3 not started before the F2 gate.
+
+- 16:32 Local checkpoint: fix(webhooks): replay saved endpoint registrations safely. Staging/live evidence is recorded separately; no push.
+
+- 16:33 Local checkpoint: docs(install): record verified webhook registration retries. Staging/live evidence is recorded separately; no push.
+
+- 16:34 Local checkpoint: docs(install): clarify replayed creation secret handling. Staging/live evidence is recorded separately; no push.
+
+- 16:34 Review correction: ff52a79 makes saved webhook registrations idempotent, with legacy clients preserved. Three regression tests added (two failed before the fix); API 816 tests and typecheck passed, final full suite 1179 passed, final lint exit 0 with the existing warning. API staging version 2cfffab9 deployed after notice; 22/22 smoke probes passed. Live identical registrations returned the same endpoint/secret (201 twice), changed destination 422; one temporary second endpoint was then deactivated (204), leaving the original active. Independent review verified the fix. Evidence commits 55053b8 and e61ed5c. F2 remains 3/4 pending DNS, no push.
+
+- 16:37 Sir added DNS; authoritative lookup matched and Connect now shows Ready with all four checks Passed. F2 complete. The lifecycle dry-run passed. A previously authorized live command completed before the revised stop-before-real-run instruction could interrupt it: six testnet transactions, Settled, investor +0.05/payout +0.95/buyer -1.00 USDT, router/claim zero. No funding or real World; certificate 404 expected for direct-contract run. Evidence: docs/TOKENIZATION-STAGING-RUN.md. No repeat without approval. integration/next is missing six latest commits; preserving them by normal merge on chatgpt-work-3.
+
+- 16:37 Local checkpoint: docs(install): record all four staging checks passed. Staging/live evidence is recorded separately; no push.
+
+- 16:37 Local checkpoint: docs(install): mark the operator proof complete. Staging/live evidence is recorded separately; no push.
+
+- 16:37 Local checkpoint: docs(financing): record completed testnet lifecycle honestly. Staging/live evidence is recorded separately; no push.
