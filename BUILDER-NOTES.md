@@ -232,3 +232,70 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 - 15:43 Integration branch built and deployed to staging: MCP OAuth (connect agents with a consent page and scoped tokens), install-by-prompt docs and a Connect page with site status and a live/paused switch, catalogue with a safe cart checkout, Shopify import (CSV, token, and one-click connect), financing timeline and public receivable certificate, and verification tiers with a sandbox KYC provider, wallet sign-in and an ENS tier record. Six migrations (0017 to 0022) applied to staging; API, MCP and web deployed. 795 API, 155 web, 16 MCP and 28 script tests pass; none of it has been run through a browser yet.
 - 15:43 Web fonts (Onest, Geist Mono) are now self-hosted from npm: the build no longer needs to reach Google Fonts.
 - 15:43 Investor allowlisting needs tier 4 only when `INVESTOR_REQUIRES_KYC=yes` (production); test environments allow a World-verified person.
+- 15:18 Brand manual: brand strategy documented in brand-guidelines/BRAND-STRATEGY.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: logo documented in brand-guidelines/LOGO.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: typography documented in brand-guidelines/TYPOGRAPHY.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: colors documented in brand-guidelines/COLORS.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: visual language documented in brand-guidelines/VISUAL-LANGUAGE.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: iconography documented in brand-guidelines/ICONOGRAPHY.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: voice and tone documented in brand-guidelines/VOICE-AND-TONE.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: messaging documented in brand-guidelines/MESSAGING.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: spacing and layout documented in brand-guidelines/SPACING-AND-LAYOUT.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: accessibility documented in brand-guidelines/ACCESSIBILITY.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: ui design system documented in brand-guidelines/UI-DESIGN-SYSTEM.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: motion documented in brand-guidelines/MOTION.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: brand applications documented in brand-guidelines/BRAND-APPLICATIONS.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: prompt documented in brand-guidelines/PROMPT.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: readme documented in brand-guidelines/README.md; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: functional documented in brand-guidelines/assets/icons/functional.svg; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: payment record flow documented in brand-guidelines/assets/illustrations/payment-record-flow.svg; documentation/vector specification only; current app unchanged.
+
+- 15:18 Brand manual: brand book documented in brand-guidelines/BRAND-BOOK.md; documentation/vector specification only; current app unchanged.
+
+- 15:30 Local checkpoint: feat(email): add branded transactional templates and sink transport. Staging/live evidence is recorded separately; no push.
+
+- 15:30 Local checkpoint: feat(auth): support Google issuer and freshness requirements. Staging/live evidence is recorded separately; no push.
+
+- 15:30 Local checkpoint: feat(auth): verify Turnstile before signup and activation. Staging/live evidence is recorded separately; no push.
+
+- 15:30 Local checkpoint: feat(auth): add linked read-only recovery sessions. Staging/live evidence is recorded separately; no push.
+
+- 15:30 Local checkpoint: feat(auth): add email codes and Google PKCE sign-in. Staging/live evidence is recorded separately; no push.
+
+- 15:30 Local checkpoint: feat(web): add verified identity and recovery controls. Staging/live evidence is recorded separately; no push.
+
+- 15:33 Local checkpoint: docs(financing): design buyer acceptance without escrow. Staging/live evidence is recorded separately; no push.
+
+- 15:33 Local checkpoint: docs(auth): document recovery limits and email authentication. Staging/live evidence is recorded separately; no push.
+
+- 15:33 Local checkpoint: fix(auth): recover dashboard access past stale passkey sessions. Staging/live evidence is recorded separately; no push.
+
+- 15:33 Local checkpoint: chore(staging): configure protected signup and email sink. Staging/live evidence is recorded separately; no push.
+
+- 15:38 Brand asset inventory: brand-guidelines/assets/logo/README.md records required future assets without adding a replacement logo or font files.
+
+- 15:38 Brand asset inventory: brand-guidelines/assets/typography/README.md records required future assets without adding a replacement logo or font files.
+
+- 15:52 Local checkpoint: fix(auth): identify the verified email before business linking. Staging/live evidence is recorded separately; no push.
+
+- 15:52 Local checkpoint: test(auth): reject production dummy Turnstile site keys. Staging/live evidence is recorded separately; no push.
+
+- 15:52 Local checkpoint: test(auth): add isolated signup deployment diagnostics. Staging/live evidence is recorded separately; no push.
+
+- 15:53 Pre-realignment checkpoint: integration/agents was fast-forwarded locally; its full baseline passed 850 tests. Added email/Google/Turnstile fixtures and read-only recovery; the resulting full local suite passed 868 tests, lint exited 0 with one existing warning, and the web build/typecheck passed. Two staging signup attempts produced one active test business; live browser acceptance failed while API/web deployments changed. No payer funding, real email delivery or third-party accounts. Further staging deploys are stopped under Part V until the clean-line realignment is reported.
