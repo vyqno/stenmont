@@ -82,7 +82,7 @@ export const invoices = sqliteTable(
     id: text("id").primaryKey(), // bytes32 hex = PaymentRouter.invoiceIdOf(merchant, ref)
     merchantId: text("merchant_id").notNull(),
     number: text("number").notNull(),
-    status: text("status").notNull(), // creating | open | partially_paid | paid | cancelled | failed
+    status: text("status").notNull(), // creating | open | partially_paid | paid | cancelled | failed | expired
     amount: text("amount").notNull(), // USDT base units
     amountPaid: text("amount_paid").notNull().default("0"),
     amountRefunded: text("amount_refunded").notNull().default("0"),

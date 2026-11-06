@@ -76,6 +76,8 @@ export class Rejected extends Error {
 export type Receipt = { status: "success" | "reverted"; gasUsed: bigint; effectiveGasPrice: bigint };
 
 export interface ChainClient {
+  /** Read-only invoice facts used before retiring an abandoned staging install. */
+  invoiceState(id: Hex): Promise<{ status: number; paid: bigint; hook: Address }>;
   /** Creates the invoice onchain through the router's delegation (the relayer is the merchant's creator). Resolves after the receipt. */
   createInvoice(req: CreateInvoiceRequest): Promise<{ txHash: Hex }>;
   /** Deploys the passkey account and registers the relayer as its invoice creator (Multicall3). Resolves after the receipt. */
@@ -172,6 +174,10 @@ export function viemChain(env: Env): ChainClient {
   };
 
   return {
+    async invoiceState(id) {
+      const state = await publicClient.readContract({ address: router, abi: paymentRouterAbi, functionName: "invoices", args: [id] });
+      return { status: state.status, paid: state.paid, hook: state.hook };
+    },
     async createInvoice(req) {
       const call = { to: router, data: encodeFunctionData({ abi: paymentRouterAbi, functionName: "createInvoiceAsCreator", args: [req] }) };
       await estimate(call); // refuse early, before spending gas on a transaction that would revert

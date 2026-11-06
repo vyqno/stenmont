@@ -22,7 +22,7 @@ export type InvoiceInput = {
 export type Invoice = {
   id: string;
   number: string;
-  status: "open" | "partially_paid" | "paid" | "cancelled" | "failed";
+  status: "open" | "partially_paid" | "paid" | "cancelled" | "failed" | "expired";
   amount: string;
   amountPaid: string;
   amountRefunded: string;

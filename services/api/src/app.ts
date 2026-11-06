@@ -21,6 +21,7 @@ import { exportRoutes } from "./routes/exports";
 import { financingRoutes } from "./routes/financing";
 import { investRoutes } from "./routes/invest";
 import { invoiceRoutes } from "./routes/invoices";
+import { installCleanupRoutes } from "./routes/installCleanup";
 import { oauthGrantRoutes, oauthRoutes } from "./routes/oauth";
 import { gasTankRoutes } from "./routes/gasTank";
 import { linkRoutes } from "./routes/links";
@@ -90,6 +91,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.use("*", requireAuth);
   v1.get("/me", (c) => c.json({ id: c.var.merchant.id, name: c.var.merchant.name }));
   v1.route("/invoices", invoiceRoutes);
+  v1.route("/invoices", installCleanupRoutes);
   v1.route("/payment-links", linkRoutes);
   v1.route("/webhook-endpoints", webhookEndpointRoutes);
   v1.route("/gas-tank", gasTankRoutes);

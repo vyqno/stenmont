@@ -38,7 +38,7 @@ const createSchema = z.strictObject({
 
 const listSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
-  status: z.enum(["open", "partially_paid", "paid", "cancelled", "failed"]).optional(),
+  status: z.enum(["open", "partially_paid", "paid", "cancelled", "failed", "expired"]).optional(),
 });
 
 export const invoiceRoutes = new Hono<AppEnv>();

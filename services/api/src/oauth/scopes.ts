@@ -16,7 +16,7 @@ export const covers = (granted: readonly Scope[], needed: Scope) => maxLevel(gra
 
 const SAFE = new Set(["GET", "HEAD", "OPTIONS"]);
 /** Never reachable with an OAuth token, whatever its scope: confirming money moves, minting keys, managing connected apps. */
-const NEVER = [/^\/v1\/oauth(\/|$)/, /^\/v1\/api-keys(\/|$)/, /^\/v1\/refunds\/[^/]+\/submit$/];
+const NEVER = [/^\/v1\/invoices\/[^/]+\/expire-install$/, /^\/v1\/oauth(\/|$)/, /^\/v1\/api-keys(\/|$)/, /^\/v1\/refunds\/[^/]+\/submit$/];
 /** Drafts only prepare something that a person must still confirm. */
 const DRAFTS = new Set(["POST /v1/refunds", "POST /v1/approvals"]);
 

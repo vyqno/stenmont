@@ -30,6 +30,7 @@ export function fakeChain(overrides: Partial<ChainClient> = {}) {
     reputation: typeof reputation; claimLogs: ClaimLog[];
   } = {
     contractWallets,
+    async invoiceState() { return { status: 1, paid: 0n, hook: "0x0000000000000000000000000000000000000000" }; },
     async verifyWalletSignature(req) {
       return verifyWalletSignature(
         {

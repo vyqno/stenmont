@@ -18,7 +18,7 @@ publicRoutes.get("/pay/:id", async (c) => {
     .select({ inv: invoices, merchantName: merchants.name })
     .from(invoices)
     .innerJoin(merchants, eq(merchants.id, invoices.merchantId))
-    .where(and(eq(invoices.id, id), notInArray(invoices.status, ["creating", "failed"])));
+    .where(and(eq(invoices.id, id), notInArray(invoices.status, ["creating", "failed", "expired"])));
   if (!row) return fail(c, 404, "not_found", "Invoice not found");
   const amount = BigInt(row.inv.amount);
   const paid = BigInt(row.inv.amountPaid);
