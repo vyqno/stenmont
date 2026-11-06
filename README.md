@@ -93,3 +93,7 @@ A card or bank rail cannot do three things here. It cannot let a payer with no a
 ## More
 
 Security: [SECURITY.md](SECURITY.md). Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Decisions: [docs/adr](docs/adr). Demo shot list: [DEMO.md](DEMO.md).
+
+## Licence
+
+Apache-2.0, see [LICENSE](LICENSE).

@@ -208,3 +208,5 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 - 12:38 Task 6.4 done: finance MCP server at `mcp-staging.stenmont.com/mcp` (tools: list_invoices, get_invoice, export_payments, draft_refund). It stores nothing: the caller's own API key is passed to the API on each call. `draft_refund` only makes a pending request (or starts the World approval and returns its link); a person confirms with a passkey, so an agent can never move money. 11 tests; staging answers health and refuses a request without a key. Not yet run with a real business key.
 
 - 12:43 Phase 8 started: README (how it works, setup, contract addresses, real USDT payments, why onchain, limitations), demo shot list, and the Whitechain, World and ENS feedback files, written from these notes. The demo video and the clean-clone check of the README are still to do.
+
+- 12:50 Licence chosen: Apache-2.0 (permissive with a patent grant; the code stays owned by Hitesh, so later versions can be licensed differently). LICENSE, NOTICE and the licence field in the package manifests added.
