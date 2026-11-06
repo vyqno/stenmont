@@ -24,7 +24,7 @@ export function OverviewView(p: OverviewProps) {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Key figures">
         <Stat label="Received this month" value={SHOWN(p.received, () => (p.received.status === "ready" && p.received.value !== null ? money(p.received.value) : "Unavailable"))} testId="stat-received" />
         <Stat label="Waiting to be paid" value={SHOWN(p.invoices, () => (p.invoices.status === "ready" ? money(p.invoices.value.outstanding) : ""))} />
-        <Stat label="Open invoices" value={SHOWN(p.invoices, () => (p.invoices.status === "ready" ? `${p.invoices.value.count}${p.invoices.value.overdue ? ` (${p.invoices.value.overdue} overdue)` : ""}` : ""))} />
+        <Stat label={p.invoices.status === "ready" && p.invoices.value.overdue ? `Open invoices, ${p.invoices.value.overdue} overdue` : "Open invoices"} value={SHOWN(p.invoices, () => (p.invoices.status === "ready" ? String(p.invoices.value.count) : ""))} />
         <Stat label="Due in the next 7 days" value={SHOWN(p.due, () => (p.due.status === "ready" ? String(p.due.value.total) : ""))} />
       </div>
       {p.due.status === "ready" && p.due.value.total > 0 && (
