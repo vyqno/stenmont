@@ -93,3 +93,22 @@ export async function appendNote(s: Shopify, order: Order, line: string, marker:
   if (note.length > 5000) return; // Shopify's note limit; the tag still tells the story
   checkUserErrors((await s.gql<any>(M_NOTE, { input: { id: order.id, note } })).orderUpdate);
 }
+
+export const WEBHOOK_TOPICS = ["ORDERS_CREATE", "ORDERS_PAID"] as const;
+const Q_SUBS = `query Subs($uri: String!) { webhookSubscriptions(first: 50, uri: $uri) { nodes { id topic uri } } }`;
+const M_SUB = `mutation Sub($topic: WebhookSubscriptionTopic!, $uri: String!) { webhookSubscriptionCreate(topic: $topic, webhookSubscription: { uri: $uri }) { webhookSubscription { id } userErrors { field message } } }`;
+
+/** Lists the shop's subscriptions for this address first, and only creates the ones that are missing. */
+export async function registerWebhooks(s: Shopify, uri: string): Promise<{ created: string[]; existing: string[] }> {
+  const have = new Set<string>(((await s.gql<any>(Q_SUBS, { uri })).webhookSubscriptions?.nodes ?? []).filter((n: any) => n?.uri === uri).map((n: any) => String(n.topic)));
+  const out = { created: [] as string[], existing: [] as string[] };
+  for (const topic of WEBHOOK_TOPICS) {
+    if (have.has(topic)) {
+      out.existing.push(topic);
+      continue;
+    }
+    checkUserErrors((await s.gql<any>(M_SUB, { topic, uri })).webhookSubscriptionCreate);
+    out.created.push(topic);
+  }
+  return out;
+}

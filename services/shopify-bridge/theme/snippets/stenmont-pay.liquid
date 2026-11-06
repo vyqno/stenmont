@@ -1,0 +1,38 @@
+{%- comment -%}
+  Stenmont: "Pay with USDT" button for the cart page.
+
+  Add this file as snippets/stenmont-pay.liquid, then in your cart template (for example sections/main-cart-footer.liquid):
+
+    {% render 'stenmont-pay', bridge_url: 'https://shopify-bridge-staging.stenmont.com' %}
+
+  The browser sends only variant ids and quantities. The bridge builds the draft order and reads the price from Shopify itself,
+  so changing anything in this file cannot change what a customer is charged.
+{%- endcomment -%}
+<button type="button" class="button stenmont-pay" data-stenmont-bridge="{{ bridge_url | escape }}">Pay with USDT</button>
+<p class="stenmont-pay__error" role="alert" hidden></p>
+<script>
+  (function () {
+    var btn = document.currentScript.previousElementSibling.previousElementSibling;
+    var err = document.currentScript.previousElementSibling;
+    function fail(msg) { err.textContent = msg; err.hidden = false; btn.disabled = false; }
+    btn.addEventListener('click', function () {
+      var bridge = (btn.getAttribute('data-stenmont-bridge') || '').replace(/\/+$/, '');
+      if (bridge.indexOf('https://') !== 0) return fail('Payment is not set up yet.');
+      btn.disabled = true; err.hidden = true;
+      var root = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
+      fetch(root + 'cart.js', { headers: { accept: 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (cart) {
+          var lines = cart.items.map(function (i) { return { variantId: i.variant_id, quantity: i.quantity }; });
+          if (!lines.length) throw new Error('Your cart is empty.');
+          return fetch(bridge + '/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cartLines: lines }) });
+        })
+        .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error((j.error && j.error.message) || 'Could not start payment.'); return j; }); })
+        .then(function (j) {
+          if (typeof j.payUrl !== 'string' || j.payUrl.indexOf('https://') !== 0) throw new Error('Could not start payment.');
+          window.location.assign(j.payUrl);
+        })
+        .catch(function (e) { fail(e && e.message ? e.message : 'Could not start payment.'); });
+    });
+  })();
+</script>

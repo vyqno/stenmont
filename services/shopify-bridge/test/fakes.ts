@@ -3,7 +3,7 @@ import { deps, type Call } from "./helpers";
 type DraftFixture = { id?: string; name?: string; status?: string; amount?: string; currency?: string; order?: string | null; lines?: number; email?: string | null };
 
 /** A pretend Shopify Admin API and a pretend Stenmont API behind one fetch. Nothing touches the network. */
-export function world(opts: { drafts?: Record<string, DraftFixture>; shopifyErrors?: Record<string, any>; stenmontStatus?: number; completeAsPaid?: boolean; manualRejected?: boolean } = {}) {
+export function world(opts: { drafts?: Record<string, DraftFixture>; shopifyErrors?: Record<string, any>; stenmontStatus?: number; completeAsPaid?: boolean; orders?: Record<string, Partial<{ amount: string; currency: string; status: string }>>; subs?: { id: string; topic: string; uri: string }[]; manualRejected?: boolean } = {}) {
   const calls: Call[] = [];
   const drafts = opts.drafts ?? {};
   const state = {
@@ -13,7 +13,9 @@ export function world(opts: { drafts?: Record<string, DraftFixture>; shopifyErro
     createdDrafts: [] as any[],
     orders: new Map<string, { name: string; note: string | null; tags: string[]; status: string; amount: string; currency: string; gateway: string | null }>(),
     ops: [] as string[],
+    subs: [...(opts.subs ?? [])],
   };
+  for (const [id, o] of Object.entries(opts.orders ?? {})) state.orders.set(id, { name: "#2001", note: null, tags: [], status: "PENDING", amount: "10.00", currency: "USD", gateway: null, ...o });
   const handler = (c: Call): Response => {
     if (c.url.includes("/admin/api/")) {
       const q: string = c.body.query;
@@ -71,6 +73,12 @@ export function world(opts: { drafts?: Record<string, DraftFixture>; shopifyErro
         state.ops.push("note");
         state.orders.get(v.input.id)!.note = v.input.note;
         return Response.json({ data: { orderUpdate: { order: { id: v.input.id }, userErrors: [] } } });
+      }
+      if (q.includes("webhookSubscriptions")) return Response.json({ data: { webhookSubscriptions: { nodes: state.subs.filter((x) => x.uri === v.uri) } } });
+      if (q.includes("webhookSubscriptionCreate")) {
+        state.ops.push(`sub:${v.topic}`);
+        state.subs.push({ id: `gid://shopify/WebhookSubscription/${state.subs.length + 1}`, topic: v.topic, uri: v.uri });
+        return Response.json({ data: { webhookSubscriptionCreate: { webhookSubscription: { id: "x" }, userErrors: [] } } });
       }
       return Response.json({ errors: [{ message: "unexpected query in test" }] });
     }

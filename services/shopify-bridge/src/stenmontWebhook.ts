@@ -56,6 +56,7 @@ async function handlePaid(env: Bindings, s: Shopify, event: StenmontEvent, inv: 
       if (parseUnits6(inv.amount ?? "") !== parseUnits6(expected)) return review("price_changed");
       orderGid = await completeDraft(s, draftGid);
       await env.STATE.put(`completing:${numericId(draftGid)}`, orderGid);
+      await env.STATE.put(`fromdraft:${numericId(orderGid)}`, numericId(draftGid)); // so the order mirror never invoices this order a second time
     }
   } else {
     orderGid = orderGidFromMeta!;
