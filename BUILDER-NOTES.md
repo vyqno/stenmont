@@ -166,3 +166,21 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 - 12:30 Review fixes, API side (255 API tests, live on staging with the auth and dashboard runs passing): invoice creation rate limits, refund approval threshold counted across split refunds, renewal leases, host-only session cookie, no re-broadcast on "already known", idempotency keys bound to the request, API keys can be made and revoked from Settings, one passkey per business, webhook endpoint cap. The contract-side fixes are with a parallel agent. Status is in `plan/review-opus-1.md`.
 - 13:10 Review fixes, contract side (parallel agent, verified here: 269 forge tests): no cancelling an invoice after it is sold; refund approval threshold counts the whole invoice; merchant cancel of a subscription by signature (works for passkey accounts); optional payer reputation recording that cannot block a payment; stronger router invariants with an attacker. Not deployed: staging still runs the old contracts, so the next deployment must redeploy the router, subscription manager and the new financing contracts together, regenerate the shared ABIs, and point the API at the new addresses.
 - 13:10 World: the RP request signature layout matches World's own idkit-server source (read, not executed: running downloaded code was blocked, correctly). Test added that rebuilds the layout independently.
+
+---
+
+## Staging redeploy after the review (Whitechain Testnet 1874): current addresses (all verified on the explorer)
+
+- PaymentRouter: https://explorer.testnet.whitechain.io/address/0x4c32942616d2BBeDD34bA1178bBF5823FDbbdDC0
+- SubscriptionManager: https://explorer.testnet.whitechain.io/address/0x0e22748d63717D51eE8DFa5A62413A11dda981cF
+- InvestorRegistry: https://explorer.testnet.whitechain.io/address/0x6b8490a893c860888f65ce410b0b287ca1c9b8fa
+- InvoiceClaim: https://explorer.testnet.whitechain.io/address/0x2eb9aaf14a2d729bc3f185a144571fcd23454914
+- ReputationRegistry: https://explorer.testnet.whitechain.io/address/0x751165c1e587637af6ec0ff91b87fa7bd08a9ed5
+- PasskeyAccountFactory (unchanged): https://explorer.testnet.whitechain.io/address/0x5101c37647581c81b462436af2D7ac8ccD08D33A
+- The earlier router and subscription manager are kept as `staging_retired` in `contracts/deployments/1874.json`.
+
+---
+
+- 13:50 Staging redeployed with the review fixes: new router and subscription manager, plus the three financing contracts (investor allowlist, invoice claim, reputation registry), all verified on the explorer. The router now points at the reputation registry and is registered as a recorder (checked on chain). The API and web point at the new addresses (shared ABIs regenerated, the export script now includes the financing contracts). Old staging invoices belong to the retired router and are not shown by the indexer any more.
+- 13:50 Live regression on the new contracts, all passing: SDK checkout with return link and export (1.0 min), dashboard with the first refund on the new router (2.1 min), subscription with two renewals and a customer cancel (2.1 min, 29 s), and the example shop after re-provisioning its business (new delegation, new key and webhook secret, stored only in Cloudflare).
+- 13:50 Still on the old trust model by design: the shared relayer can create invoices for any delegating merchant (review item 4) and the deployer is still the owner of every contract (multisig planned at the end).

@@ -11,7 +11,7 @@ const api = apiArg ?? "https://api-staging.stenmont.com";
 const key = process.env.STENMONT_DEMO_PAYER_PRIVATE_KEY as Hex | undefined;
 if (!key) throw new Error("missing STENMONT_DEMO_PAYER_PRIVATE_KEY in .env");
 const payer = privateKeyToAccount(key);
-const router = (await (await fetch(`${api}/health`)).json(), process.env.ROUTER_ADDRESS ?? "0xA5B6C9206Db75fD59307Bd22f7703387Bb8aB929") as Hex;
+const router = (await (await fetch(`${api}/health`)).json(), process.env.ROUTER_ADDRESS ?? "0x4c32942616d2BBeDD34bA1178bBF5823FDbbdDC0") as Hex;
 
 const value = toUnits(amountArg);
 const now = BigInt(Math.floor(Date.now() / 1000));

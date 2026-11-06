@@ -62,6 +62,19 @@ export const subscriptionManagerAbi = [
   },
   {
     "type": "function",
+    "name": "MERCHANT_CANCEL_TYPEHASH",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MIN_PERIOD",
     "inputs": [],
     "outputs": [
@@ -101,6 +114,29 @@ export const subscriptionManagerAbi = [
         "name": "id",
         "type": "bytes32",
         "internalType": "bytes32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "cancelWithMerchantSig",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "deadline",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "merchantSig",
+        "type": "bytes",
+        "internalType": "bytes"
       }
     ],
     "outputs": [],

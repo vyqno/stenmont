@@ -3,3 +3,6 @@ export * from "./paymentRouter";
 export * from "./passkeyAccountFactory";
 export * from "./passkeyAccount";
 export * from "./subscriptionManager";
+export * from "./investorRegistry";
+export * from "./invoiceClaim";
+export * from "./reputationRegistry";

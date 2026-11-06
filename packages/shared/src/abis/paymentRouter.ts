@@ -860,6 +860,19 @@ export const paymentRouterAbi = [
   },
   {
     "type": "function",
+    "name": "reputation",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "setAttester",
     "inputs": [
       {
@@ -953,6 +966,19 @@ export const paymentRouterAbi = [
         "name": "threshold",
         "type": "uint128",
         "internalType": "uint128"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setReputation",
+    "inputs": [
+      {
+        "name": "reputation_",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],
@@ -1276,6 +1302,19 @@ export const paymentRouterAbi = [
   },
   {
     "type": "event",
+    "name": "ReputationSet",
+    "inputs": [
+      {
+        "name": "reputation",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Unpaused",
     "inputs": [
       {
@@ -1355,6 +1394,11 @@ export const paymentRouterAbi = [
   {
     "type": "error",
     "name": "InvoiceNotOpen",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvoiceSold",
     "inputs": []
   },
   {

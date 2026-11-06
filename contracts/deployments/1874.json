@@ -5,6 +5,74 @@
   "environments": {
     "staging": {
       "PaymentRouter": {
+        "address": "0x4c32942616d2BBeDD34bA1178bBF5823FDbbdDC0",
+        "deployBlock": 12342562,
+        "txHash": "0x4bcb2d2a9912443f925a1414dc035314e889d3709ff53db471d23fb973f335f3",
+        "verified": true,
+        "constructor": {
+          "usdt": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+          "owner": "0x50c94c3021962047F10c9c58D80C4A7b73182a63",
+          "guardian": "0x50c94c3021962047F10c9c58D80C4A7b73182a63",
+          "attester": "0xd3887b5A9d79bA55539DF7F07aa933a2b2F41ade",
+          "refundApprovalThreshold": "100000000"
+        },
+        "reputation": "0x751165C1E587637aF6EC0ff91b87Fa7Bd08a9ed5"
+      },
+      "PasskeyAccountFactory": {
+        "address": "0x5101c37647581c81b462436af2D7ac8ccD08D33A",
+        "deployBlock": 12314979,
+        "txHash": "0xaf386d5465cef666a0642fd9a0378d6451b85adca29844afe5cb47500a1cd451",
+        "verified": true,
+        "implementation": "0xf5cA54b1da9fc2E3CAF9CbD17C60D98554cB800C"
+      },
+      "SubscriptionManager": {
+        "address": "0x0e22748d63717D51eE8DFa5A62413A11dda981cF",
+        "deployBlock": 12342579,
+        "txHash": "0xaab5c7478170190b37acce996003806c3e28057e688faa10aece75f6add56c8e",
+        "verified": true,
+        "constructor": {
+          "usdt": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+          "owner": "0x50c94c3021962047F10c9c58D80C4A7b73182a63",
+          "guardian": "0x50c94c3021962047F10c9c58D80C4A7b73182a63"
+        }
+      },
+      "InvestorRegistry": {
+        "address": "0x6B8490a893C860888f65ce410b0b287CA1c9B8fa",
+        "deployBlock": 12342595,
+        "txHash": "0x19d9454b0736dac30dfc0bd42eab338a4fe89896d933f2ea04eba8a592ca6b93",
+        "verified": true,
+        "constructor": {
+          "owner": "0x50c94c3021962047F10c9c58D80C4A7b73182a63",
+          "attester": "0xd3887b5A9d79bA55539DF7F07aa933a2b2F41ade"
+        }
+      },
+      "InvoiceClaim": {
+        "address": "0x2EB9aaF14A2d729BC3F185A144571fCd23454914",
+        "deployBlock": 12342595,
+        "txHash": "0xadf18d43838f11fa8f0772355d40ad54ca496930cc8f48e384a56ffad642a4ef",
+        "verified": true,
+        "constructor": {
+          "usdt": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+          "router": "0x4c32942616d2BBeDD34bA1178bBF5823FDbbdDC0",
+          "registry": "0x6B8490a893C860888f65ce410b0b287CA1c9B8fa",
+          "owner": "0x50c94c3021962047F10c9c58D80C4A7b73182a63",
+          "guardian": "0x50c94c3021962047F10c9c58D80C4A7b73182a63"
+        }
+      },
+      "ReputationRegistry": {
+        "address": "0x751165C1E587637aF6EC0ff91b87Fa7Bd08a9ed5",
+        "deployBlock": 12342595,
+        "txHash": "0x9a9171a61fd55b6179a1ab1b35f079b0303c82775a05bf18ca204c8e7a21b1f8",
+        "verified": true,
+        "constructor": {
+          "owner": "0x50c94c3021962047F10c9c58D80C4A7b73182a63"
+        },
+        "note": "The router is registered as a recorder; the router points at this registry."
+      }
+    },
+    "staging_retired": {
+      "note": "Deployed before the review fixes (no cancel-after-sale block, per-call refund approval, no merchant cancel by signature). Replaced; kept for reference only.",
+      "PaymentRouter": {
         "address": "0xA5B6C9206Db75fD59307Bd22f7703387Bb8aB929",
         "deployBlock": 12312560,
         "txHash": "0xf4c5a9d7146b0a487b8e3fd5f589a47e9923787c5fef01a0fe12d7e2e3f927db",
@@ -16,13 +84,6 @@
           "attester": "0xd3887b5A9d79bA55539DF7F07aa933a2b2F41ade",
           "refundApprovalThreshold": "100000000"
         }
-      },
-      "PasskeyAccountFactory": {
-        "address": "0x5101c37647581c81b462436af2D7ac8ccD08D33A",
-        "deployBlock": 12314979,
-        "txHash": "0xaf386d5465cef666a0642fd9a0378d6451b85adca29844afe5cb47500a1cd451",
-        "verified": true,
-        "implementation": "0xf5cA54b1da9fc2E3CAF9CbD17C60D98554cB800C"
       },
       "SubscriptionManager": {
         "address": "0x3e1C51d461e6adb0b087DC39d41942E084eba2DD",
