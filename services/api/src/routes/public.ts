@@ -6,6 +6,7 @@ import { invoices, merchants, paymentLinks } from "../db/schema";
 import { fail } from "../errors";
 import { idSchema } from "../lib/validation";
 import { isPaused } from "../sites/switch";
+import { publicTrust } from "../verification/publicTrust";
 
 export const publicRoutes = new Hono<AppEnv>();
 
@@ -36,6 +37,7 @@ publicRoutes.get("/pay/:id", async (c) => {
     successUrl: row.inv.successUrl,
     cancelUrl: row.inv.cancelUrl,
     paused: await isPaused(c.var.db, row.inv.merchantId),
+    trust: await publicTrust(c.var.db, row.inv.merchantId, c.var.now()),
   });
 });
 
