@@ -34,6 +34,10 @@ function fakeWorld(over: { verify?: () => Response; claims?: (nonce: string) => 
     if (u.endsWith("/api/v1/token")) {
       const form = new URLSearchParams(String(init?.body));
       lastCode = form.get("code") ?? "";
+      const verifier = form.get("code_verifier") ?? "";
+      const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+      const challenge = btoa(String.fromCharCode(...digest)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      if (challengeByCode.get(lastCode) !== challenge) return Response.json({ error: "invalid_grant" }, { status: 400 });
       const nonce = nonceByCode.get(lastCode) ?? "";
       const t = CLOCK_S;
       const claims = over.claims ? over.claims(nonce) : { iss: "https://auth.world.org", aud: "client_1", sub: "human_1", exp: t + 600, auth_time: t - 10, nonce };
@@ -44,6 +48,7 @@ function fakeWorld(over: { verify?: () => Response; claims?: (nonce: string) => 
   return { f, calls };
 }
 const nonceByCode = new Map<string, string>();
+const challengeByCode = new Map<string, string>();
 
 async function world(over: Parameters<typeof fakeWorld>[0] = {}, envOver = {}) {
   const w = fakeWorld(over);
@@ -149,6 +154,10 @@ describe("step-up approvals through World Agent Pass", () => {
   const rememberNonce = async (x: Awaited<ReturnType<typeof started>>, code: string) => {
     const [row] = await dbOf(x.t.db).select().from(approvals).where(eq(approvals.id, x.approval.id));
     nonceByCode.set(code, row!.nonce);
+    const res = await x.t.req(`/v1/approvals/${x.approval.id}`, { key: x.key1 });
+    void res;
+    const url = new URL(x.approval.authorizeUrl);
+    challengeByCode.set(code, url.searchParams.get("code_challenge")!);
   };
 
   it("creates an approval and returns the World sign-in address with a fresh-login request and no secret in it", async () => {
@@ -158,6 +167,8 @@ describe("step-up approvals through World Agent Pass", () => {
     expect(url.origin + url.pathname).toBe("https://auth.world.org/api/v1/authorize");
     expect(Object.fromEntries(url.searchParams)).toMatchObject({ response_type: "code", client_id: "client_1", scope: "openid", state: x.approval.id, prompt: "login", redirect_uri: "https://api.test/auth/world/callback" });
     expect(url.searchParams.get("nonce")).toBeTruthy();
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(url.searchParams.get("code_challenge")).toMatch(/^[A-Za-z0-9_-]{43}$/); // unpadded base64url of a SHA-256 digest
     expect(x.approval.authorizeUrl).not.toContain("secret_1");
     expect((await json(await x.t.req(`/v1/approvals/${x.approval.id}`, { key: x.key1 }))).status).toBe("pending");
     expect((await x.t.req(`/v1/approvals/${x.approval.id}`, { key: x.key2 })).status).toBe(404); // another business cannot see it

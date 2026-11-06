@@ -15,6 +15,7 @@ import { createOidcVerifier } from "../world/oidc";
 import { createRpContext } from "../world/rp";
 import { enrol } from "../world/verify";
 
+const base64url = (b: Uint8Array) => btoa(String.fromCharCode(...b)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 const ENROL_ACTION = "enrol-business";
 const ACTIONS = new Set([ENROL_ACTION]);
 const OPERATIONS = ["refund", "payout_change", "agent_limit"] as const;
@@ -78,6 +79,10 @@ approvalRoutes.post("/", async (c) => {
     { merchantId: c.var.merchantId, operation: parsed.data.operation as Operation, params: parsed.data.params },
     { now: c.var.now(), newId: () => randomHex(16), newNonce: () => randomHex(16) },
   );
+  // PKCE (S256): the browser only ever sees the challenge; the verifier stays here and is sent when the code is exchanged.
+  const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
+  const challenge = base64url(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))));
+  await c.var.db.update(approvalsTable).set({ pkceVerifier: verifier }).where(eq(approvalsTable.id, row.id));
   const url = new URL(`${issuerOf(c.env)}/api/v1/authorize`);
   url.search = new URLSearchParams({
     response_type: "code",
@@ -86,6 +91,8 @@ approvalRoutes.post("/", async (c) => {
     scope: "openid",
     state: row.id,
     nonce: row.nonce,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
     prompt: "login", // ask for a fresh sign-in: an old session must not count as approval
   }).toString();
   return c.json({ id: row.id, status: row.status, expiresAt: row.expiresAt, authorizeUrl: url.toString() }, 201);
@@ -121,12 +128,14 @@ worldAuthRoutes.get("/callback", async (c) => {
   const code = c.req.query("code");
   if (!code || !c.env.WORLD_OIDC_CLIENT_ID || !c.env.WORLD_OIDC_CLIENT_SECRET) return deny("missing_code");
 
+  const [stored] = await c.var.db.select({ v: approvalsTable.pkceVerifier }).from(approvalsTable).where(eq(approvalsTable.id, approval.id));
+  if (!stored?.v) return deny("missing_pkce");
   let idToken: string | undefined;
   try {
     const res = await c.var.fetch(`${issuerOf(c.env)}/api/v1/token`, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded", authorization: `Basic ${btoa(`${c.env.WORLD_OIDC_CLIENT_ID}:${c.env.WORLD_OIDC_CLIENT_SECRET}`)}` },
-      body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: `${c.env.API_URL}/auth/world/callback` }),
+      body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: `${c.env.API_URL}/auth/world/callback`, code_verifier: stored.v }),
     });
     if (res.ok) idToken = ((await res.json()) as { id_token?: string }).id_token;
   } catch {
@@ -143,5 +152,3 @@ worldAuthRoutes.get("/callback", async (c) => {
   await audit(c.var.db, { merchantId: approval.merchantId, actor: "world", action: "approval.approved", payload: { id: approval.id, operation: approval.operation } });
   return back("approved");
 });
-void eq;
-void approvalsTable;

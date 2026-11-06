@@ -209,6 +209,7 @@ export const approvals = sqliteTable(
     worldSub: text("world_sub"),
     authTime: integer("auth_time"),
     denyReason: text("deny_reason"),
+    pkceVerifier: text("pkce_verifier"), // the secret half of the sign-in code challenge; never sent to the browser
     createdAt: text("created_at").notNull(),
     expiresAt: text("expires_at").notNull(),
   },

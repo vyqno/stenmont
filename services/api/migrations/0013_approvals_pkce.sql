@@ -1,0 +1,1 @@
+ALTER TABLE `approvals` ADD `pkce_verifier` text;
