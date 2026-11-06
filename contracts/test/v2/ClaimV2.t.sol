@@ -4,6 +4,13 @@ import {ClaimBaseV2} from "./ClaimBaseV2.t.sol";
 import {InvoiceClaimV2} from "../../src/InvoiceClaimV2.sol";
 import {IPaymentRouterV2} from "../../src/interfaces/IPaymentRouterV2.sol";
 contract ClaimV2Test is ClaimBaseV2 {
+    function testFundingAfterListingExpiryReverts() public {
+        bytes32 id = _listed("expiry");
+        IPaymentRouterV2.Auth memory a = _fundAuth(investorPk, id, PRICE, "fund");
+        vm.warp(T0 + 1 days + 1);
+        vm.expectRevert(InvoiceClaimV2.Expired.selector);
+        claim.fund(id, a);
+    }
     function testFundPaySettleAndReserveAccounting() public {
         bytes32 id = _funded("lifecycle");
         assertEq(usdt.balanceOf(address(claim)), RESERVE_AMT);

@@ -65,6 +65,10 @@ contract SignaturesV2Test is BaseV2 {
         assertTrue(ack.isEligible(id));
     }
 
+    function testAckZeroRouterRefused() public {
+        vm.expectRevert(InvoiceAck.ZeroAddress.selector);
+        new InvoiceAck(address(0));
+    }
     function testAckExpiredAndUnlockedRefused() public {
         bytes32 id = _newInvoice("unlocked", AMOUNT);
         vm.expectRevert(InvoiceAck.InvalidInvoice.selector);
