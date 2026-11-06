@@ -268,3 +268,12 @@ Each section is a set of staging slices, using the same test-first and completio
 - [x] New demo-shop DNS and signed webhook verified; real Inspector OAuth/read/revocation exercised.
 - [ ] Demo-shop paid order, indexed dashboard invoice and Connect4/4; checkout reconciliation remains open.
 - [ ] Deliberately interrupted receipt recovery verified live; local regressions alone do not close this gate.
+
+### Commerce positioning and v2 activation
+
+- [x] Founder commerce/finance positioning applied to README, user flows and Builders Program draft; existing original user-flow document preserved privately.
+- [x] Router v2 security branch merged without squash; independent482-test contract suite passed.
+- [ ] Option(a) API, pay flow, version routing, reviewed deploy dry-run and announced testnet broadcast.
+- [ ] World session run sheet checked and reported ready before the human session.
+- [ ] agent/cards integration and its owned cards folder committed as one task.
+- [ ] Final staging visual acceptance after the combined release.

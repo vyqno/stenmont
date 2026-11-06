@@ -13,6 +13,9 @@ test("sample previews support keyboard selection and remain explicitly illustrat
   await page.keyboard.press("End");
   await expect(page.getByRole("tabpanel", { name: "Agents" })).toContainText("Human approval required");
   await page.keyboard.press("Home");
+  await expect(tabs.getByRole("tab", { name: "Sell", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tabpanel", { name: "Sell", exact: true })).toContainText("Sample data");
+  await page.keyboard.press("ArrowDown");
   const panel = page.getByRole("tabpanel", { name: "Get paid" });
   await panel.getByRole("button", { name: "Investor", exact: true }).click();
   await expect(panel).toContainText("Claims settled");

@@ -1,14 +1,15 @@
 "use client";
 
 import { useRef, useState, type KeyboardEvent } from "react";
-import { AgentPreview, BooksPreview, FinancingPreview, InvoicePreview } from "./ProductCards";
+import { AgentPreview, BooksPreview, FinancingPreview, InvoicePreview, StorePreview } from "./ProductCards";
 import { GreyPanel } from "./Surface";
 
 const FEATURES = [
-  { title: "Get paid", body: "An invoice, a payment link and a record of what happened. Give every business payment a clear path.", Component: InvoicePreview },
-  { title: "Books", body: "Keep payments, refunds and financing in the same period. Export a record your accountant can work with.", Component: BooksPreview },
-  { title: "Sell invoices", body: "Eligible businesses can offer receivables to verified investors. Review the quote, the terms and the claim timeline.", Component: FinancingPreview },
-  { title: "Agents", body: "Let an agent read and prepare the next step. Keep consequential approvals with a person.", Component: AgentPreview },
+  { title: "Sell", body: "Publish products and variants in a hosted storefront, or connect the shop you already run. Prices are checked on the server before checkout.", Component: StorePreview },
+  { title: "Get paid", body: "Accept USDT at checkout or send a payment link. Customers bring their own funds; signed events connect each payment to its order.", Component: InvoicePreview },
+  { title: "Books", body: "Reconcile sales receipts, refunds and financing in one period. Export a service-signed snapshot and verify its line proofs. Onchain anchoring is not enabled.", Component: BooksPreview },
+  { title: "Capital", body: "Explore invoice funding for eligible businesses. Review the terms and claim timeline in this testnet demonstration; the live dashboard financing journey is still being verified.", Component: FinancingPreview },
+  { title: "Agents", body: "A coding agent can install checkout; scoped tools can read records and prepare the next step. People retain consequential approvals. Live finance chat verification is pending.", Component: AgentPreview },
 ];
 export function FeatureExplorer() {
   const [selected, setSelected] = useState(0);

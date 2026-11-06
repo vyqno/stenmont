@@ -7,7 +7,7 @@ describe("web response security boundaries", () => {
   it("wires enforcing baseline headers through Next configuration", async () => {
     const rules = await config.headers!();
     expect(rules).toEqual(securityHeaders());
-    const general = new Headers(rules[0]!.headers.map(h => [h.key, h.value]));
+    const general = new Headers(rules[0]!.headers.map((h): [string, string] => [h.key, h.value]));
     expect(general.get("x-content-type-options")).toBe("nosniff");
     expect(general.get("x-frame-options")).toBe("DENY");
     expect(general.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
@@ -15,7 +15,7 @@ describe("web response security boundaries", () => {
     expect(general.get("permissions-policy")).not.toMatch(/publickey|payment|camera|microphone/);
   });
   it("keeps the unproven script policy report-only and permits existing webfont and identity hosts", () => {
-    const general = new Headers(securityHeaders()[0]!.headers.map(h => [h.key, h.value]));
+    const general = new Headers(securityHeaders()[0]!.headers.map((h): [string, string] => [h.key, h.value]));
     const candidate = general.get("content-security-policy-report-only")!;
     expect(candidate).toContain("script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com");
     expect(candidate).toContain("https://use.typekit.net");

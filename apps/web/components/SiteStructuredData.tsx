@@ -8,7 +8,7 @@ export function SiteStructuredData() {
     "@context": "https://schema.org",
     "@graph": [
       { "@type": "Organization", "@id": organization, name: "stenmont", url: origin, logo: `${origin}/brand/wordmark-social.png` },
-      { "@type": "SoftwareApplication", name: "stenmont", url: origin, applicationCategory: "FinanceApplication", operatingSystem: "Web", description: "The agentic business kit for invoices, USDT payments and connected records. Currently on the test network.", publisher: { "@id": organization } },
+      { "@type": "SoftwareApplication", name: "stenmont", url: origin, applicationCategory: "FinanceApplication", operatingSystem: "Web", description: "The agentic business kit for stablecoin commerce and finance: storefronts, USDT checkout, books, Capital and scoped agents. Currently on the test network.", publisher: { "@id": organization } },
     ],
   };
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(graph) }} />;
