@@ -59,6 +59,9 @@ export type Deps = { chain: (env: Env) => ChainClient; ens?: (env: Env) => EnsCl
 export function createApp(deps: Deps = { chain: viemChain, now: () => new Date() }) {
   const app = new Hono<AppEnv>();
 
+  // Static liveness must work before testnet credentials or dependencies are initialized.
+  app.get("/health", (c) => c.json({ ok: true }));
+
   app.use("*", async (c, next) => {
     c.set("db", drizzle(c.env.DB));
     c.set("chain", deps.chain(c.env));
@@ -90,8 +93,6 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.use("/store/*", publicCors);
   app.use("/public/*", publicCors);
   app.use("/account/*", cors({ origin, allowMethods: ["GET", "OPTIONS"], allowHeaders: ["authorization"], maxAge: 600 }));
-
-  app.get("/health", (c) => c.json({ ok: true }));
 
   const v1 = new Hono<AppEnv>();
   v1.use("*", requireAuth);
