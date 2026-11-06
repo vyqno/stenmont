@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { Hex } from "viem";
 import { toUnits } from "@stenmont/shared";
 import FundingHelp from "../../../components/FundingHelp";
@@ -30,6 +30,7 @@ type View =
   | { kind: "working"; invoice: Invoice; step: string }
   | { kind: "paid"; invoice: Invoice; receipt: string | null; keepLink: string | null };
 
+const noSubscribe = () => () => {};
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const random32 = () => (`0x${[...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("")}`) as Hex;
 
@@ -66,8 +67,8 @@ function paidView(invoice: Invoice, sent: Record<string, unknown>): View {
 
 export default function PayClient({ id }: { id: string }) {
   const [view, setView] = useState<View>({ kind: "loading" });
-  const [provider, setProvider] = useState<Eip1193 | null>(null);
-  useEffect(() => setProvider(injectedProvider(window)), []); // after mount, so the server and first client render agree
+  // The browser's wallet, if any. The server render has none, so the server and the first client render agree.
+  const provider = useSyncExternalStore(noSubscribe, () => injectedProvider(window), () => null);
 
   useEffect(() => {
     let alive = true;

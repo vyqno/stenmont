@@ -1,5 +1,5 @@
 import { encodeFunctionData, erc20Abi, getTypesForEIP712Domain, numberToHex, type Address, type Hex } from "viem";
-import { USDT_ADDRESS, buildReceiveAuth, payNonce, whitechainSepolia } from "@stenmont/shared";
+import { USDT_ADDRESS, buildReceiveAuth, cancelSubscriptionTypes, payNonce, subscriptionDomain, whitechainSepolia } from "@stenmont/shared";
 
 /** The part of an EIP-1193 provider (window.ethereum) we use. */
 export type Eip1193 = { request(args: { method: string; params?: unknown[] }): Promise<unknown> };
@@ -65,6 +65,20 @@ export async function signWalletPayment(
     await check?.(payer);
     const signature = (await p.request({ method: "eth_signTypedData_v4", params: [payer, toTypedDataV4({ ...a, account: payer })] })) as Hex;
     return { payer, signature };
+  } catch (e) {
+    if (e instanceof WalletError) throw e;
+    throw new WalletError(isRejection(e) ? "cancelled" : "wallet_failed");
+  }
+}
+
+/** Ends a subscription with the signature of the account that subscribed. The wallet must be that account: anything else is refused before it is asked to sign. */
+export async function signWalletCancel(p: Eip1193, payer: Address, t: { id: Hex; manager: Address; deadline: bigint }): Promise<Hex> {
+  try {
+    const [who] = (await p.request({ method: "eth_requestAccounts" })) as Address[];
+    if (!who || who.toLowerCase() !== payer.toLowerCase()) throw new WalletError("wallet_failed");
+    await ensureNetwork(p);
+    const typed = { domain: subscriptionDomain(t.manager), types: { EIP712Domain: getTypesForEIP712Domain({ domain: subscriptionDomain(t.manager) }), ...cancelSubscriptionTypes }, primaryType: "CancelSubscription", message: { id: t.id, deadline: t.deadline } };
+    return (await p.request({ method: "eth_signTypedData_v4", params: [who, JSON.stringify(typed, (_k, v) => (typeof v === "bigint" ? v.toString() : v))] })) as Hex;
   } catch (e) {
     if (e instanceof WalletError) throw e;
     throw new WalletError(isRejection(e) ? "cancelled" : "wallet_failed");

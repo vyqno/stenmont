@@ -45,7 +45,7 @@ export function permitValue(t: Terms, allowance: string): bigint {
   return toUnits(allowance) + toUnits(t.amount) * BigInt(t.maxCharges);
 }
 
-export function cancelDigest(t: Terms, deadline: bigint): Hex {
+export function cancelDigest(t: Pick<Terms, "id" | "manager">, deadline: bigint): Hex {
   return hashTypedData({ domain: subscriptionDomain(t.manager), types: cancelSubscriptionTypes, primaryType: "CancelSubscription", message: { id: t.id, deadline } });
 }
 

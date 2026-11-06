@@ -3,7 +3,8 @@ import { hashTypedData, recoverTypedDataAddress, type Hex } from "viem";
 import { describe, expect, it } from "vitest";
 import { deployments } from "@stenmont/shared";
 import { FRIENDLY, payChallenge, ZERO_SALT } from "../lib/pay";
-import { WALLET_COPY, WALLET_NETWORK, WalletError, injectedProvider, signWalletPayment, toTypedDataV4, walletBalance, type Eip1193 } from "../lib/wallet";
+import { cancelDigest } from "../lib/subscribe";
+import { WALLET_COPY, WALLET_NETWORK, WalletError, injectedProvider, signWalletCancel, signWalletPayment, toTypedDataV4, walletBalance, type Eip1193 } from "../lib/wallet";
 
 const ROUTER = deployments.environments.staging.PaymentRouter.address;
 const INVOICE = `0x${"ab".repeat(32)}` as Hex;
@@ -128,6 +129,23 @@ describe("connecting", () => {
     expect(await walletBalance(w.provider, w.account.address)).toBe(7_500_000n);
     const call = w.calls.find((c) => c.method === "eth_call")!;
     expect(JSON.stringify(call.params)).toContain("0x70a08231"); // balanceOf
+  });
+});
+
+describe("ending a subscription from a wallet", () => {
+  const MANAGER = "0x3e1C51d461e6adb0b087DC39d41942E084eba2DD" as const;
+  const ID = `0x${"01".repeat(32)}` as Hex;
+  it("signs the same cancellation the passkey signs, and only for the subscribing account", async () => {
+    const w = fakeWallet();
+    const sig = await signWalletCancel(w.provider, w.account.address, { id: ID, manager: MANAGER, deadline: 9_999_999_999n });
+    const typed = JSON.parse(w.calls.find((c) => c.method === "eth_signTypedData_v4")!.params![1] as string);
+    const { EIP712Domain: _d, ...types } = typed.types;
+    expect(hashTypedData({ domain: typed.domain, types, primaryType: typed.primaryType, message: { id: ID, deadline: 9_999_999_999n } })).toBe(cancelDigest({ id: ID, manager: MANAGER }, 9_999_999_999n));
+    const recovered = await recoverTypedDataAddress({ domain: typed.domain, types, primaryType: typed.primaryType, message: { id: ID, deadline: 9_999_999_999n }, signature: sig });
+    expect(recovered.toLowerCase()).toBe(w.account.address.toLowerCase());
+    const other = fakeWallet();
+    await expect(signWalletCancel(other.provider, w.account.address, { id: ID, manager: MANAGER, deadline: 1n })).rejects.toMatchObject({ code: "wallet_failed" });
+    expect(other.calls.map((c) => c.method)).not.toContain("eth_signTypedData_v4");
   });
 });
 

@@ -17,18 +17,21 @@ export default function StoreClient({ slug }: { slug: string }) {
   const [receipts, setReceipts] = useState<string | null>(null);
 
   useEffect(() => {
-    if (new URLSearchParams(location.search).get("thanks") === "1") {
-      // The shopper has paid and come back: the cart is done.
-      setThanks(true);
-      saveCart(sessionStorage, slug, []);
-      notifyCart();
-      const t = loadAccountToken(localStorage);
-      if (t) setReceipts(accountUrl(location.origin, t));
-    }
     let alive = true;
     fetchProducts(location.hostname, slug)
-      .then((r) => alive && setState(r ? { kind: "ready", ...r } : { kind: "missing" }))
-      .catch(() => alive && setState({ kind: "missing" }));
+      .catch(() => null)
+      .then((r) => {
+        if (!alive) return;
+        if (new URLSearchParams(location.search).get("thanks") === "1") {
+          // The shopper has paid and come back: the cart is done.
+          setThanks(true);
+          saveCart(sessionStorage, slug, []);
+          notifyCart();
+          const t = loadAccountToken(localStorage);
+          if (t) setReceipts(accountUrl(location.origin, t));
+        }
+        setState(r ? { kind: "ready", ...r } : { kind: "missing" });
+      });
     return () => {
       alive = false;
     };

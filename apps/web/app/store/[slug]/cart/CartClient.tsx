@@ -18,9 +18,14 @@ export default function CartClient({ slug }: { slug: string }) {
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    setCart(loadCart(sessionStorage, slug));
     let alive = true;
-    fetchProducts(location.hostname, slug).then((r) => alive && setData(r)).catch(() => alive && setData(null));
+    fetchProducts(location.hostname, slug)
+      .catch(() => null)
+      .then((r) => {
+        if (!alive) return;
+        setCart(loadCart(sessionStorage, slug));
+        setData(r);
+      });
     return () => {
       alive = false;
     };
