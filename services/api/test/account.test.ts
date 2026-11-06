@@ -39,6 +39,7 @@ describe("GET /account/summary", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const body = (await res.json()) as any;
+    expect(body.payer).toBe(ALICE.toLowerCase());
     expect(body.payments).toEqual([
       { invoiceNumber: "INV-1", merchantName: "Acme", amount: "12.5", at: NOW.toISOString(), receiptUrl: `https://explorer.testnet.whitechain.io/tx/0x${"a1".repeat(32)}` },
     ]);
@@ -58,7 +59,7 @@ describe("GET /account/summary", () => {
     expect(bob.payments.map((p: any) => p.invoiceNumber)).toEqual(["INV-2"]);
     expect(JSON.stringify(bob)).not.toContain("a1".repeat(32));
     const nobody = (await (await get(await link("0xC0FFEE0000000000000000000000000000000003"))).json()) as any;
-    expect(nobody).toEqual({ payments: [], refunds: [], subscriptions: [] });
+    expect(nobody).toEqual({ payer: "0xc0ffee0000000000000000000000000000000003", payments: [], refunds: [], subscriptions: [] });
   });
 
   it("refuses a missing, forged, expired, other-purpose or other-secret link, and says the same thing for each", async () => {

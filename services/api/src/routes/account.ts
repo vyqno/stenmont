@@ -56,6 +56,7 @@ accountRoutes.get("/summary", async (c) => {
     .limit(100);
 
   return c.json({
+    payer,
     payments: paid.map((x) => ({ invoiceNumber: x.number, merchantName: x.shop, amount: fromUnits(BigInt(x.p.value)), at: x.p.createdAt, receiptUrl: receipt(x.p.txHash) })),
     refunds: back.map((x) => ({ invoiceNumber: x.number, merchantName: x.shop, amount: fromUnits(BigInt(x.r.value)), at: x.r.createdAt, receiptUrl: receipt(x.r.txHash) })),
     subscriptions: subs.map((x) => ({

@@ -36,6 +36,7 @@ export const tokenPayer = (token: string) => `0x${token.split(".")[1]}`;
 export const tokenExpired = (token: string, now: Date) => Number(token.split(".")[3]) * 1000 <= now.getTime();
 
 export type Summary = {
+  payer: `0x${string}`;
   payments: { invoiceNumber: string; merchantName: string; amount: string; at: string; receiptUrl: string }[];
   refunds: { invoiceNumber: string; merchantName: string; amount: string; at: string; receiptUrl: string }[];
   subscriptions: { id: `0x${string}`; merchantName: string; amount: string; periodSeconds: number; maxCharges: number; charges: number; status: string; nextChargeAt: string | null; manager: `0x${string}` }[];
