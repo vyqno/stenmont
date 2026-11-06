@@ -26,7 +26,7 @@ import {IUSDT} from "./interfaces/IUSDT.sol";
 ///      markDefault: the reserve goes to the holder, capped so the holder never receives more than `face`. Late
 ///      payments after a default still go to the holder up to that cap; the rest goes to the merchant.
 ///      A payout that the token refuses (e.g. a blocklisted recipient) never reverts the customer's payment: it is
-///      credited to `pending` and the recipient pulls it with `withdrawPending`.
+///      credited to `pending`: the recipient pulls it with `withdrawPending`, or anyone pushes it with `withdrawPendingFor`.
 ///      Only the merchant's reserve (and `pending`) is ever held here; nothing else stays after a call.
 contract InvoiceClaimV2 is IClaimPayout, ERC721, EIP712, Ownable2Step, Pausable, ReentrancyGuardTransient {
     using SafeERC20 for IERC20;
@@ -281,6 +281,17 @@ contract InvoiceClaimV2 is IClaimPayout, ERC721, EIP712, Ownable2Step, Pausable,
         totalPending -= amount;
         emit PendingWithdrawn(msg.sender, to, amount);
         IERC20(address(usdt)).safeTransfer(to, amount);
+    }
+
+    /// @notice Anyone may push `account`'s pending payout to `account` itself (never elsewhere). Passkey accounts only
+    ///         sign and cannot call `withdrawPending`, so without this their deferred USDT could never leave.
+    function withdrawPendingFor(address account) external nonReentrant {
+        uint256 amount = pending[account];
+        if (amount == 0) revert NothingPending();
+        pending[account] = 0;
+        totalPending -= amount;
+        emit PendingWithdrawn(account, account, amount);
+        IERC20(address(usdt)).safeTransfer(account, amount);
     }
 
     // ------------------------------------------------------------------ admin
