@@ -90,7 +90,7 @@ export function reconcile(input: Input): Result {
     if (closeAt && recorded && recorded > closeAt) {
       let month = periodOf(recorded) > periodOf(at) ? periodOf(recorded) : periodOf(periodBounds(periodOf(at)).end);
       // A closed interim snapshot can never absorb new records; skip any later month already locked as well.
-      while (closed[month]) month = periodOf(periodBounds(month).end);
+      while (closed[month] && recorded > closed[month]!) month = periodOf(periodBounds(month).end);
       const date = month === periodOf(recorded) ? recorded : periodBounds(month).start;
       return { date, adjustmentFor: periodOf(at) };
     }
