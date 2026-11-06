@@ -12,7 +12,7 @@ Built on `10b3d69` in an isolated clone. Main checkout untouched. No push/deploy
 - Dark developer band with keyboard Prompt/cURL tabs and real reference links. Prompt requires an already-funded payer and makes no installation-proof claim.
 - Mobile Menu is keyboard accessible. Inactive panels remain mounted with correct hidden semantics and stable tab/panel relationships.
 - Shared treatment applied to docs, dashboard shell, pay, auth/consent, account, investor/certificate, store and subscription surfaces. Existing wrappers were restyled; no new metadata layouts or business logic. Empty dashboard canvas now takes its natural height. Pay has a compact wordmark/test-network header. Missing product images have an explicit placeholder.
-- FAQ navigation added for the W14 SEO page. The FAQ and its helpers were temporarily borrowed from the same project worker solely for capture, then removed; W14 owns and must merge them.
+- FAQ navigation added for the W14 SEO page. The FAQ and its helpers were temporarily borrowed from the same project worker solely for capture, then removed; W14 owns and must merge them. The later W5 Agent access page was likewise borrowed from the owning main source, rendered with disabled access/empty OAuth grants fixtures at both widths, viewed and removed without committing it.
 
 ## Confirmed typography
 
@@ -28,7 +28,7 @@ The social image (1200×630, wordmark at 80 px) and favicon (160×160, wordmark 
 - Final targeted Vitest: 58 passed across homeVisual/home/brand/docsShell/docs/pay/subscribe/oauth, `--maxWorkers=1`.
 - Local Playwright: 3 passed (feature keyboard controls and sample labels, mobile keyboard menu plus 400/20 px logo, existing no-autofunding regression). All financial/API requests intercepted; no real signing or transactions.
 - Final web typecheck and changed-file ESLint passed. Production `pnpm --filter @stenmont/web build` passed under the shared atomic lock after the final source changes. No duplicate full baseline suite; lead owns combined integration regression.
-- 34 route patterns × desktop/mobile = 68 captures, reviewed using contact sheets plus native key captures. This covers all 33 page files in this base and the W14 FAQ. Dynamic IDs/merchant data use clearly labelled local fixtures. No page-level horizontal overflow or page errors in final inventory. One initial verification-fixture shape lacked `wallets:[]`; corrected the fixture and recaptured, with no product change.
+- 35 route patterns × desktop/mobile = 70 captures, reviewed using contact sheets plus native key captures. This covers all 33 page files in this base, the W14 FAQ and the later W5 Agent access page. Dynamic IDs/merchant data use clearly labelled local fixtures. No page-level horizontal overflow or page errors in final inventory. One initial verification-fixture shape lacked `wallets:[]`; corrected the fixture and recaptured, with no product change.
 - Additional 7 states × 2 widths = 14 captures: dashboard loading/error; pay missing/paused/paid; store empty/missing. Four feature panels captured at both widths. Native final hero frames are 1440×1000 and 390×900. Fonts were allowed and loaded for final captures. Final home/product-image fixes were recaptured against the production build.
 - Private evidence directory: `/tmp/stenmont-wave1-20261106/w6b-shots/`; route/state JSON inventories, review sheets, full captures and native frames. Font proof: `/tmp/stenmont-wave1-20261106/w6b-fonts.json` and `w6b-asset-font-proof.json`.
 
@@ -39,6 +39,7 @@ The social image (1200×630, wordmark at 80 px) and favicon (160×160, wordmark 
 - `/claim/fixture`
 - `/dashboard`
 - `/dashboard/agent`
+- `/dashboard/agent-access`
 - `/dashboard/books`
 - `/dashboard/catalog`
 - `/dashboard/collections`
