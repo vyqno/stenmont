@@ -4,6 +4,7 @@
 /* Approved Stenmont palette. Legacy aliases remain for existing UI consumers. */
 :root {
   color-scheme: light;
+  font-synthesis: none;
   --font-onest: "Onest Variable";
   --font-geist-mono: "Geist Mono Variable";
   --bg: #ffffff;
@@ -43,8 +44,8 @@
   --color-success: var(--success);
   --color-danger: var(--error);
   --color-warn: var(--warning);
-  --font-sans: "neue-haas-grotesk-text", var(--font-onest), "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: "neue-haas-grotesk-text", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  --font-mono: "neue-haas-grotesk-text", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 body {
@@ -55,7 +56,7 @@ body {
 }
 
 h1, h2, h3 {
-  font-family: "neue-haas-grotesk-display", "neue-haas-grotesk-text", var(--font-onest), "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  font-family: "neue-haas-grotesk-display", "neue-haas-grotesk-text", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
 }
 
 /* Amounts line up in columns and always show two decimals. */
@@ -65,10 +66,11 @@ h1, h2, h3 {
 
 /* Full lowercase wordmark only; system fallback is not licensed master artwork. */
 .logo {
-  font-family: "all-round-gothic", "Avenir Next", Futura, var(--font-onest), sans-serif;
+  font-family: "all-round-gothic", sans-serif;
+  font-size: 20px;
   letter-spacing: 0.01em;
   text-transform: lowercase;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 :where(a, button, input, select, textarea, summary):focus-visible {

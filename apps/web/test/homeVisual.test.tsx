@@ -15,3 +15,12 @@ describe("landing product examples", () => {
     expect(html).toContain("Financing depends on investor funding");
   });
 });
+
+it("keeps the wordmark moderate and non-bold and separates the selected display and text faces", async () => {
+  const { readFileSync } = await import("node:fs");
+  const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+  const logo = css.match(/\.logo\s*\{([^}]+)/)?.[1] ?? "";
+  expect(logo).toContain('font-family: "all-round-gothic"');
+  expect(logo).toContain("font-weight: 400");
+  expect(css).toContain("font-synthesis: none");
+});
