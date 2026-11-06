@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthError, signIn } from "../../lib/auth";
+import { safeNext } from "../../lib/oauth";
 
 export default function LoginClient() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function LoginClient() {
     setError(null);
     try {
       await signIn();
-      router.push("/dashboard");
+      router.push(safeNext(location.search) ?? "/dashboard");
     } catch (err) {
       setError(err instanceof AuthError ? err.message : "Something went wrong. Please try again.");
       setBusy(false);

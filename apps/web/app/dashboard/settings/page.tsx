@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Badge, Card } from "../../../components/ui";
+import { ConnectedApps } from "../../../components/ConnectedApps";
 import { WorldVerify } from "../../../components/WorldVerify";
 import { AuthError, api } from "../../../lib/auth";
 import { useApi } from "../../../lib/useApi";
@@ -71,6 +72,8 @@ export default function Settings() {
         )}
         <p className="mt-2 text-sm text-muted">A key is shown in full only once, when it is made. You cannot revoke your only working key.</p>
       </Card>
+
+      <ConnectedApps />
 
       <Card title="Webhooks">
         {hooks.data?.data.length === 0 && <p className="text-muted">No webhook endpoints yet.</p>}
