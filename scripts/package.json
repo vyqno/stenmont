@@ -14,7 +14,9 @@
     "relay-pay": "tsx --env-file=../.env relay-pay.ts",
     "drain-sim": "tsx --env-file=../.env drain-sim.ts",
     "ens-setup": "tsx --env-file=../.env ens-setup.ts",
-    "agent-pays": "tsx --env-file=../.env agent-pays.ts"
+    "agent-pays": "tsx --env-file=../.env agent-pays.ts",
+    "test": "tsx --test tokenization-lifecycle.test.ts",
+    "tokenization-lifecycle": "tsx --env-file=../.env tokenization-lifecycle.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
