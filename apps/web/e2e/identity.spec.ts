@@ -9,11 +9,22 @@ const reader = createPublicClient({ chain: sepolia, transport: fallback([http("h
 
 test("Identity dashboard claims, resolves, delegates, locks and revokes a real agent name", async ({ page }, info) => {
   test.setTimeout(600_000);
+  expect(APP).toBe("https://app-staging.stenmont.com");
+  // This acceptance run never requests payer funding or creates third-party accounts.
+  await page.route("**/relay/faucet**", (route) => route.abort());
+  const businessName = `Identity ${Date.now()}`;
+  console.log(`Isolated staging business requested: ${businessName}`);
+  page.on("response", async (response) => {
+    if (response.url() === "https://api-staging.stenmont.com/auth/activate" && response.ok()) {
+      const result = await response.json();
+      console.log(`Created staging business: ${JSON.stringify(result.merchant)}`);
+    }
+  });
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("WebAuthn.enable");
   await cdp.send("WebAuthn.addVirtualAuthenticator", { options: { protocol: "ctap2", transport: "internal", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
   await page.goto(`${APP}/signup`);
-  await page.getByLabel("Business name").fill(`Identity ${Date.now()}`);
+  await page.getByLabel("Business name").fill(businessName);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByTestId("api-key")).toBeVisible({ timeout: 150_000 });
   await page.getByRole("button", { name: "Continue to your dashboard" }).click();
@@ -23,14 +34,16 @@ test("Identity dashboard claims, resolves, delegates, locks and revokes a real a
   await expect(page.getByRole("heading", { name: "Identity", exact: true })).toBeVisible();
   await page.getByLabel("Business label").fill("api");
   await page.getByRole("button", { name: "Check availability" }).click();
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.locator("p[role=alert]")).toBeVisible();
   const label = `ui${Date.now().toString(36)}`;
   const name = `${label}.stenmont.eth`;
+  console.log(`Business ENS claim requested: ${name}`);
   await page.getByLabel("Business label").fill(label);
   await page.getByRole("button", { name: "Check availability" }).click();
   await expect(page.getByRole("button", { name: "Claim business name" })).toBeEnabled();
   await page.getByRole("button", { name: "Claim business name" }).click();
   await expect(page.getByTestId("business-ens-name")).toHaveText(name, { timeout: 240_000 });
+  console.log(`Business ENS claim confirmed: ${name}`);
   await expect.poll(async () => (await reader.getEnsAddress({ name }).catch(() => null))?.toLowerCase(), { timeout: 90_000 }).toBe(account.toLowerCase());
   await expect(page.getByTestId("resolved-address")).toHaveText(account, { ignoreCase: true });
   await page.reload();
