@@ -20,7 +20,13 @@ class Stmt {
     return r ? (col ? r[col] : r) : null;
   }
   async run() {
-    const r = this.db.prepare(this.sql).run(...this.params);
+    const statement = this.db.prepare(this.sql);
+    if (statement.columns().length) {
+      const results = statement.all(...this.params);
+      const meta = this.db.prepare("SELECT changes() AS changes, last_insert_rowid() AS last_row_id").get()!;
+      return { success: true, results, meta };
+    }
+    const r = statement.run(...this.params);
     return { success: true, results: [], meta: { changes: Number(r.changes), last_row_id: Number(r.lastInsertRowid) } };
   }
   async raw(opts?: { columnNames?: boolean }) {
