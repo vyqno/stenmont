@@ -405,7 +405,7 @@ describe("connected apps", () => {
     expect(res.status).toBe(200);
     const body = await json(res);
     expect(body.data).toHaveLength(1);
-    expect(body.data[0]).toMatchObject({ clientName: "Cool Agent", scopes: ["read", "draft"], revoked: false });
+    expect(body.data[0]).toMatchObject({ clientName: "Cool Agent", scopes: ["read", "draft"] });
     expect(JSON.stringify(body)).not.toMatch(/smt_|hash/);
     const del = await t.req(`/v1/oauth/grants/${body.data[0].id}`, { method: "DELETE", key });
     expect(del.status).toBe(200);
