@@ -1,7 +1,7 @@
 import { hashTypedData } from "viem";
 import { describe, expect, it } from "vitest";
 import { buildReceiveAuth, deployments, payNonce } from "@stenmont/shared";
-import { FRIENDLY, ZERO_SALT, apiBase, b64urlDecode, b64urlEncode, formatAmount, friendly, isTestEnvironment, payChallenge, routerFor } from "../lib/pay";
+import { FRIENDLY, ZERO_SALT, apiBase, b64urlDecode, b64urlEncode, formatAmount, friendly, isTestEnvironment, payChallenge, payViewKind, routerFor } from "../lib/pay";
 
 const BANNED = /\b(gas|wbt|usdt|seed|chain|wallet|crypto|ethereum|token|blockchain|metamask|private key)\b/i;
 
@@ -69,5 +69,22 @@ describe("customer-facing copy", () => {
   it("covers every relay error code", () => {
     const codes = ["rate_limited", "invoice_not_found", "invoice_not_payable", "gas_tank_empty", "gas_cap_reached", "payer_cap", "busy", "duplicate", "account_mismatch", "overpay", "below_minimum", "wrong_payer", "invalid_authorization", "relayer_low", "chain_error", "tx_reverted", "timeout"];
     for (const c of codes) expect(FRIENDLY[c], c).toBeTruthy();
+  });
+});
+
+describe("what the pay page shows", () => {
+  it("shows a paused business as temporarily unavailable, not as a missing invoice", () => {
+    expect(payViewKind({ status: "open", paused: true })).toBe("paused");
+    expect(payViewKind({ status: "partially_paid", paused: true })).toBe("paused");
+  });
+  it("keeps the other states as they were", () => {
+    expect(payViewKind({ status: "open", paused: false })).toBe("ready");
+    expect(payViewKind({ status: "open" })).toBe("ready");
+    expect(payViewKind({ status: "paid", paused: true })).toBe("paid");
+    expect(payViewKind({ status: "cancelled" })).toBe("missing");
+  });
+  it("tells the customer in plain words", () => {
+    expect(friendly("payments_paused")).toMatch(/paused/);
+    expect(friendly("payments_paused")).not.toMatch(BANNED);
   });
 });
