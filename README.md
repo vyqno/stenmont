@@ -124,3 +124,47 @@ pnpm --filter @stenmont/web dev                # web app on :3000
 ```
 
 Secrets live in Cloudflare (`wrangler secret`), per environment. `.env` is a local paste area and is gitignored. The order of work is local, then staging, then production; production scripts refuse to run without `STENMONT_CONFIRM_PRODUCTION=yes`, and nothing is deployed to production. Browser tests: `pnpm --filter @stenmont/web e2e` (Playwright with a virtual passkey, against staging by default).
+
+## How gas works (Scale track)
+
+The payer never holds WBT, signs a gas-costing transaction or sees a chain. The payer signs one USDT authorisation with a passkey; a relayer we run sends the transaction.
+
+- **Who pays:** the merchant. Each merchant has a gas tank: an amount of WBT set aside for its customers' payments. The relayer sends the transaction and, after the receipt, the real cost (`gasUsed x effectiveGasPrice`) is taken from that merchant's tank. Subscription charges, cancellations and investor funding use the same tank (the seller's, for financing).
+- **Where the relayer's WBT comes from:** the relayer is an ordinary wallet funded with WBT (from the test network faucet today). The tank is the accounting of who may spend how much of it. The relayer refuses to send if it would end below a floor of 0.02 WBT, so it never runs dry mid-payment. On mainnet a merchant would top up its tank; the top-up flow is not built (see limitations).
+- **What stops draining:**
+  - A payment authorisation is bound to one invoice and one amount (its nonce is derived from the invoice id), and the token accepts it once. A replay or a redirect to another invoice fails.
+  - Every call is simulated first, so a bad request costs nothing.
+  - 100 requests a minute per payer and per IP, a daily USDT cap per payer, and a daily gas cap per merchant.
+  - Gas is reserved from the tank before sending with one atomic compare-and-swap, so concurrent requests cannot overspend; a request that cannot get its reservation is told `busy` (retry), which is reported separately from "limit reached".
+  - One transaction at a time through a Durable Object, with consecutive nonces.
+  - A race we found ourselves is fixed and tested: under about 50 simultaneous payments, settlements could be silently dropped and a merchant over-charged (never under-charged, never double-settled). It is reproduced deterministically in `services/api/test/relayerRace.test.ts` and explained in [docs/RELAYER.md](docs/RELAYER.md).
+  - Attack tests in `services/api/test/drain.test.ts` (15 concurrent replays send one payment; 120 bad authorisations cost nothing) and `relayer.test.ts`, plus a live drain run on staging (`scripts/drain-sim.ts`).
+
+Not yet covered, and listed in [SECURITY.md](SECURITY.md): invoice creation, account activation and refunds are rate limited but do not draw from the gas tank, and a receipt timeout leaves a reservation held with no automatic reconciliation.
+
+**What the payer sees:** one button, a passkey prompt, "Paying acme.stenmont.eth", the amount and due date, then the merchant's return page. A test (`apps/web`) fails if crypto words appear on the pay page. In the test environment a brand-new payer account is topped up with 5 test USDT from a faucet wallet (limited per IP per day) so a judge can pay without having any; those are official test USDT held by our demo wallet, and in production this does not exist. Payers who already hold USDT can pay from their own wallet instead (the option appears when a browser wallet is present; it signs the same single-use authorisation and the same relay pays the gas).
+
+## Payers bring their own USDT
+
+Stenmont does not sell USDT, take cards or run an on-ramp, and we make no claim that it does. A payer needs USDT on Whitechain, and the pay page's help screen (`apps/web/lib/funding.ts`) says only what Whitechain's own tools do:
+
+1. From the **WhiteBIT** exchange: hold or buy USDT there, withdraw it and choose the Whitechain network.
+2. From another network: Whitechain's **Portal bridge** ([mainnet](https://bridge.whitechain.io), [testnet](https://bridge.testnet.whitechain.io)) moves USDT from the networks it supports, such as Ethereum and Tron.
+
+A business receiving USDT moves it to a local bank through a licensed off-ramp partner of its choice; that is information, not a feature we run. Whether the official USDT will be available on Whitechain mainnet, and when, is not confirmed by us (Whitechain's docs say it follows later releases after audit): check before relying on it.
+
+## Why Proof of Human is the minimum credential (IDKit)
+
+The trust moments are three, and each needs the same thing: to know that a distinct, living person is behind the action, and nothing more.
+
+1. **One person, one business.** When a business verifies, the proof goes to World's verifier from our server; the returned nullifier is stored under a unique index, so the same human cannot register a second business ("already verified a business").
+2. **Buyer and supplier must be different people.** An invoice that names a buying business is refused when both sides trace to the same verified human, so a business cannot invoice itself to farm payment history or sell a fake receivable.
+3. **Investors on the allowlist.** Before the attester signs an investor into `InvestorRegistry`, the investor must present a Proof of Human, so a sold invoice cannot be bought by a swarm of fake accounts.
+
+Why not a passport or a selfie check: every question here is "is this a different human than the last one", not "who is this" or "where are they from". A passport credential would collect document facts we have no use for, and would lock out people without a supported document. A selfie check yields a Sybil score, which is a risk estimate; the nullifier from Proof of Human is an exact value we can put behind a unique database index, which is the rule we need. Where a business really needs more (the highest financing limits, investing with real money), the platform asks for a document check from a KYC provider instead of pretending a human check is enough; that tier is only a sandbox stand-in today (see [docs/VERIFICATION.md](docs/VERIFICATION.md)).
+
+The alternative paths are built and tested: a cancelled widget, a rejected proof, and a second business by the same person (refused and left unverified). All proofs on World's test network use fake identities and must not be relied on in production.
+
+## Privacy: onchain payments are public
+
+A USDT transfer exposes the sender address, the receiver address, the amount and the time to anyone. Invoice details and customer emails stay in our database; onchain there is only an invoice id. If an address is publicly tied to a company (for example an ENS name that resolves to it), that company's incoming payments are visible. Mitigations we have not built: a fresh receiving address per invoice and hiding the ENS name on private pay pages. Do not use this where payment amounts or counterparties must stay secret.
