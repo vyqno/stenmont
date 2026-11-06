@@ -113,6 +113,9 @@ export function fakeChain(overrides: Partial<ChainClient> = {}) {
     async usdtAllowance() {
       return 0n;
     },
+    async usdtSentSince() {
+      return 0n;
+    },
     async estimateGas() {
       counts.estimate++;
       return 200_000n;

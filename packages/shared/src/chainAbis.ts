@@ -32,6 +32,7 @@ export const multicall3Abi = [
 
 /** The slice of the official USDT the API uses (EIP-3009 with ERC-1271 signatures as `bytes`). */
 export const usdtAbi = [
+  { type: "event", name: "Transfer", inputs: [{ name: "from", type: "address", indexed: true }, { name: "to", type: "address", indexed: true }, { name: "value", type: "uint256", indexed: false }] },
   { type: "function", name: "nonces", stateMutability: "view", inputs: [{ name: "owner", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
   {
     type: "function",

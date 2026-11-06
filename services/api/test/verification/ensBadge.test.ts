@@ -1,6 +1,6 @@
 import { decodeFunctionData, type Address, type Hex } from "viem";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AGENT_CONTEXT_KEY, BUSINESS_GRANTED_KEYS, PROFILE_KEY, TIER_KEY, dnsName, permissionedResolverAbi } from "@stenmont/shared";
+import { AGENT_CONTEXT_KEY, BUSINESS_GRANTED_KEYS, DIRECTORY_KEYS, PAY_KEY, PROFILE_KEY, TIER_KEY, TOKEN_KEY, dnsName, permissionedResolverAbi } from "@stenmont/shared";
 import type { Env } from "../../src/env";
 
 // The real ENS client, with the chain reads and the single sender stubbed: we look at exactly what it would send.
@@ -102,6 +102,46 @@ describe("lockPayout keeps the tier record writable by the registrar", () => {
     const multi = calls.find((c) => c.fn === "multicall");
     expect(multi).toBeTruthy();
     const order = calls.filter((c) => c.fn !== "multicall").map((c) => (c.fn === "grantSetterRoles" ? `grant:${grantedKey(c)}` : c.fn));
-    expect(order).toEqual([`grant:${PROFILE_KEY}`, `grant:${TIER_KEY}`, "revokeRootRoles"]);
+    expect(order).toEqual([`grant:${PROFILE_KEY}`, `grant:${TIER_KEY}`, ...DIRECTORY_KEYS.map((k) => `grant:${k}`), "revokeRootRoles"]);
+  });
+});
+
+describe("directory records are platform-only", () => {
+  it("setTextRecords writes each record to the business's resolver in one transaction", async () => {
+    await viemEns(env).setTextRecords({ name: NAME, resolver: RESOLVER, records: { [PAY_KEY]: "https://pay.acme.example/c", [TOKEN_KEY]: "t" } });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.to).toBe(RESOLVER);
+    const writes = decoded().filter((c) => c.fn === "setText");
+    expect(writes.map((w) => [w.args[1], w.args[2]])).toEqual([[PAY_KEY, "https://pay.acme.example/c"], [TOKEN_KEY, "t"]]);
+    expect(writes.every((w) => w.args[0] === dnsName(NAME))).toBe(true);
+  });
+  it("refuses to write any key that is not a directory key (it cannot be used to reach the profile or tier record)", async () => {
+    await expect(viemEns(env).setTextRecords({ name: NAME, resolver: RESOLVER, records: { [PROFILE_KEY]: "x" } })).rejects.toThrow();
+    await expect(viemEns(env).setTextRecords({ name: NAME, resolver: RESOLVER, records: { [TIER_KEY]: "4" } })).rejects.toThrow();
+    expect(sent).toHaveLength(0);
+  });
+  it("sends nothing when there is nothing to write", async () => {
+    await viemEns(env).setTextRecords({ name: NAME, resolver: RESOLVER, records: {} });
+    expect(sent).toHaveLength(0);
+  });
+  it("no merchant-side grant covers a directory key: members, agents and every grant that is not to the registrar exclude them", async () => {
+    const ens = viemEns(env);
+    await ens.grantProfileRole({ name: NAME, resolver: RESOLVER, member: MEMBER });
+    await ens.createAgent({ businessName: NAME, agentRegistry: RESOLVER, label: "bot", agent: AGENT, expiresAt: 2_000_000_000, context: "c", endpoint: "https://x.example", limits: "{}" });
+    await ens.lockPayout({ name: NAME, resolver: RESOLVER });
+    await ens.setTextRecords({ name: NAME, resolver: RESOLVER, records: { [PAY_KEY]: "https://pay.acme.example/c" } });
+    for (const key of BUSINESS_GRANTED_KEYS) expect((DIRECTORY_KEYS as readonly string[]).includes(key)).toBe(false);
+    const businessSide = [MEMBER, AGENT].map((a) => a.toLowerCase());
+    const toOthers = decoded().filter((c) => c.fn === "grantSetterRoles" && businessSide.includes((c.args[1] as string).toLowerCase()));
+    expect(toOthers.map(grantedKey).sort()).toEqual([AGENT_CONTEXT_KEY, PROFILE_KEY]);
+    for (const g of decoded().filter((c) => c.fn === "grantSetterRoles" && (DIRECTORY_KEYS as readonly string[]).includes(grantedKey(c)))) {
+      expect((g.args[1] as string).toLowerCase()).not.toBe(MEMBER.toLowerCase());
+      expect((g.args[1] as string).toLowerCase()).not.toBe(AGENT.toLowerCase());
+    }
+  });
+  it("lockPayout pre-grants every directory key to the registrar before its root rights are dropped", async () => {
+    await viemEns(env).lockPayout({ name: NAME, resolver: RESOLVER });
+    const granted = decoded().filter((c) => c.fn === "grantSetterRoles").map(grantedKey);
+    for (const k of DIRECTORY_KEYS) expect(granted).toContain(k);
   });
 });

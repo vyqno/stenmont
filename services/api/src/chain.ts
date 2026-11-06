@@ -1,6 +1,7 @@
 import { BaseError, createPublicClient, decodeErrorResult, encodeFunctionData, http, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { MULTICALL3_ADDRESS, USDT_ADDRESS, investorRegistryAbi, invoiceClaimAbi, multicall3Abi, passkeyAccountFactoryAbi, paymentRouterAbi, reputationRegistryAbi, subscriptionManagerAbi, usdtAbi, whitechainSepolia } from "@stenmont/shared";
+import { windowStartBlock } from "./ens/agentSpend";
 import type { Env } from "./env";
 import type { Call } from "./relayer/sender";
 import { verifyWalletSignature } from "./verification/siwe";
@@ -107,6 +108,8 @@ export interface ChainClient {
   /** EIP-2612 nonce of the token for this owner (the next permit must use it). */
   usdtNonce(address: Address): Promise<bigint>;
   usdtAllowance(owner: Address, spender: Address): Promise<bigint>;
+  /** Total USDT the address sent (Transfer events with it as `from`) in about the last `seconds`. Read-only. */
+  usdtSentSince(from: Address, seconds: number): Promise<bigint>;
   /** Gas the call would use. Throws Rejected if the contracts would revert it. */
   estimateGas(call: Call): Promise<bigint>;
   gasPrice(): Promise<bigint>;
@@ -141,6 +144,10 @@ function revertReason(e: unknown): string {
   }
   return "reverted";
 }
+
+/** How far back to measure the block time, and the most blocks a spend lookup will scan. */
+const SPEND_SAMPLE_BLOCKS = 1_000n;
+const SPEND_MAX_BLOCKS = 200_000n;
 
 const WATCHED = ["InvoicePaid", "InvoiceRefunded", "InvoiceCancelled"] as const;
 const CLAIM_WATCHED = ["ClaimListed", "ClaimFunded", "ClaimSettled", "ClaimDefaulted", "ClaimCancelled", "Transfer"] as const;
@@ -298,6 +305,14 @@ export function viemChain(env: Env): ChainClient {
       publicClient.readContract({ address: env.FACTORY_ADDRESS as Address, abi: passkeyAccountFactoryAbi, functionName: "getAddress", args: [qx, qy, salt] }),
     usdtNonce: (address) => publicClient.readContract({ address: USDT_ADDRESS, abi: usdtAbi, functionName: "nonces", args: [address] }),
     usdtAllowance: (owner, spender) => publicClient.readContract({ address: USDT_ADDRESS, abi: usdtAbi, functionName: "allowance", args: [owner, spender] }),
+    async usdtSentSince(from, seconds) {
+      const latest = await publicClient.getBlock();
+      const sampleNumber = latest.number > SPEND_SAMPLE_BLOCKS ? latest.number - SPEND_SAMPLE_BLOCKS : 0n;
+      const sample = sampleNumber === latest.number ? latest : await publicClient.getBlock({ blockNumber: sampleNumber });
+      const fromBlock = windowStartBlock({ latest: { number: latest.number, timestamp: latest.timestamp }, sample: { number: sample.number, timestamp: sample.timestamp }, windowSeconds: seconds, maxBlocks: SPEND_MAX_BLOCKS });
+      const logs = await publicClient.getContractEvents({ address: USDT_ADDRESS, abi: usdtAbi, eventName: "Transfer", args: { from }, fromBlock, toBlock: latest.number });
+      return logs.reduce((sum, l) => sum + l.args.value!, 0n);
+    },
     usdtBalance: (address) => publicClient.readContract({ address: USDT_ADDRESS, abi: usdtAbi, functionName: "balanceOf", args: [address] }),
     estimateGas: estimate,
     gasPrice: () => publicClient.getGasPrice(),

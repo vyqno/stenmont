@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { AgentAllowance } from "../../../components/AgentAllowance";
 import { Badge, Card } from "../../../components/ui";
 import { AuthError, api } from "../../../lib/auth";
 import { AGENT_SCOPES, agentApprovalParams, canClaimLabel, parseAgentInput, type Agent, type AgentForm, type Availability, type BusinessName } from "../../../lib/identity";
@@ -174,6 +175,7 @@ export default function Identity() {
           </Card>
           <Card title="Agent names">
             <p className="text-sm text-muted">Each agent gets its own identity, policy and expiry. These ENS records describe its permissions; payment integrations must enforce the spending policy. A daily grant above 100 USDT requires fresh World approval.</p>
+            <AgentAllowance agents={agents} onChanged={reload} />
             {agents.length === 0 ? <p className="mt-4 text-sm">No agents yet. Create a name below to connect your first agent.</p> : <ul className="mt-4 divide-y divide-line">
               {agents.map((agent) => <li data-testid="agent-row" key={agent.name} className="flex flex-wrap items-start justify-between gap-3 py-4">
                 <div className="min-w-0 flex-1"><p className="break-all font-medium">{agent.name}</p><p className="mt-1 break-all font-mono text-xs text-muted">{agent.agentAddress}</p><p className="mt-2 text-sm">{agent.dailyLimit} USDT/day · {agent.perTxLimit} per payment</p><p className="text-xs text-muted">{agent.scopes.join(", ")} · Expires {new Date(agent.expiresAt).toLocaleDateString()}</p></div>

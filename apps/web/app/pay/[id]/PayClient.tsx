@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Hex } from "viem";
 import { toUnits } from "@stenmont/shared";
 import { createPasskey, loadPasskey, signDigest } from "../../../lib/passkey";
+import { describeTrust, type Trust } from "../../../lib/trust";
 import { ZERO_SALT, apiBase, formatAmount, friendly, isTestEnvironment, payChallenge, payViewKind, routerFor } from "../../../lib/pay";
 
 type Invoice = {
@@ -18,6 +19,7 @@ type Invoice = {
   successUrl: string | null;
   cancelUrl: string | null;
   paused?: boolean;
+  trust?: Trust;
 };
 type View =
   | { kind: "loading" }
@@ -163,6 +165,7 @@ export default function PayClient({ id }: { id: string }) {
                 Paying {view.invoice.payeeName}
               </p>
             )}
+            <TrustBadge trust={view.invoice.trust} />
             <h1 className="mt-1 text-5xl font-semibold tracking-tight" data-testid="amount">
               {formatAmount(view.invoice.remaining)}
             </h1>
@@ -219,5 +222,25 @@ export default function PayClient({ id }: { id: string }) {
         </>
       )}
     </main>
+  );
+}
+
+/** "Verified business" with the specific proofs that hold. The wording lives in lib/trust.ts. */
+function TrustBadge({ trust }: { trust?: Trust }) {
+  const t = describeTrust(trust);
+  if (!t) return null;
+  return (
+    <div className="mt-3 rounded-md border border-neutral-200 p-3 text-sm dark:border-neutral-800" data-testid="trust-badge">
+      <p className={t.verified ? "font-medium" : "text-neutral-500"}>{t.headline}</p>
+      {t.proofs.length > 0 && (
+        <ul className="mt-1 list-disc pl-5 text-neutral-500">
+          {t.proofs.map((p) => (
+            <li key={p}>{p}</li>
+          ))}
+        </ul>
+      )}
+      {t.level && <p className="mt-1 text-xs text-neutral-500">{t.level}</p>}
+      {t.note && <p className="mt-1 text-xs text-neutral-500">{t.note}</p>}
+    </div>
   );
 }

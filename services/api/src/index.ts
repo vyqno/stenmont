@@ -8,7 +8,9 @@ import { runIndexer } from "./indexer";
 import { runReminders } from "./reminders";
 import { runRenewals } from "./renewals";
 import { purgeShopifyOauth } from "./shopifyOauth/store";
+import type { Address } from "viem";
 import { viemEns } from "./ens/client";
+import { runDirectoryRefresh } from "./ens/publishDirectory";
 import { runTierBadges } from "./verification/badge";
 
 export type { Env } from "./env";
@@ -32,6 +34,7 @@ export default {
       ctx.waitUntil(runDefaults(env, db, chain, at));
       ctx.waitUntil(purgeShopifyOauth(db, at));
       ctx.waitUntil(runTierBadges({ db, ens: viemEns(env), now: at }));
+      ctx.waitUntil(runDirectoryRefresh({ db, ens: viemEns(env), now: at, chainId: Number(env.WHITECHAIN_CHAIN_ID), usdt: env.USDT_ADDRESS as Address }));
     }
   },
   /** Queue consumer: signed webhook deliveries with retries. */

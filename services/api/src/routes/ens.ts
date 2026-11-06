@@ -11,6 +11,7 @@ import { clientIp } from "../lib/request";
 import { invalid } from "../lib/validation";
 import { hitRateLimit } from "../relayer/caps";
 import { ensAgentRoutes } from "./ensAgents";
+import { ensDirectoryRoutes } from "./ensDirectory";
 import type { Address } from "viem";
 
 /** Words that belong to the platform. */
@@ -20,6 +21,7 @@ const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 
 export const ensRoutes = new Hono<AppEnv>();
 ensRoutes.route("/agents", ensAgentRoutes);
+ensRoutes.route("/directory", ensDirectoryRoutes);
 
 type Row = typeof ensNames.$inferSelect;
 const view = (r: Row) => ({ name: r.name, resolver: r.resolver, payoutLocked: r.payoutLocked === 1, status: r.status });
