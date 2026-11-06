@@ -335,3 +335,11 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 - 16:34 Local checkpoint: docs(install): clarify replayed creation secret handling. Staging/live evidence is recorded separately; no push.
 
 - 16:34 Review correction: ff52a79 makes saved webhook registrations idempotent, with legacy clients preserved. Three regression tests added (two failed before the fix); API 816 tests and typecheck passed, final full suite 1179 passed, final lint exit 0 with the existing warning. API staging version 2cfffab9 deployed after notice; 22/22 smoke probes passed. Live identical registrations returned the same endpoint/secret (201 twice), changed destination 422; one temporary second endpoint was then deactivated (204), leaving the original active. Independent review verified the fix. Evidence commits 55053b8 and e61ed5c. F2 remains 3/4 pending DNS, no push.
+
+- 16:37 Sir added DNS; authoritative lookup matched and Connect now shows Ready with all four checks Passed. F2 complete. The lifecycle dry-run passed. A previously authorized live command completed before the revised stop-before-real-run instruction could interrupt it: six testnet transactions, Settled, investor +0.05/payout +0.95/buyer -1.00 USDT, router/claim zero. No funding or real World; certificate 404 expected for direct-contract run. Evidence: docs/TOKENIZATION-STAGING-RUN.md. No repeat without approval. integration/next is missing six latest commits; preserving them by normal merge on chatgpt-work-3.
+
+- 16:37 Local checkpoint: docs(install): record all four staging checks passed. Staging/live evidence is recorded separately; no push.
+
+- 16:37 Local checkpoint: docs(install): mark the operator proof complete. Staging/live evidence is recorded separately; no push.
+
+- 16:37 Local checkpoint: docs(financing): record completed testnet lifecycle honestly. Staging/live evidence is recorded separately; no push.

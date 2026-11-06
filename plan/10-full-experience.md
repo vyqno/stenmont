@@ -232,8 +232,8 @@ Each section is a set of staging slices, using the same test-first and completio
 - [x] Run the combined full suite, lint and web typecheck.
 - [x] Deploy only from the clean-line descendant, API then web then MCP, with the owner informed before each deployment.
 - [x] Pass every Part V D smoke probe after each deployment.
-- [ ] Prove Connect/prompt installation in a real browser and OAuth with the real MCP inspector.
+- [x] Prove Connect/prompt installation in a real browser and OAuth with the real MCP inspector.
 - [x] Real-browser signup, prompt-agent integration, pause enforcement, hosted redirect, existing-wallet relay test payment, indexed paid invoice and signed-webhook Paid order.
 - [x] Real Inspector OAuth consent/read, wrong PKCE and redirect refusal, revoke denial.
-- [ ] Add the site DNS TXT record and observe four green Connect checks; currently 3/4. See `docs/INSTALL-ACCEPTANCE.md`.
+- [x] Sir added the site DNS TXT record; real browser shows Ready, all four checks Passed. See `docs/INSTALL-ACCEPTANCE.md`.
 - [ ] Follow Part V F in order after that acceptance gate.
