@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const PAGES = [
   ["/docs", "Quickstart"], ["/docs/api", "API reference"], ["/docs/webhooks", "Webhooks"],
-  ["/docs/sdk", "SDK and React"], ["/docs/mcp", "MCP and OAuth"], ["/docs/x402", "x402 payments"],
+  ["/docs/sdk", "SDK and React"], ["/docs/mcp", "MCP and OAuth"], ["/docs/x402", "x402 payments"], ["/docs/faq", "FAQ"],
 ];
 export function DocsNav() {
   const path = usePathname();

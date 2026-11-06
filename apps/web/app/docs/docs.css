@@ -11,3 +11,12 @@
 .docs-rail { padding: 32px 20px; border-left: 1px solid var(--line); font-size: 12px; display: flex; flex-direction: column; gap: 16px; color: var(--text-2); }
 @media (max-width: 1100px) { .docs-grid { grid-template-columns: 220px minmax(0, 1fr); }.docs-rail { display: none; } }
 @media (max-width: 700px) { .docs-header { padding: 16px; gap: 16px; flex-wrap: wrap; }.docs-label { padding-left: 16px; }.docs-connect { margin-left: 0; }.docs-tabs { padding-inline: 16px; }.docs-tabs nav { gap: 20px; }.docs-tabs > span { display: none; }.docs-grid { grid-template-columns: 1fr; }.docs-sidebar { padding: 24px 16px; border-right: 0; border-bottom: 1px solid var(--line); }.docs-navigation { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 12px; }.docs-sidebar-note { display: none; }.docs-body { padding: 24px 16px 48px; }.docs-prose h1 { font-size: 30px; } }
+
+/* Shared pill / grey-panel / white-card application. */
+.docs-shell { background: #f4f4f5; padding-top: 1px; }
+.docs-header { width: min(100% - 64px, 1200px); margin: 24px auto 0; min-height: 72px; border: 0; border-radius: 22px; background: var(--grey); padding: 10px 12px 10px 28px; gap: 24px; }
+.docs-connect { border-radius: 12px; padding-inline: 18px; }.docs-label { border: 0; padding-left: 8px; }
+.docs-tabs { width: min(100% - 96px, 1168px); margin: 16px auto 0; padding: 0; border: 0; }
+.docs-grid { width: min(100% - 64px, 1360px); background: white; margin: 24px auto 48px; border-radius: 28px; overflow: hidden; border: 1px solid #05050506; box-shadow: 0 8px 28px #05050503; }
+.docs-sidebar { padding-top: 40px; }.docs-body { padding-top: 32px; }.docs-rail { padding-top: 40px; }.docs-navigation a { border-radius: 10px; }.docs-navigation a[aria-current=page] { border-left: 0; }.docs-tools button,.docs-tools a { border-color: var(--line); border-radius: 10px; }.docs-prose pre { border-radius: 14px; }.docs-prose .rounded-lg { border-radius: 14px; }
+@media(max-width:700px) { .docs-header { width: calc(100% - 24px); margin-top: 12px; padding: 14px 16px; border-radius: 18px; }.docs-header > a:first-child { font-size: 20px; }.docs-label { font-size: 12px; padding: 0; }.docs-connect { min-height: 40px; font-size: 11px; margin-left: auto; gap: 12px; }.docs-tabs { width: calc(100% - 40px); margin-top: 8px; }.docs-grid { width: calc(100% - 24px); margin-top: 12px; border-radius: 22px; }.docs-sidebar { padding: 24px 16px; }.docs-body { padding: 24px 16px 40px; }.docs-tools { gap: 8px; margin-bottom: 28px; } }

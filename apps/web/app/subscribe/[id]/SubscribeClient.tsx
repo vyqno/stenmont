@@ -123,7 +123,7 @@ export default function SubscribeClient({ id }: { id: string }) {
 
   const copy = view.kind === "loading" || view.kind === "missing" || view.kind === "awaiting" ? null : planCopy(view.terms);
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-12" data-testid="subscribe-page">
+    <main className="payment-sheet" data-testid="subscribe-page">
       {view.kind === "loading" && <p role="status">Loading…</p>}
       {view.kind === "awaiting" && <p role="status">The business needs to prepare this replacement payment plan before you can agree. Ask them to open Subscriptions and prepare the plan.</p>}
       {view.kind === "missing" && (

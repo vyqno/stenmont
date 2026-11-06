@@ -44,7 +44,7 @@ export function Badge({ tone, children }: { tone: keyof typeof TONES; children: 
 
 export function Card({ title, children, className = "" }: { title?: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-lg border border-line bg-surface p-5 ${className}`}>
+    <section className={`rounded-2xl border border-line bg-surface p-6 ${className}`}>
       {title && <h2 className="mb-3 text-lg font-bold">{title}</h2>}
       {children}
     </section>
@@ -53,7 +53,7 @@ export function Card({ title, children, className = "" }: { title?: string; chil
 
 export function Stat({ label, value, testId }: { label: string; value: string; testId?: string }) {
   return (
-    <div className="rounded-lg border border-line bg-surface p-4">
+    <div className="rounded-2xl border border-line bg-surface p-5">
       <p className="text-sm text-muted">{label}</p>
       <p data-testid={testId} className="amount mt-1 text-2xl font-bold">{value}</p>
     </div>
