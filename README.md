@@ -130,7 +130,7 @@ Secrets live in Cloudflare (`wrangler secret`), per environment. `.env` is a loc
 The payer never holds WBT, signs a gas-costing transaction or sees a chain. The payer signs one USDT authorisation with a passkey; a relayer we run sends the transaction.
 
 - **Who pays:** the merchant. Each merchant has a gas tank: an amount of WBT set aside for its customers' payments. The relayer sends the transaction and, after the receipt, the real cost (`gasUsed x effectiveGasPrice`) is taken from that merchant's tank. Subscription charges, cancellations and investor funding use the same tank (the seller's, for financing).
-- **Where the relayer's WBT comes from:** the relayer is an ordinary wallet funded with WBT (from the test network faucet today). The tank is the accounting of who may spend how much of it. The relayer refuses to send if it would end below a floor of 0.02 WBT, so it never runs dry mid-payment. On mainnet a merchant would top up its tank; the top-up flow is not built (see limitations).
+- **Where the relayer's WBT comes from:** the relayer is an ordinary wallet funded with WBT (from the test network faucet today). The tank is the accounting of who may spend how much of it. The relayer refuses to send if it would end below a floor of 0.02 WBT, so it never runs dry mid-payment. Today a merchant's tank is set by an operator script (`scripts/fund-gas-tank.ts`) and shown read-only in Settings; a self-serve top-up where the merchant sends WBT is not built (see limitations).
 - **What stops draining:**
   - A payment authorisation is bound to one invoice and one amount (its nonce is derived from the invoice id), and the token accepts it once. A replay or a redirect to another invoice fails.
   - Every call is simulated first, so a bad request costs nothing.
@@ -168,3 +168,60 @@ The alternative paths are built and tested: a cancelled widget, a rejected proof
 ## Privacy: onchain payments are public
 
 A USDT transfer exposes the sender address, the receiver address, the amount and the time to anyone. Invoice details and customer emails stay in our database; onchain there is only an invoice id. If an address is publicly tied to a company (for example an ENS name that resolves to it), that company's incoming payments are visible. Mitigations we have not built: a fresh receiving address per invoice and hiding the ENS name on private pay pages. Do not use this where payment amounts or counterparties must stay secret.
+
+## Tracks to evidence
+
+Status words: **proven live** = run on staging against the real chain and services, with a link or a recorded run; **built** = implemented and tested locally, not shown live; **missing** = not done. The line-by-line audit with next actions is [docs/TRACK-CHECKLIST.md](docs/TRACK-CHECKLIST.md).
+
+| Requirement | Evidence | Status |
+|---|---|---|
+| **All Whitechain tracks**: contracts on Whitechain Sepolia, verified on the explorer | [Deployed contracts](#deployed-contracts-whitechain-sepolia-chain-1874-staging), `contracts/deployments/1874.json` | proven live |
+| At least one settled payment in the official USDT, explorer link in README | [Real payments](#real-payments-in-the-official-usdt) | proven live |
+| Why onchain stablecoin settlement | [Why onchain](#why-onchain-stablecoin-settlement-on-whitechain) | done |
+| Public repo with steady progress; setup, architecture, limitations | This README; about 270 commits dated 5 and 6 November 2026 on this line | done once pushed (owner pushes) |
+| Demo video of 2 to 4 minutes at real speed, each party | Shot list in [DEMO.md](DEMO.md) | missing: not recorded yet |
+| `WHITECHAIN_FEEDBACK.md` | [WHITECHAIN_FEEDBACK.md](WHITECHAIN_FEEDBACK.md) | done |
+| **Operate**: drop-in piece a separate app adds in about 20 lines | SDK + [example store, 10 lines](apps/example-store/INTEGRATION.md); isolated store built from the Connect prompt took a real payment | proven live |
+| Operate: merchant and customer views | Dashboard (`/dashboard`), pay page (`/pay/<id>`), customer account page (`/account`) | proven live (dashboard and pay page); account page built |
+| Operate: refund, renewal, accountant export | Refund with passkey, subscription with two renewals and a customer cancel, CSV (generic and QuickBooks) on real data | proven live |
+| Operate: due dates and reminders | `invoice.reminder` webhooks (3 days before, due, 3 days after), hourly job | built (no live reminder shown) |
+| **Tokenize**: rules in the contract, a full lifecycle step | `InvoiceClaim`, `InvestorRegistry`, `ReputationRegistry`; lifecycle links above | proven live (contracts, with the allowlist shortcut); default path covered by unit and fork tests only |
+| **Scale**: zero-crypto payer, how gas is paid, what stops draining | [How gas works](#how-gas-works-scale-track), [docs/RELAYER.md](docs/RELAYER.md), drain tests | proven live (gasless pay); drain tests and a live drain run |
+| Scale: x402 pay-per-request through a facilitator we run | `services/facilitator`, [agent payment](https://explorer.testnet.whitechain.io/tx/0x2a13cb73752a19224db5378a97108513bebe5f0b35abe851c8177e5dbac61e91) | proven live |
+| **World Agent Pass**: official integration, request, completion, validated result, protected action | OIDC sign-in with PKCE, token checked in the backend, gates large refunds and large agent limits | built; the sign-in has not been completed by a real person, so the full journey is not shown live |
+| Agent Pass: a denied or expired path where the action does not happen | Route tests (`services/api/test/worldRoutes.test.ts`) | built; not shown live |
+| Agent Pass: debrief | [WORLD_FEEDBACK.md](WORLD_FEEDBACK.md) | done |
+| **IDKit**: functioning integration, server-side verification, success and an alternative path | Proof of Human via World's simulator; duplicate-person refusal | proven live (simulator) |
+| IDKit: why the credential is the minimum | [Why Proof of Human](#why-proof-of-human-is-the-minimum-credential-idkit) | done |
+| **ENSv2**: central to the product, functional, live demo, open source | Names, per-name resolvers, record-scoped roles, payout lock, agent names on Sepolia; docs in [docs/ENS_DIRECTORY.md](docs/ENS_DIRECTORY.md) and [plan/05-identity.md](plan/05-identity.md) | proven live (names, roles, payout lock, agents); pay directory and tier record not run on Sepolia |
+
+## Current limitations
+
+- **Testnet only.** Chain 1874 with valueless test tokens. Production is not deployed. Test USDT in staging comes from a faucet wallet we fund, which limits repeated runs.
+- **No external audit.** Internal review, slither and extensive tests only. Owner and guardian of every contract are one deployer wallet today; a multisig is planned before any real value. The shared relayer can create invoices for any merchant that enabled delegation, and the API (not the contract) pins the payout.
+- **Lost passkey.** Email or Google sign-in can restore read-only dashboard access, but a lost passkey cannot replace the signer of the business's onchain payout account. Recovery is a design note only ([plan/13-payout-recovery.md](plan/13-payout-recovery.md)); until it is built, funds in an account whose passkey is lost cannot be moved.
+- **World.** On the test network World mocks proofs. IDKit was proven through World's public simulator, which is one fixed identity, so "buyer and supplier are different people" is proven by tests, not by two real people. A real Agent Pass sign-in by a person has not been completed.
+- **Verification is partly a stand-in.** The document-check tier uses a sandbox KYC provider that never looks at a person or document; no real KYC or sanctions-screening provider is integrated. Investors are allowed with a World proof only in the test environment; production would require the document tier.
+- **Financing.** The live lifecycle used the labelled allowlist shortcut. The default path (7 days after the due date) was not run live. Legal review is needed before any real investor.
+- **USDT on mainnet.** We have not confirmed that the official USDT is available on Whitechain mainnet; check before any launch.
+- **Gas tank.** Set by an operator today, no self-serve top-up; invoice creation, activation and refunds do not draw on it; a receipt timeout is not reconciled automatically; abandoned invoice creation has no durable recovery.
+- **Books.** Export dates are when our indexer recorded the event (within about a minute), not the block time. Reconciliation, tax lines and period close are not built.
+- **Privacy.** Onchain payments are public (see above).
+- **Not run live:** paying from an existing wallet through the hosted page in a browser, real email delivery, Google sign-in, the ENS pay directory and tier record on Sepolia, and a refund above the approval threshold completed by a real World sign-in.
+- **Fonts.** Adobe Fonts project licences are used until web licences are bought.
+
+## Before and during the hackathon
+
+Stenmont was started from an empty repository for this event: the first commit is dated 5 November 2026 and everything in the history was written during the hackathon (see `git log --reverse`). It is not entered for the Continuity track, which is for products that already existed.
+
+## Tests
+
+`pnpm -r test` on this branch: 1,341 Vitest tests pass (API 905, web 215, shared 46, install-proof 37, agent 26, facilitator 31, scripts 22, MCP 17, x402 15, SDK 14, example store 10, React 3), plus 15 `node:test` cases in `scripts`. Contracts: `forge test` (unit, fuzz, invariant) and `forge test --profile fork`.
+
+## More
+
+Security: [SECURITY.md](SECURITY.md). Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Decisions: [docs/adr](docs/adr). Feedback for the sponsors: [WHITECHAIN_FEEDBACK.md](WHITECHAIN_FEEDBACK.md), [WORLD_FEEDBACK.md](WORLD_FEEDBACK.md), [ENS_FEEDBACK.md](ENS_FEEDBACK.md). Builders Program draft: [docs/BUILDERS_PROGRAM.md](docs/BUILDERS_PROGRAM.md).
+
+## Licence
+
+Apache-2.0, see [LICENSE](LICENSE).
