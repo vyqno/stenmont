@@ -75,9 +75,12 @@ function verifyWebhook(body: string, header: string, secret: string, toleranceSe
 function PayButton(props: {sessionUrl: string; children?: ReactNode}): JSX.Element
 ```
 
-- [ ] Failing tests against a mock server: create invoice maps fields; `verifyWebhook` rejects a tampered body, rejects a timestamp older than 5 minutes, accepts a valid one
-- [ ] Run → FAIL; implement; run → PASS
-- [ ] Commit line: `feat: add Stenmont SDK and React pay button`
+- [x] Failing tests against a mock server: create invoice maps fields; `verifyWebhook` rejects a tampered body, rejects a timestamp older than 5 minutes, accepts a valid one
+- [x] Run → FAIL; implement; run → PASS
+- [x] Commit lines: `feat(api): add checkout return links`, `feat: add Stenmont SDK and React pay button`; was: `feat: add Stenmont SDK and React pay button`
+
+**Built (differs from the sketch):** a checkout session is an invoice plus `successUrl`/`cancelUrl`, stored on the invoice by the merchant (https only, or http://localhost outside production) so the pay page cannot be turned into an open redirect. `verifyWebhook` is async (WebCrypto) and takes `{now, toleranceSeconds}`; it accepts two signatures during secret rotation. `refunds.create` starts a refund that the merchant then signs with their passkey. The SDK also covers subscriptions and the accountant export. A test pins that the SDK verifies what the server signs.
+**Live on staging:** Playwright signs up a business, creates a checkout with the SDK, pays on the pay page, is sent back to the shop, and finds the payment in the CSV export (1.2 minutes).
 
 ### Task 4.6: Example store (the 20-line integration)
 

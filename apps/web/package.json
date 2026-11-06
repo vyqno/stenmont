@@ -33,7 +33,8 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.1.0",
-    "wrangler": "^4.157.0"
+    "wrangler": "^4.157.0",
+    "@stenmont/sdk": "workspace:*"
   },
   "packageManager": "pnpm@12.16.1"
 }
