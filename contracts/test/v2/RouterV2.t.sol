@@ -20,8 +20,9 @@ contract RouterV2Test is BaseV2 {
         assertEq(uint256(_status(id)), uint256(IPaymentRouterV2.Status.Paid));
         assertEq(router.invoices(id).discount, 2e6);
         assertEq(router.remaining(id), 0);
+        IPaymentRouterV2.Auth memory bad = _refundAuth(merchantPk, id, payer, AMOUNT, "refund");
         vm.expectRevert(IPaymentRouterV2.RefundTooLarge.selector);
-        _refund(id, AMOUNT, payer, "refund");
+        router.refund(id, AMOUNT, payer, bad);
         _refund(id, 98e6, payer, "refund");
         assertEq(usdt.balanceOf(address(router)), 0);
     }
