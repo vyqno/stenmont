@@ -86,7 +86,13 @@ export function reconcile(input: Input): Result {
   /** The date an event counts from: its own, unless its month was closed before we heard about it. */
   const effective = (at: string, recorded: string | undefined) => {
     const closeAt = closed[periodOf(at)];
-    if (closeAt && recorded && recorded > closeAt && periodOf(recorded) !== periodOf(at)) return { date: recorded, adjustmentFor: periodOf(at) };
+    if (closeAt && recorded && recorded > closeAt) {
+      let month = periodOf(recorded) > periodOf(at) ? periodOf(recorded) : periodOf(periodBounds(periodOf(at)).end);
+      // A closed interim snapshot can never absorb new records; skip any later month already locked as well.
+      while (closed[month]) month = periodOf(periodBounds(month).end);
+      const date = month === periodOf(recorded) ? recorded : periodBounds(month).start;
+      return { date, adjustmentFor: periodOf(at) };
+    }
     return { date: at, adjustmentFor: null };
   };
   const inPeriod = (d: string) => d >= p.start && d < p.end;

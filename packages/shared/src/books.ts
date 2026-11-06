@@ -13,7 +13,7 @@ export function ledgerLineHash(merchantId: string, period: string, line: unknown
   return keccak256(stringToBytes(booksJson(["stenmont.books.line.v1",merchantId,period,line])));
 }
 export type MonthBundle = {
-  version: "stenmont.books.v1"; merchantId: string; period: string; closedAt: string;
+  version: "stenmont.books.v1"; closeKind: "final_month" | "interim_staging"; merchantId: string; period: string; closedAt: string;
   root: Hex; lineCount: number; snapshot: {lines: unknown[]; [key:string]: unknown};
   signer: Address; signature: Hex;
 };

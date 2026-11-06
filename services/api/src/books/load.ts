@@ -5,8 +5,8 @@ import { invoices, payments, refunds, claims, relayerTxs } from "../db/schema";
 import { periodBounds, type Input } from "./reconcile";
 
 /** Every source query is merchant-scoped. First observation preserves late/backdated events as future adjustments. */
-export async function loadBooks(c:Context<AppEnv>,period:string):Promise<Input> {
-  const db=c.var.db, merchant=c.var.merchantId, end=periodBounds(period).end;
+export async function loadBooks(c:Context<AppEnv>,period:string, cutoff?:string):Promise<Input> {
+  const db=c.var.db, merchant=c.var.merchantId, end=cutoff??periodBounds(period).end;
   const inv=await db.select().from(invoices).where(eq(invoices.merchantId,merchant));
   const pay=await db.select({event:payments}).from(payments).innerJoin(invoices,eq(invoices.id,payments.invoiceId)).where(and(eq(invoices.merchantId,merchant),lt(payments.createdAt,end)));
   const ref=await db.select({event:refunds}).from(refunds).innerJoin(invoices,eq(invoices.id,refunds.invoiceId)).where(and(eq(invoices.merchantId,merchant),lt(refunds.createdAt,end)));
@@ -26,7 +26,7 @@ export async function loadBooks(c:Context<AppEnv>,period:string):Promise<Input> 
     invoices:inv.map(r=>({...r,amount:BigInt(r.amount)})),
     payments:pay.map(({event:r})=>({...r,value:BigInt(r.value),at:r.createdAt,recordedAt:observed.get(`pay:${r.id}`)})),
     refunds:ref.map(({event:r})=>({...r,to:r.toAddress,value:BigInt(r.value),at:r.createdAt,recordedAt:observed.get(`refund:${r.id}`)})),
-    claims:claim.map(r=>({...r,face:BigInt(r.face),price:BigInt(r.price),reserve:BigInt(r.reserve)})),
-    gas:gas.filter(r=>r.wbtCost&&r.status==="success").map(r=>({id:r.id,txHash:r.txHash,kind:r.kind,wei:BigInt(r.wbtCost!),at:r.updatedAt})),
+    claims:claim.filter(r=>!r.fundedAt||r.fundedAt<end).map(r=>({...r,face:BigInt(r.face),price:BigInt(r.price),reserve:BigInt(r.reserve)})),
+    gas:gas.filter(r=>r.wbtCost&&["success","reverted"].includes(r.status)&&r.updatedAt<end).map(r=>({id:r.id,txHash:r.txHash,kind:r.kind,wei:BigInt(r.wbtCost!),at:r.updatedAt})),
   };
 }

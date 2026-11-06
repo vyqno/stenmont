@@ -32,11 +32,14 @@ booksRoutes.get("/:period",async c=>{
 });
 booksRoutes.post("/:period/close",async c=>{
   const period=c.req.param("period");
-  if(periodBounds(period).end>c.var.now().toISOString()) return c.json({error:"month_not_ended"},400);
+  const now=c.var.now().toISOString();
+  const body=await c.req.json().catch(()=>({}));
+  const interim=c.env.ENVIRONMENT==="staging" && body?.interimStaging===true && period===now.slice(0,7);
+  if(periodBounds(period).end>now && !interim) return c.json({error:"month_not_ended"},400);
   if(await locked(c,period)) return c.json({error:"month_already_closed"},409);
   if(!c.env.BOOKS_SIGNING_KEY) return c.json({error:"books_signing_unavailable"},503);
-  const result=reconcile(await loadBooks(c,period));
-  const bundle=await createBundle(c.var.merchantId,result,c.var.now().toISOString(),c.env.BOOKS_SIGNING_KEY as Hex);
+  const result=reconcile(await loadBooks(c,period,interim?now:undefined));
+  const bundle=await createBundle(c.var.merchantId,result,c.var.now().toISOString(),c.env.BOOKS_SIGNING_KEY as Hex,interim?"interim_staging":"final_month");
   const inserted=await c.env.DB.prepare("INSERT OR IGNORE INTO books_closes(merchant_id,period,closed_at,bundle) VALUES(?,?,?,?)").bind(c.var.merchantId,period,bundle.closedAt,booksJson(bundle)).run();
   if(inserted.meta.changes!==1) return c.json({error:"month_already_closed"},409);
   return c.json({bundle,anchor:{status:"not_anchored",configured:!!c.env.ANCHOR_REGISTRY}},201);
