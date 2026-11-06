@@ -4,16 +4,21 @@ pragma solidity 0.8.38;
 import {InvestorRegistry} from "../../src/InvestorRegistry.sol";
 import {InvoiceClaimV2} from "../../src/InvoiceClaimV2.sol";
 import {IPaymentRouterV2} from "../../src/interfaces/IPaymentRouterV2.sol";
-import {BaseV2} from "./BaseV2.t.sol";
 import {MockHook} from "../mocks/MockHook.sol";
 import {MockWallet} from "../mocks/MockWallet.sol";
+import {BaseV2} from "./BaseV2.t.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 import {ClaimBaseV2} from "./ClaimBaseV2.t.sol";
+
 contract ClaimV2Regression2Test is ClaimBaseV2 {
     bytes32 internal constant REF = keccak256("INV-1");
-    function _claimStatus(bytes32 id) internal view returns(InvoiceClaimV2.ClaimStatus) { return claim.claims(id).status; }
+
+    function _claimStatus(bytes32 id) internal view returns (InvoiceClaimV2.ClaimStatus) {
+        return claim.claims(id).status;
+    }
+
     function test_fund_afterFundBy_reverts() public {
         bytes32 id = _listed(REF);
         IPaymentRouterV2.Auth memory a = _fundAuth(investorPk, id, PRICE, keccak256("fund"));
@@ -21,6 +26,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         vm.expectRevert(InvoiceClaimV2.Expired.selector);
         claim.fund(id, a);
     }
+
     function test_fund_neverAllowlisted_reverts() public {
         bytes32 id = _listed(REF);
         uint256 strangerPk = 0x57A9;
@@ -29,6 +35,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         vm.expectRevert(InvoiceClaimV2.NotAllowlisted.selector);
         claim.fund(id, a);
     }
+
     function test_fund_revokedInvestor_reverts() public {
         bytes32 id = _listed(REF);
         IPaymentRouterV2.Auth memory a = _fundAuth(investorPk, id, PRICE, keccak256("fund"));
@@ -37,6 +44,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         vm.expectRevert(InvoiceClaimV2.NotAllowlisted.selector);
         claim.fund(id, a);
     }
+
     function test_fund_blockedInvestor_reverts() public {
         bytes32 id = _listed(REF);
         IPaymentRouterV2.Auth memory a = _fundAuth(investorPk, id, PRICE, keccak256("fund"));
@@ -45,6 +53,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         vm.expectRevert(InvoiceClaimV2.NotAllowlisted.selector);
         claim.fund(id, a);
     }
+
     function test_fund_invoiceCancelledAfterListing_reverts() public {
         bytes32 id = _listed(REF);
         claim.cancelListing(id, T0 + 1 days, _cancelSig(merchantPk, id, T0 + 1 days));
@@ -54,12 +63,14 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         vm.expectRevert(InvoiceClaimV2.NotListed.selector);
         claim.fund(id, a);
     }
+
     function test_routerCancel_onListedInvoice_revertsInvoiceSold() public {
         bytes32 id = _listed(REF);
         bytes memory sig = _cancelSig(merchantPk, id, T0 + 1 days);
         vm.expectRevert(IPaymentRouterV2.InvoiceSold.selector);
         router.cancel(id, T0 + 1 days, sig);
     }
+
     function test_cancelListing_afterFunding_reverts_investorProtected() public {
         bytes32 id = _funded(REF);
         bytes memory sig = _cancelSig(merchantPk, id, T0 + 1 days);
@@ -69,6 +80,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         router.cancel(id, T0 + 1 days, sig);
         assertEq(uint8(router.invoices(id).status), uint8(IPaymentRouterV2.Status.Open));
     }
+
     function test_cancelListing_needsMerchantSignature_andAListedClaim() public {
         bytes32 id = _listed(REF);
         bytes memory wrong = _cancelSig(payerPk, id, T0 + 1 days);
@@ -78,6 +90,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         vm.expectRevert(InvoiceClaimV2.NotListed.selector);
         claim.cancelListing(keccak256("unknown"), T0 + 1 days, "");
     }
+
     function test_fund_wrongSigner_reverts() public {
         bytes32 id = _listed(REF);
         IPaymentRouterV2.Auth memory a = _fundAuth(investor2Pk, id, PRICE, keccak256("fund"));
@@ -85,6 +98,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         vm.expectRevert();
         claim.fund(id, a);
     }
+
     function test_fund_authorizationForOtherInvoiceCannotBeRedirected() public {
         bytes32 a1 = _listed(keccak256("A"));
         bytes32 b1 = _listed(keccak256("B"));
@@ -93,6 +107,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         claim.fund(b1, authA);
         assertEq(usdt.balanceOf(address(claim)), 0);
     }
+
     function test_fund_paused_reverts() public {
         bytes32 id = _listed(REF);
         IPaymentRouterV2.Auth memory a = _fundAuth(investorPk, id, PRICE, keccak256("fund"));
@@ -101,6 +116,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         vm.expectRevert();
         claim.fund(id, a);
     }
+
     function test_fund_smartAccountInvestor() public {
         MockWallet wallet = new MockWallet(vm.addr(0x5A17));
         usdt.mint(address(wallet), PRICE);
@@ -134,6 +150,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         claim.fund(id, a);
         assertEq(claim.ownerOf(uint256(id)), address(wallet));
     }
+
     function test_payerPays_routesToInvestor_andReleasesReserve() public {
         bytes32 id = _funded(REF);
         uint256 inv0 = usdt.balanceOf(investor);
@@ -148,6 +165,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         assertEq(uint8(_claimStatus(id)), uint8(InvoiceClaimV2.ClaimStatus.Settled));
         assertEq(claim.claims(id).received, AMOUNT);
     }
+
     function test_partialPayments_goToHolder_thenSettle() public {
         bytes32 id = _funded(REF);
         uint256 inv0 = usdt.balanceOf(investor);
@@ -159,6 +177,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         assertEq(usdt.balanceOf(investor), inv0 + AMOUNT);
         assertEq(uint8(_claimStatus(id)), uint8(InvoiceClaimV2.ClaimStatus.Settled));
     }
+
     function test_payingWhileListed_goesToMerchant_andVoidsTheListing() public {
         bytes32 id = _listed(REF);
         uint256 pay0 = usdt.balanceOf(payout);
@@ -176,6 +195,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         assertEq(usdt.balanceOf(payout), pay0 + 100e6);
         assertEq(usdt.balanceOf(address(claim)), 0);
     }
+
     function test_onPaid_notRouter_reverts() public {
         bytes32 id = _funded(REF);
         vm.expectRevert(InvoiceClaimV2.NotRouter.selector);
@@ -187,6 +207,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         vm.expectRevert(InvoiceClaimV2.NotRouter.selector);
         claim.onPaid(id, 1);
     }
+
     function test_onPaid_unknownClaim_reverts_soTheRouterRevertsToo() public {
         // a merchant who signed SetHook to the claim contract without listing: payments must not strand money
         bytes32 id = _newInvoice(REF, AMOUNT);
@@ -197,6 +218,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         assertEq(usdt.balanceOf(address(claim)), 0);
         assertEq(router.invoices(id).paid, 0);
     }
+
     function test_onPaid_afterSettled_goesToMerchant() public {
         bytes32 id = _funded(REF);
         _pay(id, AMOUNT, payerPk, keccak256("p1"));
@@ -207,6 +229,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         claim.onPaid(id, 5e6);
         assertEq(usdt.balanceOf(payout), pay0 + 5e6);
     }
+
     function test_payment_followsTheCurrentHolder() public {
         bytes32 id = _funded(REF);
         vm.prank(investor);
@@ -217,6 +240,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         assertEq(usdt.balanceOf(investor2), i2 + AMOUNT);
         assertEq(usdt.balanceOf(investor), i1);
     }
+
     function test_refusedHolderPayout_isCredited_notReverted() public {
         bytes32 id = _funded(REF);
         vm.mockCallRevert(address(usdt), abi.encodeCall(IERC20.transfer, (investor, uint256(AMOUNT))), "blocked");
@@ -236,24 +260,28 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         assertEq(claim.totalPending(), 0);
         assertEq(usdt.balanceOf(address(claim)), 0);
     }
+
     function test_tokenReturningFalse_isCreditedToo() public {
         bytes32 id = _funded(REF);
         vm.mockCall(address(usdt), abi.encodeCall(IERC20.transfer, (investor, uint256(AMOUNT))), abi.encode(false));
         _pay(id, AMOUNT, payerPk, keccak256("p1"));
         assertEq(claim.pending(investor), AMOUNT);
     }
+
     function test_tokenReturningNothing_isTreatedAsSuccess() public {
         bytes32 id = _funded(REF);
         vm.mockCall(address(usdt), abi.encodeCall(IERC20.transfer, (investor, uint256(AMOUNT))), "");
         _pay(id, AMOUNT, payerPk, keccak256("p1")); // mocked transfer does nothing and returns no data
         assertEq(claim.pending(investor), 0);
     }
+
     function test_markDefault_beforeGrace_reverts() public {
         bytes32 id = _funded(REF);
         vm.warp(T0 + 30 days + 7 days); // exactly the end of grace: still not allowed
         vm.expectRevert(InvoiceClaimV2.GraceNotOver.selector);
         claim.markDefault(id);
     }
+
     function test_markDefault_afterGrace_reserveToInvestor() public {
         bytes32 id = _funded(REF);
         uint256 i0 = usdt.balanceOf(investor);
@@ -267,6 +295,7 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         assertEq(uint8(_claimStatus(id)), uint8(InvoiceClaimV2.ClaimStatus.Defaulted));
         assertEq(claim.claims(id).toHolder, RESERVE_AMT);
     }
+
     function test_markDefault_twice_reverts_reserveNeverPaidTwice() public {
         bytes32 id = _funded(REF);
         vm.warp(T0 + 40 days);
