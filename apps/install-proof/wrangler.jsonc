@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stenmont-install-proof-dev",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "vars": { "SHOP_URL": "https://install-proof-staging.stenmont.com" },
+  "kv_namespaces": [{ "binding": "ORDERS", "id": "435a298adfb3448b8b427df36df97f82" }],
+  "env": {
+    "staging": {
+      "name": "stenmont-install-proof-staging",
+      "vars": { "SHOP_URL": "https://install-proof-staging.stenmont.com" },
+      "routes": [{ "pattern": "install-proof-staging.stenmont.com", "custom_domain": true }],
+      "kv_namespaces": [{ "binding": "ORDERS", "id": "435a298adfb3448b8b427df36df97f82" }]
+    }
+  }
+}
