@@ -209,21 +209,21 @@ export default function PayClient({ id }: { id: string }) {
           {view.kind === "ready" && (
             <>
               {view.notice && (
-                <p role="alert" data-testid="notice" className="rounded-md bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
+                <p role="alert" data-testid="notice" className="rounded-md bg-red-50 p-3 text-sm text-red-800">
                   {view.notice}
                 </p>
               )}
               <button
                 type="button"
                 onClick={() => pay(view.invoice)}
-                className="rounded-lg bg-black px-6 py-4 text-lg font-medium text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+                className="rounded-lg bg-black px-6 py-4 text-lg font-medium text-white hover:bg-neutral-800"
               >
                 Pay {formatAmount(view.invoice.remaining)}
               </button>
               <p className="text-sm text-neutral-500">You&apos;ll confirm with Face ID, your fingerprint or your device PIN. Nothing to install.</p>
               {provider && (
                 <div data-testid="wallet-option">
-                  <button type="button" onClick={() => payWithWallet(view.invoice, provider)} className="rounded-lg border border-neutral-400 px-6 py-3 font-medium hover:border-black dark:hover:border-white" data-testid="pay-with-wallet">
+                  <button type="button" onClick={() => payWithWallet(view.invoice, provider)} className="rounded-lg border border-neutral-400 px-6 py-3 font-medium hover:border-black" data-testid="pay-with-wallet">
                     {WALLET_COPY.button}
                   </button>
                   <p className="mt-1 text-sm text-neutral-500">{WALLET_COPY.hint}</p>
@@ -283,7 +283,7 @@ function TrustBadge({ trust }: { trust?: Trust }) {
   const t = describeTrust(trust);
   if (!t) return null;
   return (
-    <div className="mt-3 rounded-md border border-neutral-200 p-3 text-sm dark:border-neutral-800" data-testid="trust-badge">
+    <div className="mt-3 rounded-md border border-neutral-200 p-3 text-sm" data-testid="trust-badge">
       <p className={t.verified ? "font-medium" : "text-neutral-500"}>{t.headline}</p>
       {t.proofs.length > 0 && (
         <ul className="mt-1 list-disc pl-5 text-neutral-500">

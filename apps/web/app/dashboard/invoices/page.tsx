@@ -75,7 +75,7 @@ export default function Invoices() {
             Due date (optional)
             <input value={due} onChange={(e) => setDue(e.target.value)} type="date" className="rounded border border-line bg-transparent px-3 py-2 text-base" />
           </label>
-          <button disabled={busy} className="rounded bg-brand px-4 py-2 font-medium text-white disabled:opacity-50">{busy ? "Creating…" : "Create invoice"}</button>
+          <button disabled={busy} className="rounded bg-brand px-4 py-2 font-medium text-on-brand disabled:opacity-50">{busy ? "Creating…" : "Create invoice"}</button>
         </form>
         {formError && <p role="status" data-testid="form-error" className="mt-2 text-sm text-danger">{formError}</p>}
       </Card>

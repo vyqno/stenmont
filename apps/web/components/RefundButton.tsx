@@ -52,7 +52,7 @@ export function RefundButton({ invoiceId, onDone }: { invoiceId: string; onDone?
     return (
       <span className="inline-flex max-w-64 flex-col items-end gap-1 text-right text-xs">
         <span data-testid="needs-approval">This refund is large (${params.amount}). A person must approve it with World first.</span>
-        <button type="button" onClick={approve} className="rounded bg-brand px-3 py-1 text-sm font-medium text-white" data-testid="approve-with-world">Approve with World</button>
+        <button type="button" onClick={approve} className="rounded bg-brand px-3 py-1 text-sm font-medium text-on-brand" data-testid="approve-with-world">Approve with World</button>
       </span>
     );
   }

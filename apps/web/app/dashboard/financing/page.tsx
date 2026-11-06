@@ -11,7 +11,7 @@ import { useApi } from "../../../lib/useApi";
 const TITLES: Record<StepKey, string> = { listed: "Listed", investor: "Investor verified", funded: "Funded", payment: "Customer pays", close: "Settled or defaulted" };
 const DOT: Record<StepState, string> = {
   done: "bg-mint text-navy",
-  current: "border-2 border-brand bg-surface text-brand",
+  current: "border-2 border-brand bg-surface text-foreground",
   waiting: "border border-line bg-surface text-muted",
   failed: "bg-danger text-white",
   skipped: "border border-line bg-line text-navy",

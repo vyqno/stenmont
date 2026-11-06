@@ -35,7 +35,7 @@ export default function Overview() {
       </div>
       <Card title="Latest invoices">
         {rows.length === 0 ? (
-          <p className="text-muted">Nothing yet. <Link href="/dashboard/invoices" className="text-brand underline">Create your first invoice</Link>.</p>
+          <p className="text-muted">Nothing yet. <Link href="/dashboard/invoices" className="text-foreground underline">Create your first invoice</Link>.</p>
         ) : (
           <ul className="divide-y divide-line">
             {rows.slice(0, 5).map((i) => {

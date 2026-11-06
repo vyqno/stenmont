@@ -121,18 +121,18 @@ export default function ClaimClient({ invoiceId }: { invoiceId: string }) {
               <h2 className="font-bold">1. Verify you are a real person</h2>
               <p className="text-sm text-muted">Each investor account is tied to one real person, so nobody can pretend to be many buyers. We learn nothing else about you.</p>
               <div className="mt-2">
-                {!info && <button type="button" onClick={createAccount} disabled={!!busy} className="rounded bg-brand px-4 py-2 text-sm font-medium text-white disabled:opacity-50" data-testid="invest-start">{busy || "Create your investor account"}</button>}
+                {!info && <button type="button" onClick={createAccount} disabled={!!busy} className="rounded bg-brand px-4 py-2 text-sm font-medium text-on-brand disabled:opacity-50" data-testid="invest-start">{busy || "Create your investor account"}</button>}
                 {info && allowed === null && <p className="text-sm text-muted">Checking…</p>}
                 {info && allowed === true && <p className="text-sm font-medium" data-testid="verified">Verified</p>}
                 {info && allowed === false && (
-                  <button type="button" onClick={startVerify} className="rounded bg-brand px-4 py-2 text-sm font-medium text-white" data-testid="verify-start">Verify with World ID</button>
+                  <button type="button" onClick={startVerify} className="rounded bg-brand px-4 py-2 text-sm font-medium text-on-brand" data-testid="verify-start">Verify with World ID</button>
                 )}
               </div>
             </li>
             <li>
               <h2 className="font-bold">2. Fund</h2>
               <p className="text-sm text-muted">Pay {formatAmount(c.price)} and confirm with Face ID, your fingerprint or your device PIN.</p>
-              <button type="button" onClick={buy} disabled={allowed !== true || !!busy} className="mt-2 rounded bg-brand px-4 py-2 text-sm font-medium text-white disabled:opacity-50" data-testid="fund-button">
+              <button type="button" onClick={buy} disabled={allowed !== true || !!busy} className="mt-2 rounded bg-brand px-4 py-2 text-sm font-medium text-on-brand disabled:opacity-50" data-testid="fund-button">
                 {busy || `Buy for ${formatAmount(c.price)}`}
               </button>
             </li>

@@ -142,7 +142,7 @@ export default function SubscribeClient({ id }: { id: string }) {
                   {view.notice}
                 </p>
               )}
-              <button type="button" onClick={() => subscribe(view.terms)} className="rounded-lg bg-brand px-6 py-4 text-lg font-medium text-white">
+              <button type="button" onClick={() => subscribe(view.terms)} className="rounded-lg bg-brand px-6 py-4 text-lg font-medium text-on-brand">
                 Subscribe for {formatAmount(view.terms.amount)}
               </button>
               <p className="text-sm text-muted">The first payment is taken now. You confirm twice with Face ID, your fingerprint or your device PIN, and you can cancel any time.</p>

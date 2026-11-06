@@ -1,35 +1,29 @@
 @import "tailwindcss";
 
-/* Whitechain palette (brand-guidelines/COLORS.md). Add a token there before adding one here. */
+/* Approved Stenmont palette. Legacy aliases remain for existing UI consumers. */
 :root {
+  color-scheme: light;
   --font-onest: "Onest Variable";
   --font-geist-mono: "Geist Mono Variable";
-  --bg: #f8faf9;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --line: #c7d0dc;
-  --text: #07081e;
-  --text-2: #4a5567;
-  --mute: #97a2b6;
-  --navy: #080a28;
-  --mint: #68ecbc;
-  --mint-soft: #a4f4d7;
-  --lime: #dcf218;
-  --blue: #0066ff;
-  --error: #e24137;
-  --warning: #ed7536;
+  --grey: #e8e9ec;
+  --line: #e8e9ec;
+  --control: #6b6b6b;
+  --text: #050505;
+  --text-2: #595959;
+  --mute: #595959;
+  --navy: #050505;
+  --mint: #e8e9ec;
+  --mint-soft: #e8e9ec;
+  --lime: #548cff;
+  --blue: #548cff;
+  --on-brand: #050505;
+  --error: #b42318;
+  --warning: #805500;
+  --success: #17643b;
   --background: var(--bg);
   --foreground: var(--text);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #000722;
-    --surface: #000933;
-    --line: #1e3d80;
-    --text: #ffffff;
-    --text-2: #9fb2cc;
-    --blue: #3385ff;
-  }
 }
 
 @theme inline {
@@ -41,6 +35,11 @@
   --color-mint: var(--mint);
   --color-lime: var(--lime);
   --color-brand: var(--blue);
+  --color-on-brand: var(--on-brand);
+  --color-navy: var(--navy);
+  --color-grey: var(--grey);
+  --color-control: var(--control);
+  --color-success: var(--success);
   --color-danger: var(--error);
   --color-warn: var(--warning);
   --font-sans: "neue-haas-grotesk-text", var(--font-onest), "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
@@ -63,10 +62,27 @@ h1, h2, h3 {
   font-variant-numeric: tabular-nums;
 }
 
-/* Logo: lowercase, wide tracking. Falls back cleanly until the licensed font is loaded. */
+/* Full lowercase wordmark only; system fallback is not licensed master artwork. */
 .logo {
   font-family: "all-round-gothic", "Avenir Next", Futura, var(--font-onest), sans-serif;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.01em;
   text-transform: lowercase;
   font-weight: 700;
+}
+
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px var(--bg);
+}
+:where(button, input:not([type=checkbox]):not([type=radio]), select, summary) { min-height: 44px; }
+:where(input:not([type=checkbox]):not([type=radio]), select, textarea) { border-color: var(--control); }
+:where(button, a) { touch-action: manipulation; }
+:where(button:disabled) { cursor: not-allowed; }
+:where(pre) { max-width: 100%; }
+:where(p, li, dd, code) { overflow-wrap: anywhere; }
+.skip-link { position: absolute; left: 16px; top: -80px; z-index: 100; background: var(--text); color: white; padding: 12px 16px; }
+.skip-link:focus { top: 16px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0ms !important; scroll-behavior: auto !important; }
 }
