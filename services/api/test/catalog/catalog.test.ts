@@ -37,6 +37,20 @@ describe("store settings", () => {
   });
 });
 
+describe("store display note", () => {
+  it("is optional, can be cleared, is capped, and is shown to shoppers only when set", async () => {
+    const { t, a } = await twoMerchants();
+    await call(t, a, "PUT", "/v1/store", { slug: "acme", name: "Acme Shop" });
+    expect(((await (await t.req("/store/acme/products")).json()) as any).store).toEqual({ slug: "acme", name: "Acme Shop" });
+    expect((await call(t, a, "PUT", "/v1/store", { slug: "acme", name: "Acme Shop", displayNote: "Prices in dollars, paid in USDT" })).status).toBe(200);
+    expect(await (await call(t, a, "GET", "/v1/store")).json()).toMatchObject({ displayNote: "Prices in dollars, paid in USDT" });
+    expect(((await (await t.req("/store/acme/products")).json()) as any).store.displayNote).toBe("Prices in dollars, paid in USDT");
+    expect((await call(t, a, "PUT", "/v1/store", { slug: "acme", name: "Acme Shop", displayNote: "x".repeat(201) })).status).toBe(400);
+    await call(t, a, "PUT", "/v1/store", { slug: "acme", name: "Acme Shop", displayNote: "" });
+    expect(((await (await t.req("/store/acme/products")).json()) as any).store).toEqual({ slug: "acme", name: "Acme Shop" });
+  });
+});
+
 describe("products", () => {
   it("creates a product with variants and images, sanitising the description", async () => {
     const { t, a } = await twoMerchants();
