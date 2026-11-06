@@ -3,6 +3,14 @@
 Two routes, same result: upload Shopify's CSV exports, or connect with a read-only Admin API token. Both go through
 `POST /v1/import/shopify/preview` (reads and reports, writes nothing) and `POST /v1/import/shopify/commit` (needs `"confirm": true`).
 
+**One click instead of a token.** In the wizard a merchant can choose "Connect your Shopify store": they type the store name, land on
+Shopify's own consent page, click Install once, and return to the wizard with the dry-run report ready (`POST /v1/import/shopify/connect`,
+then Shopify redirects to `GET /auth/shopify/callback`). The callback checks Shopify's HMAC over the sorted query, then a one-time state
+(10 minutes, bound to the signed-in business and the shop), exchanges the code, seals the access token (AES-GCM, key from HKDF, bound to
+business and shop) and keeps it for 15 minutes. Preview and commit then take `"source": "connected"` with the shop; the commit uses the token once
+and deletes it. The token is never returned, logged or put in an address. The Shopify app's client id and secret are the Cloudflare secrets
+`SHOPIFY_CLIENT_ID` and `SHOPIFY_CLIENT_SECRET`; without them the connect route answers 503 and the other two routes still work.
+
 ## What moves
 
 | From Shopify | Into Stenmont |
