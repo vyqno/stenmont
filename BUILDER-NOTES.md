@@ -212,3 +212,17 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 - 12:50 Licence chosen: Apache-2.0 (permissive with a patent grant; the code stays owned by Hitesh, so later versions can be licensed differently). LICENSE, NOTICE and the licence field in the package manifests added.
 
 - 12:53 SDK and React button made publishable (not yet published): built to JavaScript with type files, install-tested from packed tarballs in a clean directory, README and licence in each package. The agent and x402 packages depend on the private shared package, so they wait.
+
+- 13:32 Takeover planning on `chatgpt-work`: analysed the Whitechain Space against the implemented product in `plan/analysis-whitechain-space.md`; wrote `plan/10-full-experience.md` with ordered gaps, named tests, staging gates and human handoffs.
+- 13:41 Current Whitechain docs and prize pages confirm chain 1874, the configured RPC/explorer and official USDT ending in 55a7; the live prize page also includes Continuity. ENS Identity implemented locally: availability and live-resolution API reads, claim/finance/permanent-lock screen, agent policy/create/list/revoke controls and the World approval return path. Full TypeScript suite 497 passed; lint passes with one existing warning; web typecheck and API staging dry-run bundle pass. Live deployment and Aside acceptance remain not run: this session blocks DNS, port binding, Chromium/Aside IPC and Git writes. No contracts or migrations changed; no new chain transactions sent.
+- 14:21 New task permissions allow `.git` writes, internet access, local port binding and Chromium. Direct Whitechain RPC returned 6 USDT decimals. Full TypeScript suite 497 passed; lint exited 0 with the existing unused-import warning; Cloudflare web build and web typecheck passed. Local Identity Chromium test passed after fixing an ambiguous alert locator. Deployed the changed API and web Workers directly to staging; API health and the Identity page returned 200, while unauthenticated ENS availability returned 401. Real ENS/World acceptance and Aside evidence remain not run. No Git stage, commit, or push; the owner explicitly said never to push anything.
+
+- 14:37 Identity checkpoint: test(identity): cover ENS reads and agent approval inputs. Local suite 497 passed; lint exited 0 with one existing warning. Live ENS/World acceptance remains not run.
+
+- 14:37 Identity checkpoint: feat(identity): expose authenticated ENS dashboard reads. Local suite 497 passed; lint exited 0 with one existing warning. Live ENS/World acceptance remains not run.
+
+- 14:37 Identity checkpoint: feat(identity): add ENS and agent dashboard controls. Local suite 497 passed; lint exited 0 with one existing warning. Live ENS/World acceptance remains not run.
+
+- 14:37 Identity checkpoint: test(identity): add browser coverage for dashboard workflows. Local suite 497 passed; lint exited 0 with one existing warning. Live ENS/World acceptance remains not run.
+
+- 14:38 Identity changes split into local tests, API, UI and browser-spec commits, each below 400 changed lines. Fresh full suite: 497 passed; lint exited 0 with one existing warning; local Chromium Identity integration: 1 passed. Build order now starts with agent installation and MCP OAuth, followed by customer records, tokenization, existing-wallet payments, books and a minimal storefront. Live Identity acceptance remains not run pending permission to create isolated staging accounts.
