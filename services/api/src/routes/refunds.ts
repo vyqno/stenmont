@@ -5,6 +5,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { z } from "zod";
 import { b64urlEncode, buildReceiveAuth, encodeWebAuthnSignature, fromUnits, parseDerSignature, refundApprovalTypes, refundNonce, refundOpHash, routerDomain, toUnits } from "@stenmont/shared";
 import type { AppEnv } from "../app";
+import {invoiceProtocol,versionChain} from "../protocol";
 import { audit } from "../audit";
 import { Rejected } from "../chain";
 import { invoices, payments, refundRequests, refunds } from "../db/schema";
@@ -88,7 +89,7 @@ refundRoutes.post("/", async (c) => {
   const digest = hashTypedData(
     buildReceiveAuth({
       from: merchant.address as Address,
-      to: c.env.ROUTER_ADDRESS as Address,
+      to: invoiceProtocol(c.env,inv).router,
       value,
       validAfter: 0n,
       validBefore: BigInt(validBefore),
@@ -127,6 +128,9 @@ refundRoutes.post("/:id/submit", async (c) => {
   const checked = await checkAssertion(c, req.challenge, parsed.data, merchant.id);
   if (!checked) return fail(c, 401, "unauthorized", "The passkey could not be verified.");
 
+  const [inv]=await db.select().from(invoices).where(eq(invoices.id,req.invoiceId));
+  if(!inv)return fail(c,404,'not_found','Invoice not found');
+  const protocol=invoiceProtocol(c.env,inv);
   const lock = await db
     .update(refundRequests)
     .set({ status: "sending" })
@@ -147,14 +151,14 @@ refundRoutes.post("/:id/submit", async (c) => {
       }
       const deadline = BigInt(Math.floor(c.var.now().getTime() / 1000) + APPROVAL_DEADLINE_SECONDS);
       const signature = await privateKeyToAccount(c.env.ATTESTER_PRIVATE_KEY as Hex).signTypedData({
-        domain: routerDomain(c.env.ROUTER_ADDRESS as Address),
+        domain: {...routerDomain(protocol.router),version:protocol.version==='v2'?'2':'1'},
         types: refundApprovalTypes,
         primaryType: "RefundApproval",
         message: { opHash: refundOpHash(req.invoiceId as Hex, BigInt(req.value), req.toAddress as Address, req.salt as Hex), deadline },
       });
       approval = { deadline, signature };
     }
-    const { txHash } = await chain.refund({
+    const { txHash } = await versionChain(chain,protocol.version,protocol.router,c.env.ROUTER_ADDRESS).refund({
       invoiceId: req.invoiceId as Hex,
       value: BigInt(req.value),
       to: req.toAddress as Address,

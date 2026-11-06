@@ -82,6 +82,15 @@ export const invoices = sqliteTable(
     id: text("id").primaryKey(), // bytes32 hex = PaymentRouter.invoiceIdOf(merchant, ref)
     merchantId: text("merchant_id").notNull(),
     number: text("number").notNull(),
+    contractVersion: text("contract_version").notNull().default("v1"),
+    routerAddress: text("router_address"),
+    claimAddress: text("claim_address"),
+    payout: text("payout"),
+    payerLock: text("payer_lock"),
+    minPayment: text("min_payment").notNull().default("0"),
+    discountBps: integer("discount_bps").notNull().default(0),
+    discountUntil: integer("discount_until"),
+    hook: text("hook"),
     status: text("status").notNull(), // creating | open | partially_paid | paid | cancelled | failed | expired
     amount: text("amount").notNull(), // USDT base units
     amountPaid: text("amount_paid").notNull().default("0"),

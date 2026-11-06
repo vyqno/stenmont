@@ -1,5 +1,7 @@
 import { encodeFunctionData, erc20Abi, getTypesForEIP712Domain, numberToHex, type Address, type Hex } from "viem";
-import { USDT_ADDRESS, buildReceiveAuth, cancelSubscriptionTypes, payNonce, subscriptionDomain, whitechainSepolia } from "@stenmont/shared";
+import { USDT_ADDRESS, buildReceiveAuth, cancelSubscriptionTypes, subscriptionDomain, whitechainSepolia } from "@stenmont/shared";
+
+import { paymentNonce } from "../../../packages/shared/src/v2/payment";
 
 /** The part of an EIP-1193 provider (window.ethereum) we use. */
 export type Eip1193 = { request(args: { method: string; params?: unknown[] }): Promise<unknown> };
@@ -18,11 +20,11 @@ export const WALLET_NETWORK = {
   blockExplorerUrls: [whitechainSepolia.blockExplorers.default.url],
 };
 
-export type PayAuthArgs = { account: Address; router: Address; value: bigint; validBefore: bigint; invoiceId: Hex; salt: Hex };
+export type PayAuthArgs = { account: Address; router: Address; value: bigint; validBefore: bigint; invoiceId: Hex; salt: Hex; contractVersion?: string; payout?: Address };
 
 /** The exact authorization the passkey path signs (bound to the invoice through its nonce), as the JSON eth_signTypedData_v4 expects. */
 export function toTypedDataV4(a: PayAuthArgs): string {
-  const typed = buildReceiveAuth({ from: a.account, to: a.router, value: a.value, validAfter: 0n, validBefore: a.validBefore, nonce: payNonce(a.invoiceId, a.salt) });
+  const typed = buildReceiveAuth({ from: a.account, to: a.router, value: a.value, validAfter: 0n, validBefore: a.validBefore, nonce: paymentNonce(a) });
   return JSON.stringify(
     { ...typed, types: { EIP712Domain: getTypesForEIP712Domain({ domain: typed.domain }), ...typed.types } },
     (_k, v) => (typeof v === "bigint" ? v.toString() : v),
@@ -30,7 +32,7 @@ export function toTypedDataV4(a: PayAuthArgs): string {
 }
 
 export class WalletError extends Error {
-  constructor(readonly code: "cancelled" | "wallet_network" | "wallet_failed" | "wallet_insufficient") {
+  constructor(readonly code: "cancelled" | "wallet_network" | "wallet_failed" | "wallet_insufficient" | "wrong_payer") {
     super(code);
   }
 }
@@ -54,7 +56,7 @@ async function ensureNetwork(p: Eip1193) {
 /** Connects, makes sure the wallet is on the right network, and signs the payment authorization. The relay sends it; the payer pays no network fee. */
 export async function signWalletPayment(
   p: Eip1193,
-  a: { router: Address; invoiceId: Hex; value: bigint; validBefore: bigint; salt: Hex },
+  a: Omit<PayAuthArgs, "account">,
   /** Runs after connecting and before anything is signed, so a short balance never costs the person a pointless prompt. */
   check?: (payer: Address) => Promise<void>,
 ): Promise<{ payer: Address; signature: Hex }> {

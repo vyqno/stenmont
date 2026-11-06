@@ -15,3 +15,5 @@ export * from "./books";
 
 export * from "./businessTrust";
 export * from "./ensDepth";
+
+export * from "./v2/payment";

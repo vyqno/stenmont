@@ -4,6 +4,7 @@ import { hashTypedData, type Address, type Hex } from "viem";
 import { z } from "zod";
 import { CLAIM_LIMITS, b64urlEncode, fromUnits, claimDomain, claimTermsTypes, encodeWebAuthnSignature, parseDerSignature, quoteClaim, routerDomain, setHookTypes } from "@stenmont/shared";
 import type { AppEnv } from "../app";
+import {invoiceProtocol,versionChain} from "../protocol";
 import { audit } from "../audit";
 import { claimView, liveClaim } from "../claims";
 import { Rejected } from "../chain";
@@ -32,7 +33,10 @@ export const financingRoutes = new Hono<AppEnv>();
 /** The merchant's offers, newest first (requests nobody signed are not shown). */
 financingRoutes.get("/listings", async (c) => {
   const rows = await c.var.db.select().from(claims).where(and(eq(claims.merchantId, c.var.merchantId), ne(claims.status, "pending"))).orderBy(desc(claims.createdAt));
-  return c.json({ listings: rows.map(claimView) });
+  return c.json({ listings: await Promise.all(rows.map(async r=>{
+    const [inv]=await c.var.db.select().from(invoices).where(eq(invoices.id,r.invoiceId));
+    const p=invoiceProtocol(c.env,inv??{});return {...claimView(r),contractVersion:p.version,routerAddress:p.router,claimAddress:p.claim};
+  })) });
 });
 
 /** The financing timeline: for each of the merchant's financed invoices, everything each step needs to show (amounts, times, transactions). */
@@ -56,6 +60,7 @@ financingRoutes.get("/timeline", async (c) => {
       investor = { address: r.investor, verified: !!enrol, verifiedAt: enrol?.verifiedAt ?? null, allowTx };
     }
     items.push({
+      contractVersion:inv.contractVersion,routerAddress:invoiceProtocol(c.env,inv).router,claimAddress:invoiceProtocol(c.env,inv).claim,
       claimId: r.id,
       invoiceId: r.invoiceId,
       invoiceNumber: inv.number,
@@ -106,6 +111,9 @@ financingRoutes.post("/listings", async (c) => {
 
   const [inv] = await db.select().from(invoices).where(and(eq(invoices.id, b.invoiceId), eq(invoices.merchantId, merchant.id)));
   if (!inv) return fail(c, 404, "not_found", "Invoice not found");
+  if(inv.discountBps>0)return fail(c,422,'discount_invoice','Invoices with discount terms cannot be offered for financing, even after expiry.');
+  const protocol=invoiceProtocol(c.env,inv);
+  if(protocol.retired)return fail(c,409,'retired_router','This retired invoice has no financing deployment; pay and refund remain available.');
   const [plan] = await db.select({ id: subscriptions.id }).from(subscriptions).where(and(eq(subscriptions.invoiceId, inv.id), eq(subscriptions.kind, "instalment"), inArray(subscriptions.status, ["offered", "subscribing", "active", "past_due"])));
   if (plan) return fail(c, 409, "instalment_invoice", "Withdraw or cancel the replacement plan before offering this invoice for financing.");
   // Selling needs tier 3 (World Proof of Human) or 4 (documents), and the invoice must be within the tier's financing cap.
@@ -128,13 +136,13 @@ financingRoutes.post("/listings", async (c) => {
   // The same request again returns the same waiting request, so a retry never produces a second thing to sign.
   const same = existing.find((r) => r.status === "pending" && r.expiresAt > nowS && r.discountBps === b.discountBps && r.reserveBps === b.reserveBps);
   const present = (r: typeof claims.$inferSelect, status: 200 | 201) =>
-    c.json({ ...claimView(r), expiresAt: new Date(r.expiresAt * 1000).toISOString(), challenges: { terms: r.termsChallenge, hook: r.hookChallenge } }, status);
+    c.json({ ...claimView(r),contractVersion:protocol.version,routerAddress:protocol.router,claimAddress:protocol.claim, expiresAt: new Date(r.expiresAt * 1000).toISOString(), challenges: { terms: r.termsChallenge, hook: r.hookChallenge } }, status);
   if (same) return present(same, 200);
 
   const deadline = Math.min(due, nowS + CLAIM_LIMITS.listingDays * 86_400);
-  const claimAddress = c.env.INVOICE_CLAIM_ADDRESS as Address;
-  const terms = hashTypedData({ domain: claimDomain(claimAddress), types: claimTermsTypes, primaryType: "ClaimTerms", message: { invoiceId: inv.id as Hex, discountBps: b.discountBps, reserveBps: b.reserveBps, deadline: BigInt(deadline) } });
-  const hook = hashTypedData({ domain: routerDomain(c.env.ROUTER_ADDRESS as Address), types: setHookTypes, primaryType: "SetHook", message: { id: inv.id as Hex, hook: claimAddress, deadline: BigInt(deadline) } });
+  const claimAddress = protocol.claim;
+  const terms = hashTypedData({ domain: {...claimDomain(claimAddress),version:protocol.version==='v2'?'2':'1'}, types: claimTermsTypes, primaryType: "ClaimTerms", message: { invoiceId: inv.id as Hex, discountBps: b.discountBps, reserveBps: b.reserveBps, deadline: BigInt(deadline) } });
+  const hook = hashTypedData({ domain: {...routerDomain(protocol.router),version:protocol.version==='v2'?'2':'1'}, types: setHookTypes, primaryType: "SetHook", message: { id: inv.id as Hex, hook: claimAddress, deadline: BigInt(deadline) } });
 
   await db.delete(claims).where(and(eq(claims.invoiceId, inv.id), eq(claims.status, "pending"))); // an older request is replaced
   const stamp = clock().toISOString();
@@ -199,7 +207,7 @@ financingRoutes.post("/listings/:id/submit", async (c) => {
       const { r, s } = parseDerSignature(x.parts.der);
       return encodeWebAuthnSignature({ r, s, authenticatorData: x.parts.authenticatorData, clientDataJSON: x.parts.clientDataJSON });
     };
-    const { txHash } = await chain.listClaim({ invoiceId: row.invoiceId as Hex, discountBps: row.discountBps, reserveBps: row.reserveBps, deadline: BigInt(row.deadline), termsSig: sig(t), hookSig: sig(hk) });
+    const { txHash } = await versionChain(chain,invoiceProtocol(c.env,inv).version,invoiceProtocol(c.env,inv).router,c.env.ROUTER_ADDRESS).listClaim({ invoiceId: row.invoiceId as Hex, discountBps: row.discountBps, reserveBps: row.reserveBps, deadline: BigInt(row.deadline), termsSig: sig(t), hookSig: sig(hk) });
     await db.update(claims).set({ status: "listed", listTxHash: txHash, listedAt: c.var.now().toISOString(), updatedAt: c.var.now().toISOString() }).where(eq(claims.id, row.id));
     await audit(db, { merchantId: merchant.id, actor: `passkey:${t.pk.id}`, action: "claim.listed", payload: { id: row.id, invoiceId: row.invoiceId, price: row.price, discountBps: row.discountBps, reserveBps: row.reserveBps, txHash } });
     const fresh = await liveClaim(db, row.invoiceId);

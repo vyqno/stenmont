@@ -1,6 +1,8 @@
 import { BaseError, createPublicClient, decodeErrorResult, encodeFunctionData, http, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { MULTICALL3_ADDRESS, USDT_ADDRESS, investorRegistryAbi, invoiceClaimAbi, multicall3Abi, passkeyAccountFactoryAbi, paymentRouterAbi, reputationRegistryAbi, subscriptionManagerAbi, usdtAbi, whitechainSepolia } from "@stenmont/shared";
+import {RETIRED_ROUTER} from "./protocol";
+import { createCall,paymentRouterV2Abi,invoiceAckAbi,reputationRegistryV2Abi } from "./v2/encoding";
 import { windowStartBlock } from "./ens/agentSpend";
 import type { Env } from "./env";
 import type { Call } from "./relayer/sender";
@@ -14,6 +16,8 @@ export type CreateInvoiceRequest = {
   amount: bigint;
   minPayment: bigint;
   dueDate: bigint;
+  discountBps?: number;
+  discountUntil?: bigint;
   metaHash: Hex;
   deadline: bigint;
 };
@@ -48,6 +52,7 @@ export type SubscriptionState = { nextCharge: bigint; charges: number; status: "
 
 type Base = { transactionHash: Hex; logIndex: number; blockNumber: bigint };
 export type RouterLog =
+  | (Base & {eventName:"InvoiceCreated"|"DiscountTermsSet";args:{id:Hex}})
   | (Base & { eventName: "InvoicePaid"; args: { id: Hex; payer: Address; value: bigint; paidTotal: bigint; fullyPaid: boolean } })
   | (Base & { eventName: "InvoiceRefunded"; args: { id: Hex; to: Address; value: bigint; refundedTotal: bigint } })
   | (Base & { eventName: "InvoiceCancelled"; args: { id: Hex } });
@@ -57,7 +62,7 @@ export type AllowInvestorRequest = { investor: Address; expiresAt: bigint; deadl
 export const CLAIM_STATUSES = ["none", "listed", "funded", "settled", "defaulted", "cancelled"] as const;
 export type ClaimState = { status: (typeof CLAIM_STATUSES)[number]; received: bigint; toHolder: bigint; fundBy: bigint };
 /** A payer's onchain record (ReputationRegistry): invoices paid on time and late, volume in USDT base units, and the 0..100 score. */
-export type ReputationRecord = { onTime: number; late: number; volume: bigint; score: number };
+export type ReputationRecord = { onTime: number; late: number; volume: bigint; score: number;onTimeCounterparties?:number };
 export type ClaimLog =
   | (Base & { eventName: "ClaimListed"; args: { invoiceId: Hex; merchant: Address; face: bigint; price: bigint; reserve: bigint; dueDate: bigint } })
   | (Base & { eventName: "ClaimFunded"; args: { invoiceId: Hex; investor: Address; price: bigint; advance: bigint } })
@@ -76,6 +81,12 @@ export class Rejected extends Error {
 export type Receipt = { status: "success" | "reverted"; gasUsed: bigint; effectiveGasPrice: bigint };
 
 export interface ChainClient {
+  forVersion?(version: "v1"|"v2"): ChainClient;
+  forRouter?(router:Address):ChainClient;
+  creatorDelegation?(merchant: Address): Promise<{allowed:boolean;nonce:bigint}>;
+  delegateCreator?(merchant:Address,deadline:bigint,signature:Hex):Promise<{txHash:Hex}>;
+  invoiceDetails?(id:Hex,blockNumber?:bigint):Promise<{payout:Address;payerLock:Address;minPayment:bigint;hook:Address;discountBps:number;discountUntil:bigint;amount:bigint;dueDate:bigint;paid:bigint;status:number}>;
+  acknowledgement?(id:Hex,buyer:Address):Promise<{nonce:bigint;ackedAt:bigint}>;
   /** Read-only invoice facts used before retiring an abandoned staging install. */
   invoiceState(id: Hex): Promise<{ status: number; paid: bigint; hook: Address }>;
   /** Creates the invoice onchain through the router's delegation (the relayer is the merchant's creator). Resolves after the receipt. */
@@ -131,7 +142,7 @@ function revertReason(e: unknown): string {
     const holder = e.walk((x) => typeof (x as { data?: unknown }).data === "string" && (x as { data: string }).data.startsWith("0x"));
     const data = (holder as { data?: Hex } | null)?.data;
     if (data) {
-      for (const abi of [paymentRouterAbi, invoiceClaimAbi, investorRegistryAbi]) {
+      for (const abi of [paymentRouterAbi, paymentRouterV2Abi, invoiceClaimAbi, investorRegistryAbi]) {
         try {
           return decodeErrorResult({ abi, data }).errorName;
         } catch {
@@ -153,10 +164,16 @@ function revertReason(e: unknown): string {
 const SPEND_SAMPLE_BLOCKS = 1_000n;
 const SPEND_MAX_BLOCKS = 200_000n;
 
-const WATCHED = ["InvoicePaid", "InvoiceRefunded", "InvoiceCancelled"] as const;
+const WATCHED = ["InvoicePaid", "InvoiceRefunded", "InvoiceCancelled", "InvoiceCreated", "DiscountTermsSet"] as const;
 const CLAIM_WATCHED = ["ClaimListed", "ClaimFunded", "ClaimSettled", "ClaimDefaulted", "ClaimCancelled", "Transfer"] as const;
 
-export function viemChain(env: Env): ChainClient {
+export function viemChain(env: Env,version:"v1"|"v2"="v1"): ChainClient {
+  const originalEnv=env;
+  if(version==='v2'){
+    if(!env.ROUTER_V2_ADDRESS||!env.INVOICE_CLAIM_V2_ADDRESS||!env.INVESTOR_REGISTRY_V2_ADDRESS||!env.REPUTATION_REGISTRY_V2_ADDRESS)throw Error('V2 contracts unconfigured');
+    env={...env,ROUTER_ADDRESS:env.ROUTER_V2_ADDRESS,INVOICE_CLAIM_ADDRESS:env.INVOICE_CLAIM_V2_ADDRESS,INVESTOR_REGISTRY_ADDRESS:env.INVESTOR_REGISTRY_V2_ADDRESS,REPUTATION_REGISTRY_ADDRESS:env.REPUTATION_REGISTRY_V2_ADDRESS};
+  }
+  const routerAbi=version==='v2'?paymentRouterV2Abi:paymentRouterAbi;
   const transport = http(env.WHITECHAIN_RPC);
   const publicClient = createPublicClient({ chain: whitechainSepolia, transport });
   const router = env.ROUTER_ADDRESS as Address;
@@ -176,12 +193,36 @@ export function viemChain(env: Env): ChainClient {
   };
 
   return {
+    forVersion:(v)=>viemChain(originalEnv,v),
+    forRouter:(address)=>{
+      if(address.toLowerCase()!==originalEnv.ROUTER_ADDRESS.toLowerCase()&&address.toLowerCase()!==RETIRED_ROUTER.toLowerCase())throw Error('Unsupported router');
+      return viemChain({...originalEnv,ROUTER_ADDRESS:address},'v1');
+    },
+    async creatorDelegation(merchant){
+      const [allowed,nonce]=await Promise.all([
+        publicClient.readContract({address:router,abi:routerAbi,functionName:'creators',args:[merchant,relayer]}),
+        publicClient.readContract({address:router,abi:routerAbi,functionName:'creatorNonce',args:[merchant]}),
+      ]);return {allowed,nonce};
+    },
+    async delegateCreator(merchant,deadline,signature){
+      const call={to:router,data:encodeFunctionData({abi:routerAbi,functionName:'setCreator',args:[merchant,relayer,true,deadline,signature]})};
+      await estimate(call);const txHash=await sender().submit(call);if((await wait(txHash)).status!=='success')throw Error('Delegation reverted');return {txHash};
+    },
+    async invoiceDetails(id,blockNumber){
+      const s=await publicClient.readContract({address:router,abi:routerAbi,functionName:'invoices',args:[id],...(blockNumber===undefined?{}:{blockNumber})});
+      return {payout:s.payout,payerLock:s.payerLock,minPayment:s.minPayment,hook:s.hook,amount:s.amount,dueDate:BigInt(s.dueDate),paid:s.paid,status:s.status,discountBps:'discountBps' in s?s.discountBps:0,discountUntil:'discountUntil' in s?BigInt(s.discountUntil):0n};
+    },
+    async acknowledgement(id,buyer){
+      if(version!=='v2'||!originalEnv.INVOICE_ACK_ADDRESS)throw Error('Acknowledgement unavailable');
+      const address=originalEnv.INVOICE_ACK_ADDRESS as Address;
+      const [nonce,ackedAt]=await Promise.all([publicClient.readContract({address,abi:invoiceAckAbi,functionName:'nonces',args:[buyer]}),publicClient.readContract({address,abi:invoiceAckAbi,functionName:'ackedAt',args:[id]})]);return {nonce,ackedAt};
+    },
     async invoiceState(id) {
-      const state = await publicClient.readContract({ address: router, abi: paymentRouterAbi, functionName: "invoices", args: [id] });
+      const state = await publicClient.readContract({ address: router, abi: routerAbi, functionName: "invoices", args: [id] });
       return { status: state.status, paid: state.paid, hook: state.hook };
     },
     async createInvoice(req) {
-      const call = { to: router, data: encodeFunctionData({ abi: paymentRouterAbi, functionName: "createInvoiceAsCreator", args: [req] }) };
+      const call = createCall(router,version,req);
       await estimate(call); // refuse early, before spending gas on a transaction that would revert
       const txHash = await sender().submit(call);
       const receipt = await wait(txHash);
@@ -269,11 +310,13 @@ export function viemChain(env: Env): ChainClient {
     },
     async reputationOf(address) {
       const reputation = env.REPUTATION_REGISTRY_ADDRESS as Address;
+      const abi=version==='v2'?reputationRegistryV2Abi:reputationRegistryAbi;
       const [r, score] = await Promise.all([
-        publicClient.readContract({ address: reputation, abi: reputationRegistryAbi, functionName: "recordOf", args: [address] }),
-        publicClient.readContract({ address: reputation, abi: reputationRegistryAbi, functionName: "score", args: [address] }),
+        publicClient.readContract({ address: reputation, abi, functionName: "recordOf", args: [address] }),
+        publicClient.readContract({ address: reputation, abi, functionName: "score", args: [address] }),
       ]);
-      return { onTime: r.onTime, late: r.late, volume: r.volume, score: Number(score) };
+      const onTimeCounterparties=version==='v2'?await publicClient.readContract({address:reputation,abi:reputationRegistryV2Abi,functionName:'onTimeCounterparties',args:[address]}):undefined;
+      return { onTime: r.onTime, late: r.late, volume: r.volume, score: Number(score),...(onTimeCounterparties===undefined?{}:{onTimeCounterparties}) };
     },
     investorAllowed: (address) => publicClient.readContract({ address: env.INVESTOR_REGISTRY_ADDRESS as Address, abi: investorRegistryAbi, functionName: "isAllowed", args: [address] }),
     investorNonce: (address) => publicClient.readContract({ address: env.INVESTOR_REGISTRY_ADDRESS as Address, abi: investorRegistryAbi, functionName: "nonces", args: [address] }),
@@ -285,7 +328,7 @@ export function viemChain(env: Env): ChainClient {
     },
     getBlockNumber: () => publicClient.getBlockNumber(),
     async getRouterLogs(fromBlock, toBlock) {
-      const logs = await publicClient.getContractEvents({ address: router, abi: paymentRouterAbi, fromBlock, toBlock });
+      const logs = await publicClient.getContractEvents({ address: router, abi: routerAbi, fromBlock, toBlock });
       return logs
         .filter((l) => (WATCHED as readonly string[]).includes(l.eventName as string))
         .map((l) => ({

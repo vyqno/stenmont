@@ -1,12 +1,14 @@
 "use client";
 
+import { RouterDelegation } from "../../../components/RouterDelegation";
+import { invoiceTerms } from "../../../lib/v2Invoice";
 import { useState } from "react";
 import { Badge, Card, money, statusOf, units, type Invoice } from "../../../components/ui";
 import { ExportButton } from "../../../components/ExportButton";
 import { RefundButton } from "../../../components/RefundButton";
 import { SellButton } from "../../../components/SellButton";
 import { listingBadge } from "../../../lib/financing";
-import { AuthError, api } from "../../../lib/auth";
+import { api } from "../../../lib/auth";
 import { useApi } from "../../../lib/useApi";
 
 export default function Invoices() {
@@ -15,6 +17,9 @@ export default function Invoices() {
   const [amount, setAmount] = useState("");
   const [email, setEmail] = useState("");
   const [due, setDue] = useState("");
+  const [buyer, setBuyer] = useState("");
+  const [discount, setDiscount] = useState("");
+  const [discountUntil, setDiscountUntil] = useState("");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
   const [copied, setCopied] = useState("");
@@ -30,17 +35,20 @@ export default function Invoices() {
     setBusy(true);
     setFormError("");
     try {
+      if (discount && (!due || Date.parse(discountUntil) > Date.parse(`${due}T23:59:59Z`))) throw new Error("A discount needs a due date on or after its expiry.");
       await api.post("/v1/invoices", {
         amount,
+        ...invoiceTerms(buyer, discount, discountUntil),
         ...(email ? { customerEmail: email } : {}),
         ...(due ? { dueDate: new Date(`${due}T23:59:59Z`).toISOString() } : {}),
       });
       setAmount("");
       setEmail("");
       setDue("");
+      setBuyer(""); setDiscount(""); setDiscountUntil("");
       reload();
     } catch (err) {
-      setFormError(err instanceof AuthError ? err.message : "The invoice could not be created. Try again.");
+      setFormError(err instanceof Error ? err.message : "The invoice could not be created. Try again.");
     } finally {
       setBusy(false);
     }
@@ -61,10 +69,11 @@ export default function Invoices() {
         </p>
       )}
 
+      <RouterDelegation />
       <Card title="New invoice">
         <form onSubmit={create} className="grid gap-3 md:grid-cols-[1fr_1.5fr_1fr_auto] md:items-end">
           <label className="flex flex-col gap-1 text-sm">
-            Amount (USD)
+            Amount (USDT)
             <input value={amount} onChange={(e) => setAmount(e.target.value)} required inputMode="decimal" pattern="\d+(\.\d{1,6})?" placeholder="250.00" className="amount rounded border border-line bg-transparent px-3 py-2 text-base" />
           </label>
           <label className="flex flex-col gap-1 text-sm">
@@ -73,10 +82,14 @@ export default function Invoices() {
           </label>
           <label className="flex flex-col gap-1 text-sm">
             Due date (optional)
-            <input value={due} onChange={(e) => setDue(e.target.value)} type="date" className="rounded border border-line bg-transparent px-3 py-2 text-base" />
+            <input value={due} onChange={(e) => setDue(e.target.value)} type="date" required={!!discount} className="rounded border border-line bg-transparent px-3 py-2 text-base" />
           </label>
+          <label className="flex flex-col gap-1 text-sm">Named buyer account (optional)<input value={buyer} onChange={e => setBuyer(e.target.value)} placeholder="0x…" className="rounded border border-line bg-transparent px-3 py-2" /></label>
+          <label className="flex flex-col gap-1 text-sm">Early payment discount (%, up to 30)<input value={discount} onChange={e => setDiscount(e.target.value)} inputMode="decimal" placeholder="Optional" className="rounded border border-line bg-transparent px-3 py-2" /></label>
+          <label className="flex flex-col gap-1 text-sm">Discount expires<input value={discountUntil} onChange={e => setDiscountUntil(e.target.value)} type="datetime-local" required={!!discount} className="rounded border border-line bg-transparent px-3 py-2" /></label>
           <button disabled={busy} className="rounded bg-brand px-4 py-2 font-medium text-on-brand disabled:opacity-50">{busy ? "Creating…" : "Create invoice"}</button>
         </form>
+        <p className="mt-3 text-xs text-muted">Discount offers are locked to the named buyer and cannot be financed, even after expiry. The buyer must already hold USDT.</p>
         {formError && <p role="status" data-testid="form-error" className="mt-2 text-sm text-danger">{formError}</p>}
       </Card>
 
@@ -95,7 +108,7 @@ export default function Invoices() {
                   const s = statusOf(i, now);
                   const listing = listings?.listings.find((l) => l.invoiceId === i.id);
                   const badge = listing ? listingBadge(listing.status) : null;
-                  const sellable = !listing && i.status === "open" && !!i.dueDate && units(i.amountPaid) === 0n && units(i.amountRefunded) === 0n && Date.parse(i.dueDate) > now + 3_600_000;
+                  const sellable = !(i.discountBps && i.discountBps > 0) && !listing && i.status === "open" && !!i.dueDate && units(i.amountPaid) === 0n && units(i.amountRefunded) === 0n && Date.parse(i.dueDate) > now + 3_600_000;
                   const refundable = units(i.amountPaid) > units(i.amountRefunded);
                   return (
                     <tr key={i.id} data-testid="invoice-row">

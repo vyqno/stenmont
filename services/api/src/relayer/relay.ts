@@ -1,7 +1,9 @@
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import { encodeFunctionData, type Address, type Hex } from "viem";
-import { MULTICALL3_ADDRESS, multicall3Abi, passkeyAccountFactoryAbi, payNonce, paymentRouterAbi } from "@stenmont/shared";
+import { MULTICALL3_ADDRESS, multicall3Abi, passkeyAccountFactoryAbi } from "@stenmont/shared";
 import type { Db } from "../app";
+import { invoiceProtocol,versionChain,discountGuard } from "../protocol";
+import { payCall,payAuthorizationNonce } from "../v2/encoding";
 import { Rejected, type ChainClient } from "../chain";
 import { invoices, paymentSwitch, relayerTxs } from "../db/schema";
 import type { Env } from "../env";
@@ -63,6 +65,7 @@ export type RelayInput = {
   invoiceId: Hex;
   value: bigint;
   payer: Address;
+  expectedPayout?: Address;
   validAfter: bigint;
   validBefore: bigint;
   salt: Hex;
@@ -114,7 +117,8 @@ const REJECTION: Record<string, RelayErrorCode> = {
  * daily cap or the per-payer cap allows, even under concurrency.
  */
 export async function relayPay(ctx: { db: Db; chain: ChainClient; env: Env; now: Date }, i: RelayInput): Promise<RelayOutcome> {
-  const { db, chain, env, now } = ctx;
+  const { db, env, now } = ctx;
+  let chain=ctx.chain;
 
   // 1. rate limits (every attempt counts, valid or not)
   const byPayer = await hitRateLimit(db, `pay:payer:${i.payer.toLowerCase()}`, RATE_LIMIT_PER_MINUTE, 60, now);
@@ -131,6 +135,15 @@ export async function relayPay(ctx: { db: Db; chain: ChainClient; env: Env; now:
   const inv = found?.inv;
   if (!inv || inv.status === "creating" || inv.status === "failed") return fail("invoice_not_found");
   if (inv.status !== "open" && inv.status !== "partially_paid") return fail("invoice_not_payable");
+  const protocol=invoiceProtocol(env,inv);chain=versionChain(chain,protocol.version,protocol.router,env.ROUTER_ADDRESS);
+  let payout=inv.payout as Address|null;
+  if(protocol.version==='v2'){
+    if(!chain.invoiceDetails)return fail('chain_error');
+    const detail=await chain.invoiceDetails(i.invoiceId);
+    if(!payout||detail.payout.toLowerCase()!==payout.toLowerCase()||!i.expectedPayout||i.expectedPayout.toLowerCase()!==payout.toLowerCase())return fail('invalid_authorization');
+    const guard=discountGuard({...inv,payerLock:detail.payerLock,discountBps:detail.discountBps,discountUntil:Number(detail.discountUntil),amountPaid:detail.paid.toString()},i,BigInt(Math.floor(now.getTime()/1000)));
+    if(guard)return fail(guard);
+  }
   const merchantId = inv.merchantId;
   if (found!.paused === 1) return fail("payments_paused");
 
@@ -139,12 +152,9 @@ export async function relayPay(ctx: { db: Db; chain: ChainClient; env: Env; now:
   if (early !== "ok") return fail(early);
 
   // 4. the call: a plain payment, or deploy-the-account-then-pay in one transaction
-  const payData = encodeFunctionData({
-    abi: paymentRouterAbi,
-    functionName: "pay",
-    args: [i.invoiceId, i.value, { payer: i.payer, validAfter: i.validAfter, validBefore: i.validBefore, salt: i.salt, signature: i.signature }],
-  });
-  let call = { to: env.ROUTER_ADDRESS as Address, data: payData };
+  const encoded=payCall(protocol.router,protocol.version,i.invoiceId,i.value,payout??env.ROUTER_ADDRESS as Address,{payer:i.payer,validAfter:i.validAfter,validBefore:i.validBefore,salt:i.salt,signature:i.signature});
+  const payData=encoded.data;
+  let call=encoded;
   let kind: "pay" | "deploy_pay" = "pay";
   if (i.account && !(await chain.hasCode(i.payer))) {
     const expected = await chain.passkeyAddress(i.account.qx, i.account.qy, i.account.salt);
@@ -155,7 +165,7 @@ export async function relayPay(ctx: { db: Db; chain: ChainClient; env: Env; now:
       data: encodeFunctionData({
         abi: multicall3Abi,
         functionName: "aggregate3",
-        args: [[{ target: env.FACTORY_ADDRESS as Address, allowFailure: false, callData: createData }, { target: env.ROUTER_ADDRESS as Address, allowFailure: false, callData: payData }]],
+        args: [[{ target: env.FACTORY_ADDRESS as Address, allowFailure: false, callData: createData }, { target: protocol.router, allowFailure: false, callData: payData }]],
       }),
     };
     kind = "deploy_pay";
@@ -174,7 +184,7 @@ export async function relayPay(ctx: { db: Db; chain: ChainClient; env: Env; now:
       payer: i.payer,
       value: i.value.toString(),
       status: "pending",
-      idempotencyKey: `pay:${i.payer.toLowerCase()}:${payNonce(i.invoiceId, i.salt)}`,
+      idempotencyKey: `pay:${i.payer.toLowerCase()}:${payAuthorizationNonce(protocol.version,i.invoiceId,payout??env.ROUTER_ADDRESS as Address,i.salt)}`,
       createdAt: stamp,
       updatedAt: stamp,
     })

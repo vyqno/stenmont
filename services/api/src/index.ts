@@ -4,6 +4,7 @@ import { viemChain } from "./chain";
 import { runClaimIndexer, runDefaults } from "./claims";
 import { handleQueue } from "./delivery";
 import type { Env, WebhookJob } from "./env";
+import {RETIRED_ROUTER} from "./protocol";
 import { runIndexer } from "./indexer";
 import { runPreflight } from "./preflight";
 import { runGasRecovery } from "./relayer/recovery";
@@ -29,6 +30,12 @@ export default {
     const chain = viemChain(env);
     ctx.waitUntil(runGasRecovery({db,chain,now:new Date(_event.scheduledTime)}));
     ctx.waitUntil(runIndexer(env, db, chain));
+    if(env.ROUTER_ADDRESS.toLowerCase()!==RETIRED_ROUTER.toLowerCase())ctx.waitUntil(runIndexer(env,db,chain.forRouter!(RETIRED_ROUTER),'v1',RETIRED_ROUTER));
+    if(env.ROUTER_V2_ADDRESS&&env.INVOICE_CLAIM_V2_ADDRESS&&env.INVESTOR_REGISTRY_V2_ADDRESS&&env.REPUTATION_REGISTRY_V2_ADDRESS&&env.ROUTER_V2_DEPLOY_BLOCK&&env.INVOICE_CLAIM_V2_DEPLOY_BLOCK){
+      const v2=viemChain(env,'v2');
+      ctx.waitUntil(runIndexer(env,db,v2,'v2'));
+      ctx.waitUntil(runClaimIndexer(env,db,v2,new Date(_event.scheduledTime),'v2'));
+    }
     ctx.waitUntil(runClaimIndexer(env, db, chain));
     ctx.waitUntil(runRenewals(env, db, chain, new Date(_event.scheduledTime)));
     const at = new Date(_event.scheduledTime);

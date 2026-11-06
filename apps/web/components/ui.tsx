@@ -3,6 +3,10 @@ import { formatAmount } from "../lib/pay";
 
 export type Invoice = {
   id: string;
+  contractVersion?: "v1" | "v2";
+  discountBps?: number;
+  discountUntil?: number | null;
+  payerLock?: string | null;
   number: string;
   status: "open" | "partially_paid" | "paid" | "cancelled" | "failed";
   amount: string;

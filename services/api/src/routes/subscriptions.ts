@@ -4,6 +4,7 @@ import { zeroAddress, hashTypedData, encodeFunctionData, type Address, type Hex 
 import { z } from "zod";
 import { MULTICALL3_ADDRESS, fromUnits, multicall3Abi, passkeyAccountFactoryAbi, paymentRouterAbi, routerDomain, subscriptionManagerAbi, subscriptionDomain, toUnits } from "@stenmont/shared";
 import type { AppEnv } from "../app";
+import {invoiceProtocol,versionChain} from "../protocol";
 import { audit } from "../audit";
 import { invoices, merchants, subscriptions } from "../db/schema";
 import { fail } from "../errors";
@@ -117,7 +118,11 @@ subscriptionRoutes.get("/:id/prepare-terms", async c => {
   const row = await own(c);
   if (!row || row.kind !== "instalment" || !row.invoiceId || row.status !== "offered") return fail(c, 409, "not_available", "No offered replacement plan.");
   const deadline = Math.floor(c.var.now().getTime() / 1000) + 600;
-  const digest = hashTypedData({ domain: routerDomain(c.env.ROUTER_ADDRESS as Address), types: { CancelInvoice: [{ name: "id", type: "bytes32" }, { name: "deadline", type: "uint256" }] }, primaryType: "CancelInvoice", message: { id: row.invoiceId as Hex, deadline: BigInt(deadline) } });
+  const [inv]=await c.var.db.select().from(invoices).where(eq(invoices.id,row.invoiceId));
+  if(!inv)return fail(c,404,'not_found','Invoice not found');
+  const protocol=invoiceProtocol(c.env,inv);
+  if(protocol.retired)return fail(c,409,'retired_router','Replacement cancellation is not enabled for this retired router.');
+  const digest = hashTypedData({ domain: {...routerDomain(protocol.router),version:protocol.version==='v2'?'2':'1'}, types: { CancelInvoice: [{ name: "id", type: "bytes32" }, { name: "deadline", type: "uint256" }] }, primaryType: "CancelInvoice", message: { id: row.invoiceId as Hex, deadline: BigInt(deadline) } });
   return c.json({ deadline: String(deadline), digest });
 });
 subscriptionRoutes.post("/:id/prepare", async c => {
@@ -126,14 +131,19 @@ subscriptionRoutes.post("/:id/prepare", async c => {
   const parsed = z.strictObject({ deadline: z.string().regex(/^\d{1,20}$/), signature: z.string().regex(/^0x([0-9a-fA-F]{2}){1,4096}$/) }).safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return invalid(c, parsed.error);
   const { db, chain } = c.var;
-  const before = await chain.invoiceState(row.invoiceId as Hex);
+  const [original]=await db.select().from(invoices).where(eq(invoices.id,row.invoiceId));
+  if(!original)return fail(c,404,'not_found','Invoice not found');
+  const protocol=invoiceProtocol(c.env,original);
+  if(protocol.retired)return fail(c,409,'retired_router','Replacement cancellation is not enabled for this retired router.');
+  const invoiceChain=versionChain(chain,protocol.version,protocol.router,c.env.ROUTER_ADDRESS);
+  const before = await invoiceChain.invoiceState(row.invoiceId as Hex);
   if (before.hook !== zeroAddress) return fail(c, 409, "financed_invoice", "Financed invoices cannot use this replacement rail.");
   if (before.status === 1) {
-    const sent = await sendFromTank({ db, chain, now: c.var.now() }, row.merchantId, { to: c.env.ROUTER_ADDRESS as Address, data: encodeFunctionData({ abi: paymentRouterAbi, functionName: "cancel", args: [row.invoiceId as Hex, BigInt(parsed.data.deadline), parsed.data.signature as Hex] }) });
+    const sent = await sendFromTank({ db, chain:invoiceChain, now: c.var.now() }, row.merchantId, { to: protocol.router, data: encodeFunctionData({ abi: paymentRouterAbi, functionName: "cancel", args: [row.invoiceId as Hex, BigInt(parsed.data.deadline), parsed.data.signature as Hex] }) });
     if (!sent.ok) return failSend(c, sent);
   }
   // Read after the confirmed cancellation: a partial payment mined before it must reduce the offer.
-  const final = await chain.invoiceState(row.invoiceId as Hex);
+  const final = await invoiceChain.invoiceState(row.invoiceId as Hex);
   if (final.status !== 3 || final.hook !== zeroAddress) return fail(c, 409, "invoice_not_cancelled", "The original invoice has not been confirmed cancelled. Retry after confirmation.");
   const [invoice] = await db.select().from(invoices).where(eq(invoices.id, row.invoiceId));
   if (!invoice) return fail(c, 404, "not_found", "Invoice not found.");
@@ -200,8 +210,9 @@ subscriptionPublicRoutes.get("/pay/subscription/:id", async (c) => {
   const [m] = await c.var.db.select().from(merchants).where(eq(merchants.id, r.merchantId));
   let preparationRequired = false;
   if (r.kind === "instalment" && r.invoiceId && r.status === "offered") {
-    const state = await c.var.chain.invoiceState(r.invoiceId as Hex);
     const [invoice] = await c.var.db.select().from(invoices).where(eq(invoices.id, r.invoiceId));
+    if(!invoice)return fail(c,409,'invoice_not_found','Original invoice not found');
+    const state = await versionChain(c.var.chain,invoiceProtocol(c.env,invoice).version,invoiceProtocol(c.env,invoice).router,c.env.ROUTER_ADDRESS).invoiceState(r.invoiceId as Hex);
     preparationRequired = state.status !== 3 || state.hook !== zeroAddress || !invoice || BigInt(invoice.amount) - state.paid !== BigInt(r.total ?? "0");
   }
   return c.json({
@@ -272,7 +283,9 @@ subscriptionRelayRoutes.post("/subscribe", async (c) => {
     if (!inv || !["open", "partially_paid", "cancelled"].includes(inv.status)) return fail(c, 409, "invoice_not_payable", "This invoice can no longer be paid in parts.");
   }
   if (sub.kind === "instalment" && sub.invoiceId) {
-    const onchain = await chain.invoiceState(sub.invoiceId as Hex);
+    const [original]=await db.select().from(invoices).where(eq(invoices.id,sub.invoiceId));
+    if(!original)return fail(c,409,'invoice_not_found','Original invoice not found');
+    const onchain = await versionChain(chain,invoiceProtocol(c.env,original).version,invoiceProtocol(c.env,original).router,c.env.ROUTER_ADDRESS).invoiceState(sub.invoiceId as Hex);
     if (onchain.hook !== zeroAddress) return fail(c, 409, "financed_invoice", "A financed invoice must be paid through its invoice link.");
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, sub.invoiceId));
     if (onchain.status !== 3 || !invoice || BigInt(invoice.amount) - onchain.paid !== BigInt(sub.total ?? "0")) return fail(c, 409, "prepare_required", "The business must cancel the original invoice and refresh the final replacement terms before you agree.");

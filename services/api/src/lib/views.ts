@@ -4,9 +4,12 @@ import type { Env } from "../env";
 
 export type InvoiceRow = typeof invoices.$inferSelect;
 
-export function invoiceView(r: InvoiceRow, env: Pick<Env, "APP_URL">) {
+export function invoiceView(r: InvoiceRow, env: Pick<Env,"APP_URL"> & Partial<Env>) {
+  const unassigned=r.status==='failed'&&!r.createTxHash&&!r.routerAddress;
   return {
     id: r.id,
+    contractVersion:r.contractVersion,routerAddress:unassigned?null:r.routerAddress??env.ROUTER_ADDRESS,claimAddress:unassigned?null:r.claimAddress??(r.routerAddress&&r.routerAddress.toLowerCase()!==env.ROUTER_ADDRESS?.toLowerCase()?null:env.INVOICE_CLAIM_ADDRESS),
+    payout:r.payout,payerLock:r.payerLock,minPayment:fromUnits(BigInt(r.minPayment)),discountBps:r.discountBps,discountUntil:r.discountUntil,hook:r.hook,
     number: r.number,
     status: r.status,
     amount: fromUnits(BigInt(r.amount)),

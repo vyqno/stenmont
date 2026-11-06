@@ -1,5 +1,6 @@
 import { and, eq, gte, sql } from "drizzle-orm";
 import type { Db } from "../app";
+import {versionChain} from "../protocol";
 import type { ChainClient } from "../chain";
 import { zeroAddress, type Hex } from "viem";
 import { invoices, storeOrders, variants } from "../db/schema";
@@ -39,21 +40,21 @@ export async function restock(db: Db, merchantId: string, lines: OrderLine[]) {
  * an unpaid one is released only after its invoice is authoritatively cancelled with no payment or hook. Hosted expiry alone never proves that it cannot still be paid. Each order changes state once, so stock is returned once.
  * ponytail: runs when someone looks (checkout, order list), not on a timer. Add a cron call if holds must free up with nobody watching.
  */
-export async function settleOrders(db: Db, merchantId: string, now: Date, chain: Pick<ChainClient, "invoiceState">) {
+export async function settleOrders(db: Db, merchantId: string, now: Date, chain: Pick<ChainClient, "invoiceState"|"forVersion"|"forRouter">) {
   const open = await db
-    .select({ o: storeOrders, invoiceStatus: invoices.status, invoicePaid: invoices.amountPaid })
+    .select({ o: storeOrders, invoiceStatus: invoices.status, invoicePaid: invoices.amountPaid,contractVersion:invoices.contractVersion,routerAddress:invoices.routerAddress })
     .from(storeOrders)
     .leftJoin(invoices, and(eq(invoices.id, storeOrders.invoiceId), eq(invoices.merchantId, merchantId)))
     .where(and(eq(storeOrders.merchantId, merchantId), eq(storeOrders.status, "reserved")))
     .limit(200);
-  for (const { o, invoiceStatus, invoicePaid } of open) {
+  for (const { o, invoiceStatus, invoicePaid,contractVersion,routerAddress } of open) {
     if (invoiceStatus === "paid") {
       await db.update(storeOrders).set({ status: "paid", updatedAt: now.toISOString() }).where(and(eq(storeOrders.id, o.id), eq(storeOrders.status, "reserved")));
     } else if (o.reservedUntil < now.toISOString() && o.invoiceId && invoiceStatus === "cancelled" && invoicePaid === "0") {
       // An expiry timestamp or DB failure flag cannot invalidate a signed onchain invoice. A confirmed
       // cancellation is irreversible; paid/hooked/unknown states retain stock for operator reconciliation.
       let state;
-      try { state = await chain.invoiceState(o.invoiceId as Hex); } catch { continue; }
+      try { state = await (contractVersion==='v2'?versionChain(chain as ChainClient,'v2'):routerAddress&&chain.forRouter?chain.forRouter(routerAddress as `0x${string}`):chain).invoiceState(o.invoiceId as Hex); } catch { continue; }
       if (state.status !== 3 || state.paid !== 0n || state.hook.toLowerCase() !== zeroAddress) continue;
       const won = await db
         .update(storeOrders)

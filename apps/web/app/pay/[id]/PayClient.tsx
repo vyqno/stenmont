@@ -1,19 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import type { Hex } from "viem";
+import type { Address, Hex } from "viem";
 import { toUnits } from "@stenmont/shared";
+import { verifyFreshInvoice } from "../../../lib/v2Chain";
+import { InvoiceAcceptance } from "../../../components/InvoiceAcceptance";
 import { Logo } from "../../../components/Logo";
 import FundingHelp from "../../../components/FundingHelp";
 import { ACCOUNT_COPY, accountUrl, saveAccountToken } from "../../../lib/account";
 import { createPasskey, loadPasskey, signDigest } from "../../../lib/passkey";
 import { describeTrust, type Trust } from "../../../lib/trust";
-import { ZERO_SALT, apiBase, formatAmount, friendly, payChallenge, payViewKind, routerFor } from "../../../lib/pay";
+import { ZERO_SALT, apiBase, formatAmount, friendly, payChallenge, payViewKind } from "../../../lib/pay";
 import { WALLET_COPY, WalletError, injectedProvider, signWalletPayment, walletBalance, type Eip1193 } from "../../../lib/wallet";
+import { assertPaymentFresh, assertPaymentPayer, paymentPlan, paymentReceiptAmount, type InvoiceProtocol } from "../../../lib/v2Payment";
 
-type Invoice = {
+type Invoice = InvoiceProtocol & {
   id: string;
   number: string;
+  dueDate?: string | null;
   status: string;
   amount: string;
   amountPaid: string;
@@ -72,6 +76,8 @@ function paidView(invoice: Invoice, sent: Record<string, unknown>): View {
 
 export default function PayClient({ id }: { id: string }) {
   const [view, setView] = useState<View>({ kind: "loading" });
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => { const timer = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000); return () => clearInterval(timer); }, []);
   // The browser's wallet, if any. The server render has none, so the server and the first client render agree.
   const provider = useSyncExternalStore(noSubscribe, () => injectedProvider(window), () => null);
 
@@ -98,25 +104,32 @@ export default function PayClient({ id }: { id: string }) {
     try {
       step("Setting things up…");
       const key = loadPasskey() ?? (await createPasskey());
-      const need = toUnits(invoice.remaining);
+      const fresh = await verifyFreshInvoice(invoice, {}, host);
+      if (fresh.reviewRequired) { setView({ kind: "ready", invoice: fresh.invoice, notice: "The payment details changed. Review the current amount and recipient before confirming again." }); return; }
+      invoice = fresh.invoice;
+      const plan = paymentPlan(invoice, host);
+      const need = toUnits(plan.value);
 
       const account = await post(base, "/relay/account", { qx: key.qx, qy: key.qy, salt: ZERO_SALT });
       const info = account.json as { address: Hex; balance: string };
+      assertPaymentPayer(invoice, info.address as Address);
       // A checkout may only spend funds the payer already owns, on every network.
       if (toUnits(info.balance) < need) throw new PayError("insufficient");
 
       step("Confirm on your device…");
       const salt = random32();
-      const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3_600);
+      const validBefore = plan.validBefore;
       const signature = await signDigest(
         key,
-        payChallenge({ account: info.address, router: routerFor(host), value: need, validBefore, invoiceId: invoice.id as Hex, salt }),
+        payChallenge({ account: info.address, router: plan.router, value: need, validBefore, invoiceId: invoice.id as Hex, salt, contractVersion: plan.contractVersion, payout: plan.payout }),
       );
 
+      assertPaymentFresh(plan);
       step("Sending your payment…");
       const payload = {
         invoiceId: invoice.id,
-        value: invoice.remaining,
+        value: plan.value,
+        ...(plan.payout ? { expectedPayout: plan.payout } : {}),
         payer: info.address,
         validAfter: "0",
         validBefore: validBefore.toString(),
@@ -124,9 +137,9 @@ export default function PayClient({ id }: { id: string }) {
         signature,
         account: { qx: key.qx, qy: key.qy, salt: ZERO_SALT },
       };
-      setView(paidView(invoice, await sendPayment(base, payload)));
+      setView(paidView({ ...invoice, remaining: plan.value }, await sendPayment(base, payload)));
     } catch (e) {
-      const code = e instanceof PayError ? e.code : e instanceof DOMException && e.name === "NotAllowedError" ? "cancelled" : "unknown";
+      const code = e instanceof Error && ["wrong_payer", "invalid_authorization", "discount_expired", "invoice_not_payable"].includes(e.message) ? e.message : e instanceof PayError ? e.code : e instanceof DOMException && e.name === "NotAllowedError" ? "cancelled" : "unknown";
       setView({ kind: "ready", invoice, notice: code === "insufficient" ? "You don't have enough funds for this payment." : friendly(code) });
     }
   }, []);
@@ -138,17 +151,24 @@ export default function PayClient({ id }: { id: string }) {
     const step = (s: string) => setView({ kind: "working", invoice, step: s });
     try {
       step("Confirm in your app…");
-      const need = toUnits(invoice.remaining);
+      const fresh = await verifyFreshInvoice(invoice, {}, host);
+      if (fresh.reviewRequired) { setView({ kind: "ready", invoice: fresh.invoice, notice: "The payment details changed. Review the current amount and recipient before confirming again." }); return; }
+      invoice = fresh.invoice;
+      const plan = paymentPlan(invoice, host);
+      const need = toUnits(plan.value);
       const salt = random32();
-      const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3_600);
-      const { payer, signature } = await signWalletPayment(eth, { router: routerFor(host), invoiceId: invoice.id as Hex, value: need, validBefore, salt }, async (who) => {
+      const validBefore = plan.validBefore;
+      const { payer, signature } = await signWalletPayment(eth, { router: plan.router, invoiceId: invoice.id as Hex, value: need, validBefore, salt, contractVersion: plan.contractVersion, payout: plan.payout }, async (who) => {
+        try { assertPaymentPayer(invoice, who); } catch { throw new WalletError("wrong_payer"); }
         if ((await walletBalance(eth, who)) < need) throw new WalletError("wallet_insufficient");
       });
+      assertPaymentFresh(plan);
       step("Sending your payment…");
-      const sent = await sendPayment(base, { invoiceId: invoice.id, value: invoice.remaining, payer, validAfter: "0", validBefore: validBefore.toString(), salt, signature });
-      setView(paidView(invoice, sent));
+      const sent = await sendPayment(base, { invoiceId: invoice.id, value: plan.value,
+        ...(plan.payout ? { expectedPayout: plan.payout } : {}), payer, validAfter: "0", validBefore: validBefore.toString(), salt, signature });
+      setView(paidView({ ...invoice, remaining: plan.value }, sent));
     } catch (e) {
-      const code = e instanceof PayError || e instanceof WalletError ? e.code : "unknown";
+      const code = e instanceof PayError || e instanceof WalletError ? e.code : e instanceof Error && ["discount_expired", "invalid_authorization", "invoice_not_payable"].includes(e.message) ? e.message : "unknown";
       setView({ kind: "ready", invoice, notice: friendly(code) });
     }
   }, []);
@@ -161,6 +181,11 @@ export default function PayClient({ id }: { id: string }) {
     return () => clearTimeout(t);
   }, [returnTo]);
 
+  let currentPlan: ReturnType<typeof paymentPlan> | null = null;
+  if (view.kind === "ready" || view.kind === "working") {
+    try { currentPlan = paymentPlan(view.invoice, location.hostname, now); } catch { /* No signing controls for untrusted/malformed provenance. */ }
+  }
+  const amountDue = currentPlan?.value ?? ("invoice" in view ? view.invoice.remaining : "0");
   return (
     <main className="payment-sheet" data-testid="pay-page">
       <header className="payment-header"><Logo /><span>Test network</span></header>
@@ -196,11 +221,11 @@ export default function PayClient({ id }: { id: string }) {
             )}
             <TrustBadge trust={view.invoice.trust} />
             <h1 className="mt-1 text-5xl font-semibold tracking-tight" data-testid="amount">
-              {formatAmount(view.invoice.remaining)}
+              {formatAmount(amountDue)}
             </h1>
             <p className="mt-2 text-sm text-muted">Invoice {view.invoice.number}</p>
           </div>
-          {view.kind === "ready" && (
+          {view.kind === "ready" && currentPlan && (
             <>
               {view.notice && (
                 <p role="alert" data-testid="notice" className="rounded-md border border-danger p-3 text-sm text-danger">
@@ -212,7 +237,7 @@ export default function PayClient({ id }: { id: string }) {
                 onClick={() => pay(view.invoice)}
                 className="rounded-lg bg-foreground px-6 py-4 text-lg font-medium text-white hover:bg-neutral-800"
               >
-                Pay {formatAmount(view.invoice.remaining)}
+                Pay {formatAmount(amountDue)}
               </button>
               <p className="text-sm text-muted">You&apos;ll confirm with Face ID, your fingerprint or your device PIN. Nothing to install.</p>
               {view.invoice.instalments && (
@@ -229,6 +254,7 @@ export default function PayClient({ id }: { id: string }) {
                   <p className="mt-1 text-sm text-muted">{WALLET_COPY.hint}</p>
                 </div>
               )}
+              <InvoiceAcceptance invoice={view.invoice} provider={provider} />
               <FundingHelp />
               {view.invoice.cancelUrl && (
                 <a className="text-sm underline" href={view.invoice.cancelUrl} data-testid="cancel-link">
@@ -237,6 +263,10 @@ export default function PayClient({ id }: { id: string }) {
               )}
             </>
           )}
+          {view.kind === "ready" && !currentPlan && <p role="alert">The payment details could not be verified. Nothing was charged.</p>}
+          {currentPlan?.discounted && <p data-testid="early-discount" className="text-sm text-muted">Early payment discount: {view.invoice.discountBps! / 100}%. Confirm before {new Date(view.invoice.discountUntil! * 1000).toLocaleString()}. A late approval is refused.</p>}
+          {view.invoice.payerLock && <p className="text-sm text-muted">Reserved for buyer {view.invoice.payerLock}.</p>}
+          {view.invoice.hook && !/^0x0+$/.test(view.invoice.hook) && <p className="text-sm text-muted">Paying the invoice’s current claim holder.</p>}
           {view.kind === "working" && (
             <p role="status" aria-live="polite" className="text-lg" data-testid="step">
               {view.step}
@@ -251,7 +281,7 @@ export default function PayClient({ id }: { id: string }) {
             Paid
           </h1>
           <p className="text-lg">
-            Thank you. {view.invoice.merchantName} has your payment of {formatAmount(view.invoice.remaining === "0" ? view.invoice.amount : view.invoice.remaining)}.
+            Thank you. {view.invoice.merchantName} has your payment of {formatAmount(paymentReceiptAmount(view.invoice))}.
           </p>
           {view.invoice.successUrl && (
             <a className="underline" href={view.invoice.successUrl} data-testid="return-link">

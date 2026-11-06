@@ -6,6 +6,9 @@ import { ZERO_SALT, apiBase } from "./pay";
 
 export type Claim = {
   invoiceId: string;
+  contractVersion?: "v1" | "v2";
+  routerAddress?: string;
+  claimAddress?: string;
   status: string;
   face: string;
   price: string;
@@ -98,4 +101,11 @@ export async function fund(invoiceId: string, key: StoredPasskey, info: AccountI
       await sleep(2_000 * (attempt + 1));
     }
   }
+}
+
+/** Bind World approval to the claim being purchased, never the changing creation default. */
+export function investorApprovalTarget(claim: { contractVersion?: string }): "v1" | "v2" {
+  if (!claim.contractVersion || claim.contractVersion === "v1") return "v1";
+  if (claim.contractVersion === "v2") return "v2";
+  throw new InvestError("not_available");
 }

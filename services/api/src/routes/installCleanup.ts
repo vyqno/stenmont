@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { zeroAddress, type Hex } from "viem";
 import { z } from "zod";
 import type { AppEnv } from "../app";
+import {invoiceProtocol,versionChain} from "../protocol";
 import { audit } from "../audit";
 import { idempotencyKeys, invoices } from "../db/schema";
 import { fail } from "../errors";
@@ -50,7 +51,7 @@ installCleanupRoutes.post("/:id/expire-install", async (c) => {
     }
   }
   let live;
-  try { live = await chain.invoiceState(id as Hex); }
+  try { live = await versionChain(chain,invoiceProtocol(c.env,row).version,invoiceProtocol(c.env,row).router,c.env.ROUTER_ADDRESS).invoiceState(id as Hex); }
   catch { return fail(c, 503, "chain_unavailable", "Chain state could not be checked; nothing was changed."); }
   if (live.paid !== 0n || live.status === 2 || live.hook.toLowerCase() !== zeroAddress) return unchanged();
   const status = row.status === "creating" ? "failed" : "expired";

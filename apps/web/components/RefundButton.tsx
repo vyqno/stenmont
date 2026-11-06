@@ -2,16 +2,18 @@
 
 import { useState } from "react";
 import { useMerchant } from "../app/dashboard/DashboardShell";
+import { refundApprovalPayload, refundApprovalState, type ApprovalParams, type ApprovalReason } from "../lib/refundApproval";
 import { AuthError, api, signChallenge } from "../lib/auth";
 
 type Step = "idle" | "working" | "sent" | "failed" | "needs_approval";
-type ApprovalParams = { invoiceId: string; amount: string; to: string };
 
 /** Refunds what the customer paid: the server works out the amount, the merchant's passkey approves, the refund is sent. */
 export function RefundButton({ invoiceId, onDone }: { invoiceId: string; onDone?: () => void }) {
   const merchant = useMerchant();
   const [step, setStep] = useState<Step>("idle");
   const [message, setMessage] = useState("");
+  const [approvalReason, setApprovalReason] = useState<ApprovalReason>("approval_required");
+  const [approving, setApproving] = useState(false);
   const [params, setParams] = useState<ApprovalParams | null>(null);
 
   async function refund() {
@@ -24,10 +26,11 @@ export function RefundButton({ invoiceId, onDone }: { invoiceId: string; onDone?
       setStep("sent");
       onDone?.();
     } catch (e) {
-      const needs = e instanceof AuthError && e.code === "approval_required" ? (e.details as { approvalParams?: ApprovalParams } | undefined)?.approvalParams : undefined;
+      const needs = refundApprovalState(e, invoiceId);
       if (needs) {
         // A large refund: a person has to approve it with World before it can be signed and sent.
-        setParams(needs);
+        setParams(needs.params);
+        setApprovalReason(needs.reason);
         setStep("needs_approval");
         return;
       }
@@ -38,23 +41,19 @@ export function RefundButton({ invoiceId, onDone }: { invoiceId: string; onDone?
 
   async function approve() {
     if (!params) return;
-    setStep("working");
+    setApproving(true);
+    setMessage("");
     try {
-      const a = await api.post<{ authorizeUrl: string }>("/v1/approvals", { operation: "refund", params });
+      const a = await api.post<{ authorizeUrl: string }>("/v1/approvals", refundApprovalPayload(params));
       window.location.assign(a.authorizeUrl); // World asks for a fresh sign-in, then sends the person back to the dashboard
     } catch (e) {
-      setStep("failed");
+      setStep("needs_approval");
       setMessage(e instanceof AuthError ? e.message : "The approval could not be started. Try again.");
-    }
+    } finally { setApproving(false); }
   }
 
   if (step === "needs_approval" && params) {
-    return (
-      <span className="inline-flex max-w-64 flex-col items-end gap-1 text-right text-xs">
-        <span data-testid="needs-approval">This refund is large (${params.amount}). A person must approve it with World first.</span>
-        <button type="button" onClick={approve} className="rounded bg-brand px-3 py-1 text-sm font-medium text-on-brand" data-testid="approve-with-world">Approve with World</button>
-      </span>
-    );
+    return <RefundApprovalPrompt params={params} reason={approvalReason} busy={approving} message={message} onApprove={approve} />;
   }
   if (step === "sent") return <span data-testid="refund-sent" className="text-sm font-medium">Refund sent</span>;
   return (
@@ -74,4 +73,10 @@ export function RefundButton({ invoiceId, onDone }: { invoiceId: string; onDone?
       )}
     </span>
   );
+}
+
+/** The retry remains an explicit human action; denied/expired requests are never silently restarted. */
+export function RefundApprovalPrompt({ params, reason, busy, message, onApprove }: { params: ApprovalParams; reason: ApprovalReason; busy: boolean; message?: string; onApprove: () => void }) {
+  const fresh = reason === "approval_denied" || reason === "approval_expired";
+  return <span className="inline-flex max-w-64 flex-col items-end gap-1 text-right text-xs"><span data-testid="needs-approval">{fresh ? `${reason === "approval_denied" ? "The previous approval was denied" : "The previous approval expired"}. Nothing was refunded. Request a fresh approval for the same $${params.amount} refund.` : `This refund is large ($${params.amount}). A person must approve it with World first.`}</span><button type="button" onClick={onApprove} disabled={busy} className="rounded bg-brand px-3 py-1 text-sm font-medium text-on-brand disabled:opacity-50" data-testid="approve-with-world">{busy ? "Starting approval…" : fresh ? "Request fresh World approval" : "Approve with World"}</button>{message && <span role="status" className="text-danger">{message}</span>}</span>;
 }

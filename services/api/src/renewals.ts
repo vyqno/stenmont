@@ -2,6 +2,7 @@ import { and, eq, inArray, isNull, lte, or } from "drizzle-orm";
 import { fromUnits } from "@stenmont/shared";
 import { encodeFunctionData, type Address, type Hex } from "viem";
 import { subscriptionManagerAbi } from "@stenmont/shared";
+import {versionChain} from "./protocol";
 import type { Db } from "./app";
 import type { ChainClient } from "./chain";
 import { invoices, subscriptions } from "./db/schema";
@@ -22,7 +23,8 @@ async function invoiceStillOpen(db: Db, chain: ChainClient, sub: typeof subscrip
   if (!invoiceId) return false;
   const [inv] = await db.select().from(invoices).where(eq(invoices.id, invoiceId));
   if (!inv || inv.status === "paid" || !sub.total) return false;
-  const state = await chain.invoiceState(invoiceId as Hex);
+  const source=inv.contractVersion==='v1'&&inv.routerAddress&&chain.forRouter?chain.forRouter(inv.routerAddress as `0x${string}`):versionChain(chain,inv.contractVersion as "v1"|"v2");
+  const state = await source.invoiceState(invoiceId as Hex);
   return state.status === 3 && state.hook === "0x0000000000000000000000000000000000000000" && BigInt(inv.amount) - state.paid === BigInt(sub.total);
 }
 

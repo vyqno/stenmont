@@ -22,8 +22,13 @@ import { isPaused } from "../sites/switch";
 import { loadLimits, merchantTier, refused, tierLimitResponse, volumeToday } from "../verification/store";
 import { checkInvoice } from "../verification/tiers";
 
+import { creationVersion,invoiceProtocol,versionChain } from "../protocol";
+
 const createSchema = z.strictObject({
   amount: amountSchema,
+  buyerAddress: z.string().regex(/^0x[0-9a-fA-F]{40}$/).refine(v=>v.toLowerCase()!==zeroAddress).optional(),
+  discountBps: z.number().int().min(1).max(3000).optional(),
+  discountUntil: z.iso.datetime().optional(),
   number: z.string().regex(/^[A-Za-z0-9._-]{1,64}$/).optional(),
   customerEmail: z.email().max(254).optional(),
   dueDate: z.iso.datetime().optional(),
@@ -82,7 +87,19 @@ export type CreateInvoiceInput = Omit<z.infer<typeof createSchema>, "instalments
 
 /** The one way an invoice is made (the API route and the store checkout both come through here): limits, payee rules, onchain creation, audit, webhook. */
 export async function createInvoice(c: Context<AppEnv>, input: CreateInvoiceInput): Promise<IdempotentResult | Response> {
-  const { db, chain, merchant } = c.var;
+  const { db, merchant } = c.var;
+  const acceptance=c.env.ENVIRONMENT==='staging'&&c.env.INVOICE_DEFAULT_VERSION==='2'&&c.env.INVOICE_ACCEPTANCE_MERCHANT_ID===merchant.id;
+  if(c.env.INVOICE_CREATION_PAUSED==='yes'&&!acceptance)return fail(c,503,'creation_paused','New invoice creation is paused for the coordinated cutover. Existing obligations remain available.');
+  const version=creationVersion(c.env),protocol=invoiceProtocol(c.env,{contractVersion:version}),chain=versionChain(c.var.chain,version);
+  const hasDiscount=input.discountBps!==undefined||input.discountUntil!==undefined;
+  if(hasDiscount&&(version!=='v2'||!input.discountBps||!input.discountUntil||!input.buyerAddress||!input.dueDate))return fail(c,400,'invalid_request','Discount terms require a v2 invoice, a named buyerAddress, dueDate, discountBps and discountUntil.');
+  const discountUntil=input.discountUntil?Math.floor(Date.parse(input.discountUntil)/1000):null;
+  const atSeconds=Math.floor(c.var.now().getTime()/1000);
+  if(discountUntil&&(discountUntil<=atSeconds||(input.dueDate&&discountUntil>Math.floor(Date.parse(input.dueDate)/1000))))return fail(c,400,'invalid_request','The discount expiry must be in the future and no later than the due date.');
+  if(version==='v2'){
+    if(!merchant.address)return fail(c,409,'merchant_not_ready','Activate your payout account first.');
+    if(!chain.creatorDelegation||(await chain.creatorDelegation(merchant.address as Address)).allowed!==true)return fail(c,409,'creator_delegation_required','Sign a fresh creator delegation for the v2 router.',{url:'/v1/router-delegation?contractVersion=v2'});
+  }
   for (const u of [input.successUrl, input.cancelUrl]) {
     if (u !== undefined && !returnUrlOk(u, c.env.ENVIRONMENT)) {
       return fail(c, 400, "invalid_request", "successUrl and cancelUrl must be public https addresses");
@@ -146,6 +163,8 @@ export async function createInvoice(c: Context<AppEnv>, input: CreateInvoiceInpu
       id,
       merchantId: merchant.id,
       number,
+      contractVersion:version,routerAddress:protocol.router,claimAddress:protocol.claim,payout,
+      payerLock:input.buyerAddress??null,discountBps:input.discountBps??0,discountUntil,
       status: "creating",
       amount: amount.toString(),
       customerEmail: input.customerEmail ?? null,
@@ -168,9 +187,10 @@ export async function createInvoice(c: Context<AppEnv>, input: CreateInvoiceInpu
         merchant: merchantAddress,
         ref: invoiceRef(number),
         payout: payout as Address,
-        payerLock: zeroAddress,
+        payerLock: (input.buyerAddress??zeroAddress) as Address,
         amount,
         minPayment: 0n,
+        ...(version==='v2'?{discountBps:input.discountBps??0,discountUntil:BigInt(discountUntil??0)}:{}),
         dueDate: input.dueDate ? BigInt(Math.floor(Date.parse(input.dueDate) / 1000)) : 0n,
         metaHash,
         deadline: BigInt(Math.floor(now.getTime() / 1000) + 3600),

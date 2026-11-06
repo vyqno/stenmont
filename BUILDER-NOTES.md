@@ -311,3 +311,6 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 - 21:53 Workspace1639 tests and lint passed after provider transport correction. Local UI1406 returned200. Gemini backend selection prepared after owner clarified Google Cloud; Developer generation402 and Cloud API_KEY_SERVICE_BLOCKED403 are distinct. No successful model reply claimed.
 - 22:15 Router v2 security branch merged without squash as eff0458; independent Foundry482 tests passed. API/pay integration in progress; no v2 transaction sent.
 - 22:15 Positioning: commerce and finance for stablecoin businesses; Sell/Get paid/Books/Capital/Agents and developer surfaces updated. Capital is one section; category retained. Local source integration; staging visual acceptance remains open.
+
+- 23:15 V2 task: integrated API/pay routing, named-buyer discounts, fresh delegation/ack and independent contract reads. Workspace1700 passed; final API1115 passed after four added tests; web282, lint/typechecks and Foundry486 passed. Dry-run simulated8 transactions on1874; no broadcast.
+- 23:15 Migration preflight:29 receipts classify17 retired/12 current v1; failed uncreated row remains unassigned. Unknown obligations abort migration. World run sheet10 source links and6 public routes checked; real World, investor passkey funds and live v2 regression held.

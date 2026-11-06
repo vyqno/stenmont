@@ -1,5 +1,7 @@
 import { hashTypedData, type Address, type Hex } from "viem";
-import { buildReceiveAuth, deployments, formatUSDT, payNonce, toUnits } from "@stenmont/shared";
+import { buildReceiveAuth, deployments, formatUSDT, toUnits } from "@stenmont/shared";
+
+import { paymentNonce } from "../../../packages/shared/src/v2/payment";
 
 /** One passkey, one account: the factory salt is fixed. */
 export const ZERO_SALT = `0x${"00".repeat(32)}` as Hex;
@@ -31,7 +33,7 @@ export function b64urlDecode(s: string): Uint8Array {
 }
 
 /** The 32-byte digest the passkey signs: the token authorization, bound to this invoice through its nonce. */
-export function payChallenge(a: { account: Address; router: Address; value: bigint; validBefore: bigint; invoiceId: Hex; salt: Hex }): Hex {
+export function payChallenge(a: { account: Address; router: Address; value: bigint; validBefore: bigint; invoiceId: Hex; salt: Hex; contractVersion?: string; payout?: Address }): Hex {
   return hashTypedData(
     buildReceiveAuth({
       from: a.account,
@@ -39,7 +41,7 @@ export function payChallenge(a: { account: Address; router: Address; value: bigi
       value: a.value,
       validAfter: 0n,
       validBefore: a.validBefore,
-      nonce: payNonce(a.invoiceId, a.salt),
+      nonce: paymentNonce(a),
     }),
   );
 }
@@ -58,6 +60,7 @@ export const FRIENDLY: Record<string, string> = {
   account_mismatch: "Something went wrong with your account. Please try again.",
   overpay: "That's more than what is still owed.",
   below_minimum: "That's below the minimum payment for this invoice.",
+  discount_expired: "That early payment offer expired before approval. Nothing was charged. Review the current amount before trying again.",
   wrong_payer: "This invoice is reserved for someone else.",
   invalid_authorization: "Your payment couldn't be approved. Please try again.",
   relayer_low: "Payments are temporarily unavailable. Please try again soon.",

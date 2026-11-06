@@ -5,6 +5,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { z } from "zod";
 import { MULTICALL3_ADDRESS, allowInvestorTypes, b64urlEncode, buildReceiveAuth, fromUnits, fundNonce, investorRegistryDomain, invoiceClaimAbi, multicall3Abi, passkeyAccountFactoryAbi } from "@stenmont/shared";
 import type { AppEnv } from "../app";
+import {creationVersion,invoiceProtocol,versionChain} from "../protocol";
 import { audit } from "../audit";
 import { Rejected } from "../chain";
 import { claimView, liveClaim, type ClaimRow } from "../claims";
@@ -42,10 +43,10 @@ const hit = async (c: Context<AppEnv>, key: string, limit: number) =>
 // ---- the market --------------------------------------------------------------------------------------------------------
 
 type Reputation = { score: number; paid: number } | null;
-async function reputation(c: { var: AppEnv["Variables"] }, addr: string | null): Promise<Reputation> {
+async function reputation(c: { var: AppEnv["Variables"] }, addr: string | null,version:"v1"|"v2"="v1"): Promise<Reputation> {
   if (!addr) return null;
   try {
-    const r = await c.var.chain.reputationOf(addr as Address);
+    const r = await versionChain(c.var.chain,version).reputationOf(addr as Address);
     return { score: r.score, paid: r.onTime + r.late };
   } catch (e) {
     console.error("reputation lookup failed", e);
@@ -56,7 +57,7 @@ async function reputation(c: { var: AppEnv["Variables"] }, addr: string | null):
 /** Percent with two places, from a ratio given in basis points. */
 const pct = (bps: number) => (bps / 100).toFixed(2);
 
-async function publicView(c: { var: AppEnv["Variables"] }, rows: ClaimRow[]) {
+async function publicView(c: { var: AppEnv["Variables"];env:Env }, rows: ClaimRow[]) {
   if (rows.length === 0) return [];
   const { db } = c.var;
   const ms = await db.select().from(merchants).where(inArray(merchants.id, [...new Set(rows.map((r) => r.merchantId))]));
@@ -64,20 +65,23 @@ async function publicView(c: { var: AppEnv["Variables"] }, rows: ClaimRow[]) {
   const buyers = await db.select().from(merchants).where(inArray(merchants.id, invs.map((i) => i.buyerMerchantId).filter((x): x is string => !!x)));
   const nowS = Math.floor(c.var.now().getTime() / 1000);
   const scores = new Map<string, Reputation>();
-  const score = async (addr: string | null) => {
+  const score = async (addr: string | null,version:"v1"|"v2") => {
     if (!addr) return null;
-    if (!scores.has(addr)) scores.set(addr, await reputation(c, addr));
-    return scores.get(addr)!;
+    const key=`${version}:${addr}`;
+    if (!scores.has(key)) scores.set(key, await reputation(c, addr,version));
+    return scores.get(key)!;
   };
   const out = [];
   for (const r of rows) {
     const m = ms.find((x) => x.id === r.merchantId);
     const buyer = buyers.find((b) => b.id === invs.find((i) => i.id === r.invoiceId)?.buyerMerchantId);
+    const inv=invs.find(i=>i.id===r.invoiceId),protocol=invoiceProtocol(c.env,inv??{});
     const face = BigInt(r.face);
     const price = BigInt(r.price);
     const yieldBps = price === 0n ? 0 : Number(((face - price) * 10_000n) / price);
     const secs = Math.max(r.dueDate - nowS, 1);
     out.push({
+      contractVersion:protocol.version,routerAddress:protocol.router,claimAddress:protocol.claim,
       invoiceId: r.invoiceId,
       status: r.status,
       face: fromUnits(face),
@@ -91,8 +95,8 @@ async function publicView(c: { var: AppEnv["Variables"] }, rows: ClaimRow[]) {
       annualisedYield: pct(Math.round((yieldBps * 365 * 86_400) / secs)),
       dueDate: new Date(r.dueDate * 1000).toISOString(),
       fundBy: new Date(r.deadline * 1000).toISOString(),
-      merchant: { name: m?.name ?? "Business", reputation: await score(m?.address ?? null) },
-      payer: { reputation: await score(buyer?.address ?? null) },
+      merchant: { name: m?.name ?? "Business", reputation: await score(m?.address ?? null,protocol.version) },
+      payer: { reputation: await score(buyer?.address ?? null,protocol.version) },
     });
   }
   return out;
@@ -137,7 +141,7 @@ investRoutes.get("/reputation/:address", async (c) => {
 
 // ---- the allowlist (one person, one investor account) --------------------------------------------------------------------
 
-const accountBody = z.strictObject({ account: address });
+const accountBody = z.strictObject({ account: address, contractVersion:z.enum(["v1","v2"]).optional() });
 
 investRoutes.post("/allow-request", async (c) => {
   const parsed = accountBody.safeParse(await c.req.json().catch(() => null));
@@ -150,12 +154,13 @@ investRoutes.post("/allow-request", async (c) => {
 });
 
 investRoutes.post("/allow", async (c) => {
-  const parsed = z.strictObject({ account: address, idkitResponse: z.record(z.string(), z.unknown()) }).safeParse(await c.req.json().catch(() => null));
+  const parsed = z.strictObject({ account: address,contractVersion:z.enum(["v1","v2"]).optional(), idkitResponse: z.record(z.string(), z.unknown()) }).safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return invalid(c, parsed.error);
   if (!(await hit(c, "allow", 10))) return limited(c);
   if (!c.env.WORLD_RP_ID) return fail(c, 503, "world_unavailable", "Identity verification is not available right now.");
   if (!c.env.ATTESTER_PRIVATE_KEY) return fail(c, 503, "attestation_unavailable", "Investor approval is not available right now."); // checked first: a proof is never spent for nothing
-  const { db, chain } = c.var;
+  const { db } = c.var;
+  const protocol=invoiceProtocol(c.env,{contractVersion:parsed.data.contractVersion??creationVersion(c.env)}),chain=versionChain(c.var.chain,protocol.version,protocol.router,c.env.ROUTER_ADDRESS);
   const account = parsed.data.account.toLowerCase();
 
   // With INVESTOR_REQUIRES_KYC=yes (production) investors must be tier 4 (identity documents): the account has to be the onchain
@@ -202,7 +207,7 @@ investRoutes.post("/allow", async (c) => {
     const deadline = BigInt(nowS + ATTESTATION_SECONDS);
     const nonce = await chain.investorNonce(account as Address);
     const signature = await privateKeyToAccount(c.env.ATTESTER_PRIVATE_KEY as Hex).signTypedData({
-      domain: investorRegistryDomain(c.env.INVESTOR_REGISTRY_ADDRESS as Address),
+      domain: investorRegistryDomain((protocol.version==='v2'?c.env.INVESTOR_REGISTRY_V2_ADDRESS:c.env.INVESTOR_REGISTRY_ADDRESS) as Address),
       types: allowInvestorTypes,
       primaryType: "AllowInvestor",
       message: { investor: account as Address, expiresAt, deadline, nonce },
@@ -220,13 +225,15 @@ investRoutes.post("/allow", async (c) => {
 // ---- funding ---------------------------------------------------------------------------------------------------------------
 
 /** Looks up a claim that can be bought right now, or answers why not. */
-async function buyable(c: Context<AppEnv>, invoiceId: string): Promise<{ row: ClaimRow } | { res: Response }> {
+async function buyable(c: Context<AppEnv>, invoiceId: string): Promise<{ row: ClaimRow;protocol:ReturnType<typeof invoiceProtocol>;chain:AppEnv["Variables"]["chain"] } | { res: Response }> {
   const row = invoiceParam.safeParse(invoiceId).success ? await liveClaim(c.var.db, invoiceId) : null;
   if (!row || row.status === "pending" || row.status === "sending") return { res: fail(c, 404, "not_found", "Claim not found") };
   if (row.status === "funded" || row.status === "funding" || row.status === "settled" || row.status === "defaulted") return { res: fail(c, 409, "already_funded", "This invoice was already bought.") };
   if (row.status !== "listed") return { res: fail(c, 409, "not_available", "This invoice is not for sale.") };
   if (Math.floor(c.var.now().getTime() / 1000) >= row.deadline - FUND_MARGIN_SECONDS) return { res: fail(c, 409, "expired", "This offer has expired.") };
-  return { row };
+  const [inv]=await c.var.db.select().from(invoices).where(eq(invoices.id,row.invoiceId));
+  const protocol=invoiceProtocol(c.env,inv??{});
+  return { row,protocol,chain:versionChain(c.var.chain,protocol.version,protocol.router,c.env.ROUTER_ADDRESS) };
 }
 
 /** Step 1: the digest the investor's passkey signs. Nothing is stored; the signature itself is bound to this invoice. */
@@ -236,19 +243,19 @@ investRoutes.post("/claims/:invoiceId/fund-request", async (c) => {
   if (!(await hit(c, "fund-request", 60))) return limited(c);
   const got = await buyable(c, c.req.param("invoiceId"));
   if ("res" in got) return got.res;
-  const { row } = got;
-  if (!(await c.var.chain.investorAllowed(parsed.data.account as Address))) return fail(c, 403, "not_allowed", "This account is not approved to invest.");
+  const { row,protocol,chain:targetChain } = got;
+  if (!(await targetChain.investorAllowed(parsed.data.account as Address))) return fail(c, 403, "not_allowed", "This account is not approved to invest.");
 
   const nowS = Math.floor(c.var.now().getTime() / 1000);
   const salt = `0x${[...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("")}` as Hex;
   const validBefore = Math.min(nowS + FUND_AUTH_SECONDS, row.deadline);
   const nonce = fundNonce(row.invoiceId as Hex, salt);
   const digest = hashTypedData(
-    buildReceiveAuth({ from: parsed.data.account as Address, to: c.env.INVOICE_CLAIM_ADDRESS as Address, value: BigInt(row.price), validAfter: 0n, validBefore: BigInt(validBefore), nonce }),
+    buildReceiveAuth({ from: parsed.data.account as Address, to: protocol.claim, value: BigInt(row.price), validAfter: 0n, validBefore: BigInt(validBefore), nonce }),
   );
   return c.json({
     invoiceId: row.invoiceId,
-    to: c.env.INVOICE_CLAIM_ADDRESS,
+    to: protocol.claim,contractVersion:protocol.version,claimAddress:protocol.claim,routerAddress:protocol.router,
     price: fromUnits(BigInt(row.price)),
     authorization: { from: parsed.data.account, value: row.price, validAfter: "0", validBefore: String(validBefore), nonce, salt },
     challenge: b64urlEncode(Uint8Array.from(Buffer.from(digest.slice(2), "hex"))),
@@ -285,17 +292,17 @@ investRoutes.post("/claims/:invoiceId/fund", async (c) => {
   if (!(await hit(c, "fund", 20)) || !(await hitRateLimit(db, `fund:account:${account}`, 20, 60, now))) return limited(c);
   const got = await buyable(c, c.req.param("invoiceId"));
   if ("res" in got) return got.res;
-  const { row } = got;
+  const { row,protocol,chain:targetChain } = got;
   const nowS = Math.floor(now.getTime() / 1000);
   if (BigInt(b.validBefore) <= BigInt(nowS)) return fail(c, 400, "expired", "This signature expired. Start again.");
-  if (!(await chain.investorAllowed(account))) return fail(c, 403, "not_allowed", "This account is not approved to invest.");
+  if (!(await targetChain.investorAllowed(account))) return fail(c, 403, "not_allowed", "This account is not approved to invest.");
 
   const fundData = encodeFunctionData({
     abi: invoiceClaimAbi,
     functionName: "fund",
     args: [row.invoiceId as Hex, { payer: account, validAfter: 0n, validBefore: BigInt(b.validBefore), salt: b.salt as Hex, signature: b.signature as Hex }],
   });
-  let call = { to: c.env.INVOICE_CLAIM_ADDRESS as Address, data: fundData };
+  let call = { to: protocol.claim, data: fundData };
   let deployed = false;
   if (b.accountDetails && !(await chain.hasCode(account))) {
     const expected = await chain.passkeyAddress(b.accountDetails.qx as Hex, b.accountDetails.qy as Hex, b.accountDetails.salt as Hex);
@@ -306,7 +313,7 @@ investRoutes.post("/claims/:invoiceId/fund", async (c) => {
       data: encodeFunctionData({
         abi: multicall3Abi,
         functionName: "aggregate3",
-        args: [[{ target: c.env.FACTORY_ADDRESS as Address, allowFailure: false, callData: createData }, { target: c.env.INVOICE_CLAIM_ADDRESS as Address, allowFailure: false, callData: fundData }]],
+        args: [[{ target: c.env.FACTORY_ADDRESS as Address, allowFailure: false, callData: createData }, { target: protocol.claim, allowFailure: false, callData: fundData }]],
       }),
     };
     deployed = true;
@@ -317,7 +324,7 @@ investRoutes.post("/claims/:invoiceId/fund", async (c) => {
   if (lock.length === 0) return fail(c, 409, "already_funded", "This invoice was already bought.");
   const unlock = () => db.update(claims).set({ status: "listed", updatedAt: now.toISOString() }).where(and(eq(claims.id, row.id), eq(claims.status, "funding")));
 
-  const sent = await sendFromTank({ db, chain, now }, row.merchantId, call);
+  const sent = await sendFromTank({ db, chain:targetChain, now }, row.merchantId, call);
   if (!sent.ok) {
     if (sent.code === "timeout") return fail(c, 504, "timeout", "The purchase is taking longer than expected. It may still complete.", { txHash: sent.txHash }); // stays locked until the indexer or the lock timeout decides
     await unlock();

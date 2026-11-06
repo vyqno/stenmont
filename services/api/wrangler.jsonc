@@ -43,6 +43,9 @@
       "routes": [{ "pattern": "api-staging.stenmont.com", "custom_domain": true }],
       "vars": {
         "ENVIRONMENT": "staging",
+        "INVOICE_CREATION_PAUSED": "yes",
+        "INVOICE_DEFAULT_VERSION": "1",
+        "INVOICE_ACCEPTANCE_MERCHANT_ID": "m_6e8e647cb8f588bd",
         "EMAIL_MODE": "sink",
         "TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
         "WHITECHAIN_RPC": "https://rpc.testnet.whitechain.io",

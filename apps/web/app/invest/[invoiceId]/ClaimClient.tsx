@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Hex } from "viem";
 import { Card } from "../../../components/ui";
 import { describeReputation, explorerTx, financingMessage, formatYield } from "../../../lib/financing";
-import { InvestError, call, ensureAccount, fund, isAllowed, lookupAccount, type AccountInfo, type Claim } from "../../../lib/investor";
+import { InvestError, call, ensureAccount, fund, investorApprovalTarget, isAllowed, lookupAccount, type AccountInfo, type Claim } from "../../../lib/investor";
 import { loadPasskey, type StoredPasskey } from "../../../lib/passkey";
 import { formatAmount } from "../../../lib/pay";
 
@@ -18,6 +18,7 @@ export default function ClaimClient({ invoiceId }: { invoiceId: string }) {
   const [key, setKey] = useState<StoredPasskey | null>(null);
   const [info, setInfo] = useState<AccountInfo | null>(null);
   const [allowed, setAllowed] = useState<boolean | null>(null);
+  const [approvalVersion, setApprovalVersion] = useState<"v1" | "v2" | null>(null);
   const [setup, setSetup] = useState<Setup | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState("");
@@ -59,10 +60,12 @@ export default function ClaimClient({ invoiceId }: { invoiceId: string }) {
   }
 
   async function startVerify() {
-    if (!info) return;
+    if (!info || !claim || claim === "missing") return;
     setMessage("");
     try {
-      setSetup(await call<Setup>("POST", "/invest/allow-request", { account: info.address }));
+      const contractVersion = investorApprovalTarget(claim);
+      setSetup(await call<Setup>("POST", "/invest/allow-request", { account: info.address, contractVersion }));
+      setApprovalVersion(contractVersion);
       setOpen(true);
     } catch (e) { setMessage(errText(e)); }
   }
@@ -141,7 +144,7 @@ export default function ClaimClient({ invoiceId }: { invoiceId: string }) {
         </Card>
       )}
 
-      {setup && info && (
+      {setup && info && approvalVersion && (
         <IDKitRequestWidget
           open={open}
           onOpenChange={(o) => {
@@ -156,7 +159,7 @@ export default function ClaimClient({ invoiceId }: { invoiceId: string }) {
           preset={proofOfHuman()}
           handleVerify={async (result: IDKitResult) => {
             try {
-              await call("POST", "/invest/allow", { account: info.address as Hex, idkitResponse: result });
+              await call("POST", "/invest/allow", { account: info.address as Hex, idkitResponse: result, contractVersion: approvalVersion });
             } catch (e) {
               setMessage(errText(e));
               throw e;

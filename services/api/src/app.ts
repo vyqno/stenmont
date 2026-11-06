@@ -24,6 +24,8 @@ import { booksRoutes } from "./routes/books";
 import { exportRoutes } from "./routes/exports";
 import { financingRoutes } from "./routes/financing";
 import { investRoutes } from "./routes/invest";
+import { routerDelegationRoutes } from "./routes/routerDelegation";
+import { invoiceAckRoutes } from "./routes/invoiceAck";
 import { invoiceRoutes } from "./routes/invoices";
 import { installCleanupRoutes } from "./routes/installCleanup";
 import { oauthGrantRoutes, oauthRoutes } from "./routes/oauth";
@@ -100,6 +102,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/agent", agentRuntimeRoutes);
   v1.route("/a2a", a2aRoutes);
   v1.route("/agent-access", agentAccessRoutes);
+  v1.route("/router-delegation",routerDelegationRoutes);
   v1.route("/invoices", invoiceRoutes);
   v1.route("/invoices", installCleanupRoutes);
   v1.route("/payment-links", linkRoutes);
@@ -141,6 +144,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.route("/relay", relayRoutes);
   app.route("/relay", subscriptionRelayRoutes);
   app.route("/", subscriptionPublicRoutes);
+  app.route("/", invoiceAckRoutes);
   app.route("/", publicRoutes);
 
   app.notFound((c) => fail(c, 404, "not_found", "Not found"));

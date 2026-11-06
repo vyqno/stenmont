@@ -3,6 +3,7 @@ import { fromUnits } from "@stenmont/shared";
 import type { Db } from "./app";
 import type { ChainClient, RouterLog } from "./chain";
 import { chainCursor, invoices, payments, refunds } from "./db/schema";
+import {invoiceProtocol,RETIRED_ROUTER,RETIRED_ROUTER_DEPLOY_BLOCK,type ContractVersion} from "./protocol";
 import type { Env } from "./env";
 import { invoiceView } from "./lib/views";
 import { emitEvent } from "./webhooks";
@@ -20,10 +21,14 @@ export type IndexerResult =
  * Safe to re-run over the same blocks: payments are unique per (tx, log index), webhook deliveries are unique per
  * event, and invoice totals only ever move forward. The cursor only advances after a window is fully applied.
  */
-export async function runIndexer(env: Env, db: Db, chain: ChainClient): Promise<IndexerResult> {
+export async function runIndexer(env: Env, db: Db, chain: ChainClient,version:ContractVersion="v1",routerOverride?:`0x${string}`): Promise<IndexerResult> {
   try {
-    const [cur] = await db.select().from(chainCursor).where(eq(chainCursor.name, CURSOR));
-    const last = BigInt(cur?.lastBlock ?? Number(env.ROUTER_DEPLOY_BLOCK) - 1);
+    const protocol=invoiceProtocol(env,{contractVersion:version,...(routerOverride?{routerAddress:routerOverride}:{})});
+    const cursor=version==='v1'&&!routerOverride?CURSOR:`router:${env.WHITECHAIN_CHAIN_ID}:${protocol.router.toLowerCase()}`;
+    const deploy=routerOverride?.toLowerCase()===RETIRED_ROUTER.toLowerCase()?RETIRED_ROUTER_DEPLOY_BLOCK:version==='v1'?env.ROUTER_DEPLOY_BLOCK:env.ROUTER_V2_DEPLOY_BLOCK;
+    if(!deploy)throw Error('Missing router deployment block');
+    const [cur] = await db.select().from(chainCursor).where(eq(chainCursor.name, cursor));
+    const last = BigInt(cur?.lastBlock ?? Number(deploy) - 1);
     const head = await chain.getBlockNumber();
     const safe = head - BigInt(env.INDEXER_CONFIRMATIONS ?? "2");
     const from = last + 1n;
@@ -33,11 +38,17 @@ export async function runIndexer(env: Env, db: Db, chain: ChainClient): Promise<
     const logs = (await chain.getRouterLogs(from, to)).sort(
       (a, b) => Number(a.blockNumber - b.blockNumber) || a.logIndex - b.logIndex,
     );
-    for (const log of logs) await apply(env, db, log);
+    for (const log of logs){
+      const args=[Number(env.WHITECHAIN_CHAIN_ID),protocol.router.toLowerCase(),log.transactionHash,log.logIndex];
+      const seen=await env.DB.prepare('SELECT 1 FROM protocol_events WHERE chain_id=? AND contract_address=? AND tx_hash=? AND log_index=?').bind(...args).first();
+      if(seen)continue;
+      await apply(env,db,log,chain,version,protocol.router);
+      await env.DB.prepare('INSERT OR IGNORE INTO protocol_events VALUES(?,?,?,?)').bind(...args).run();
+    }
 
     await db
       .insert(chainCursor)
-      .values({ name: CURSOR, lastBlock: Number(to) })
+      .values({ name: cursor, lastBlock: Number(to) })
       .onConflictDoUpdate({ target: chainCursor.name, set: { lastBlock: Number(to) } });
     return { status: "ok", from, to, logs: logs.length };
   } catch (e) {
@@ -48,9 +59,17 @@ export async function runIndexer(env: Env, db: Db, chain: ChainClient): Promise<
 
 const eventId = (l: RouterLog) => `evt_${l.transactionHash}_${l.logIndex}`;
 
-async function apply(env: Env, db: Db, log: RouterLog): Promise<void> {
+async function apply(env: Env, db: Db, log: RouterLog,chain:ChainClient,version:ContractVersion,sourceRouter:string): Promise<void> {
   const [inv] = await db.select().from(invoices).where(eq(invoices.id, log.args.id));
-  if (!inv) return; // not one of ours
+  if (!inv||inv.contractVersion!==version) return; // not this contract's obligation
+  const protocol=invoiceProtocol(env,inv);
+  if(protocol.router.toLowerCase()!==sourceRouter.toLowerCase())return;
+  if(log.eventName==='InvoiceCreated'||log.eventName==='DiscountTermsSet'){
+    if(!chain.invoiceDetails)throw Error('Storage read required for invoice terms');
+    const d=await chain.invoiceDetails(log.args.id,log.blockNumber);
+    if(inv.payout&&inv.payout.toLowerCase()!==d.payout.toLowerCase())throw Error("Payout provenance mismatch");
+    await db.update(invoices).set({routerAddress:inv.routerAddress??protocol.router,claimAddress:inv.claimAddress??(protocol.retired?null:protocol.claim),payout:inv.payout??d.payout,payerLock:d.payerLock,minPayment:d.minPayment.toString(),discountBps:d.discountBps,discountUntil:Number(d.discountUntil),hook:d.hook}).where(eq(invoices.id,inv.id));return;
+  }
   const now = new Date().toISOString();
 
   if (log.eventName === "InvoicePaid") {

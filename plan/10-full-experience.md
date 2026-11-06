@@ -273,7 +273,8 @@ Each section is a set of staging slices, using the same test-first and completio
 
 - [x] Founder commerce/finance positioning applied to README, user flows and Builders Program draft; existing original user-flow document preserved privately.
 - [x] Router v2 security branch merged without squash; independent482-test contract suite passed.
-- [ ] Option(a) API, pay flow, version routing, reviewed deploy dry-run and announced testnet broadcast.
-- [ ] World session run sheet checked and reported ready before the human session.
+- [x] Option(a) API/pay flow and version routing locally verified; receipt-classified legacy provenance, independent browser contract reads and deployment dry-run passed. No broadcast in this checkpoint.
+- [ ] Announced testnet broadcast, source verification and complete v2 live regression; general creation remains held until acceptance.
+- [x] World session run sheet source/public-entry links checked and reported ready; actual human session remains not run.
 - [ ] agent/cards integration and its owned cards folder committed as one task.
 - [ ] Final staging visual acceptance after the combined release.

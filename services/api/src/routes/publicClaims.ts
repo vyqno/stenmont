@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import type { Address } from "viem";
 import { fromUnits, whitechainSepolia } from "@stenmont/shared";
 import type { AppEnv } from "../app";
+import {invoiceProtocol,versionChain} from "../protocol";
 import { liveClaim } from "../claims";
 import { invoices, merchants, payments } from "../db/schema";
 import { fail } from "../errors";
@@ -37,9 +38,11 @@ publicClaimRoutes.get("/claims/:id", async (c) => {
   const row = idParam.test(id) ? await liveClaim(db, id) : null;
   if (!row || row.status === "pending" || row.status === "sending") return fail(c, 404, "not_found", "Claim not found");
 
+  const [inv] = await db.select().from(invoices).where(eq(invoices.id,row.invoiceId));
+  const protocol=invoiceProtocol(env,inv??{}),targetChain=versionChain(chain,protocol.version,protocol.router,env.ROUTER_ADDRESS);
   let onchain: string | null = null;
   try {
-    onchain = (await chain.claimState(row.invoiceId as `0x${string}`)).status;
+    onchain = (await targetChain.claimState(row.invoiceId as `0x${string}`)).status;
   } catch (e) {
     console.error("claim state lookup failed", e);
   }
@@ -50,7 +53,6 @@ publicClaimRoutes.get("/claims/:id", async (c) => {
       ? { state: "unconfirmed", databaseStatus: row.status, onchainStatus: null, reason: "chain_unavailable" }
       : { state: "unconfirmed", databaseStatus: row.status, onchainStatus: onchain, reason: "mismatch" };
 
-  const [inv] = await db.select().from(invoices).where(eq(invoices.id, row.invoiceId));
   // The buyer: a Stenmont business when the invoice names one, otherwise whoever paid it.
   let buyer: string | null = null;
   if (inv?.buyerMerchantId) buyer = (await db.select().from(merchants).where(eq(merchants.id, inv.buyerMerchantId)))[0]?.address ?? null;
@@ -58,7 +60,7 @@ publicClaimRoutes.get("/claims/:id", async (c) => {
   let payerRecord: { score: number; paid: number } | null = null;
   if (buyer) {
     try {
-      const r = await chain.reputationOf(buyer as Address);
+      const r = await targetChain.reputationOf(buyer as Address);
       payerRecord = { score: r.score, paid: r.onTime + r.late };
     } catch (e) {
       console.error("reputation lookup failed", e);
@@ -71,7 +73,7 @@ publicClaimRoutes.get("/claims/:id", async (c) => {
   return c.json({
     invoiceId: row.invoiceId,
     tokenId: BigInt(row.invoiceId).toString(),
-    contract: env.INVOICE_CLAIM_ADDRESS,
+    contract: protocol.claim,contractVersion:protocol.version,routerAddress:protocol.router,claimAddress:protocol.claim,
     chainId: whitechainSepolia.id,
     status: confirmed ? row.status : "unconfirmed",
     confirmation,

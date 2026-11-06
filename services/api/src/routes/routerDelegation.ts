@@ -1,0 +1,36 @@
+import {Hono} from 'hono';
+import {hashTypedData,encodeFunctionData,type Address,type Hex} from 'viem';
+import {routerDomain,setCreatorTypes,b64urlEncode} from '@stenmont/shared';
+import {z} from 'zod';
+import type {AppEnv} from '../app';
+import {invoiceProtocol,versionChain} from '../protocol';
+import {fail} from '../errors';
+import {invalid} from '../lib/validation';
+import {hitRateLimit} from '../relayer/caps';
+import {sendFromTank} from '../relayer/tankSend';
+import {paymentRouterV2Abi} from '../v2/encoding';
+export const routerDelegationRoutes=new Hono<AppEnv>();
+routerDelegationRoutes.get('/',async c=>{
+ if(c.req.query('contractVersion')!=='v2')return fail(c,400,'invalid_request','Choose contractVersion v2.');
+ const p=invoiceProtocol(c.env,{contractVersion:'v2'}),chain=versionChain(c.var.chain,'v2');
+ if(!c.var.merchant.address||!chain.creatorDelegation)return fail(c,503,'unconfigured','Delegation unavailable.');
+ const merchant=c.var.merchant.address as Address,creator=chain.relayerAddress(),state=await chain.creatorDelegation(merchant);
+ const deadline=Math.floor(c.var.now().getTime()/1000)+600;
+ const typedData={domain:{...routerDomain(p.router),version:'2'},types:setCreatorTypes,primaryType:'SetCreator' as const,message:{merchant,creator,allowed:true,deadline:BigInt(deadline),nonce:state.nonce}};
+ const digest=hashTypedData(typedData);
+ return c.json({contractVersion:'v2',routerAddress:p.router,merchant,creator,allowed:state.allowed,nonce:state.nonce.toString(),deadline,digest,challenge:b64urlEncode(Uint8Array.from(Buffer.from(digest.slice(2),'hex'))),typedData:JSON.parse(JSON.stringify(typedData,(_,v)=>typeof v==='bigint'?v.toString():v))});
+});
+routerDelegationRoutes.post('/',async c=>{
+ const parsed=z.strictObject({contractVersion:z.literal('v2'),deadline:z.number().int().positive(),signature:z.string().regex(/^0x([0-9a-fA-F]{2}){1,2048}$/)}).safeParse(await c.req.json().catch(()=>null));
+ if(!parsed.success)return invalid(c,parsed.error);
+ const now=Math.floor(c.var.now().getTime()/1000);
+ if(parsed.data.deadline<=now||parsed.data.deadline>now+600)return fail(c,400,'expired','Request a new delegation challenge.');
+ if(!await hitRateLimit(c.var.db,`delegate:${c.var.merchantId}`,5,600,c.var.now()))return fail(c,429,'rate_limited','Too many delegation attempts.');
+ if(!c.var.merchant.address)return fail(c,409,'merchant_not_ready','Activate your payout account first.');
+ const p=invoiceProtocol(c.env,{contractVersion:'v2'}),chain=versionChain(c.var.chain,'v2');
+ const sent=await sendFromTank({db:c.var.db,chain,now:c.var.now()},c.var.merchantId,{to:p.router,data:encodeFunctionData({abi:paymentRouterV2Abi,functionName:'setCreator',args:[c.var.merchant.address as Address,chain.relayerAddress(),true,BigInt(parsed.data.deadline),parsed.data.signature as Hex]})});
+ if(!sent.ok)return fail(c,sent.code==='rejected'?422:502,sent.code,'Delegation was not confirmed.');
+ const state=await chain.creatorDelegation!(c.var.merchant.address as Address);
+ if(!state.allowed)return fail(c,502,'unconfirmed','Delegation readback did not confirm approval.');
+ return c.json({contractVersion:'v2',routerAddress:p.router,allowed:true,txHash:sent.txHash});
+});

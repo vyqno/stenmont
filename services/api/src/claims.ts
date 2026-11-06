@@ -3,7 +3,8 @@ import { encodeFunctionData, type Address, type Hex } from "viem";
 import { CLAIM_LIMITS, fromUnits, invoiceClaimAbi } from "@stenmont/shared";
 import type { Db } from "./app";
 import type { ChainClient, ClaimLog } from "./chain";
-import { chainCursor, claims } from "./db/schema";
+import {invoiceProtocol,versionChain,type ContractVersion} from "./protocol";
+import { chainCursor, claims,invoices } from "./db/schema";
 import type { Env } from "./env";
 import { sendFromTank } from "./relayer/tankSend";
 import { emitEvent } from "./webhooks";
@@ -61,22 +62,31 @@ export type ClaimIndexerResult = { status: "ok"; from: bigint; to: bigint; logs:
  * Mirrors InvoiceClaim events into `claims`. Forward-only (a status never moves back), so re-running over the same
  * blocks changes nothing and sends no second webhook. The cursor only advances after a window is fully applied.
  */
-export async function runClaimIndexer(env: Env, db: Db, chain: ChainClient, now = new Date()): Promise<ClaimIndexerResult> {
+export async function runClaimIndexer(env: Env, db: Db, chain: ChainClient, now = new Date(),version:ContractVersion="v1"): Promise<ClaimIndexerResult> {
   if (!env.INVOICE_CLAIM_ADDRESS) return { status: "idle" };
   try {
     // a funding lock that outlived its request means the transaction never landed (or the event will say otherwise)
     const stale = new Date(now.getTime() - FUNDING_LOCK_SECONDS * 1000).toISOString();
     await db.update(claims).set({ status: "listed" }).where(and(eq(claims.status, "funding"), lt(claims.updatedAt, stale)));
 
-    const [cur] = await db.select().from(chainCursor).where(eq(chainCursor.name, CURSOR));
-    const last = BigInt(cur?.lastBlock ?? Number(env.ROUTER_DEPLOY_BLOCK) - 1);
+    const protocol=invoiceProtocol(env,{contractVersion:version});
+    const cursor=version==='v1'?CURSOR:`claims:${env.WHITECHAIN_CHAIN_ID}:${protocol.claim.toLowerCase()}`;
+    const deploy=version==='v1'?env.ROUTER_DEPLOY_BLOCK:env.INVOICE_CLAIM_V2_DEPLOY_BLOCK;
+    if(!deploy)throw Error('Missing claim deployment block');
+    const [cur] = await db.select().from(chainCursor).where(eq(chainCursor.name, cursor));
+    const last = BigInt(cur?.lastBlock ?? Number(deploy) - 1);
     const safe = (await chain.getBlockNumber()) - BigInt(env.INDEXER_CONFIRMATIONS ?? "2");
     const from = last + 1n;
     if (from > safe) return { status: "idle" };
     const to = safe < from + MAX_WINDOW - 1n ? safe : from + MAX_WINDOW - 1n;
     const logs = (await chain.getClaimLogs(from, to)).sort((a, b) => Number(a.blockNumber - b.blockNumber) || a.logIndex - b.logIndex);
-    for (const log of logs) await apply(env, db, log, now);
-    await db.insert(chainCursor).values({ name: CURSOR, lastBlock: Number(to) }).onConflictDoUpdate({ target: chainCursor.name, set: { lastBlock: Number(to) } });
+    for (const log of logs){
+      const key=[Number(env.WHITECHAIN_CHAIN_ID),protocol.claim.toLowerCase(),log.transactionHash,log.logIndex];
+      if(await env.DB.prepare('SELECT 1 FROM protocol_events WHERE chain_id=? AND contract_address=? AND tx_hash=? AND log_index=?').bind(...key).first())continue;
+      await apply(env,db,log,now,version);
+      await env.DB.prepare('INSERT OR IGNORE INTO protocol_events VALUES(?,?,?,?)').bind(...key).run();
+    }
+    await db.insert(chainCursor).values({ name: cursor, lastBlock: Number(to) }).onConflictDoUpdate({ target: chainCursor.name, set: { lastBlock: Number(to) } });
     return { status: "ok", from, to, logs: logs.length };
   } catch (e) {
     console.error("claim indexer failed", e);
@@ -86,7 +96,7 @@ export async function runClaimIndexer(env: Env, db: Db, chain: ChainClient, now 
 
 const BEFORE_FUND = ["pending", "sending", "listed", "funding"];
 
-async function apply(env: Env, db: Db, log: ClaimLog, now: Date): Promise<void> {
+async function apply(env: Env, db: Db, log: ClaimLog, now: Date,version:ContractVersion): Promise<void> {
   const stamp = now.toISOString();
   const set = async (row: ClaimRow, from: string[], patch: Partial<ClaimRow>) => {
     const moved = await db.update(claims).set({ ...patch, updatedAt: stamp }).where(and(eq(claims.id, row.id), inArray(claims.status, from))).returning({ id: claims.id });
@@ -94,7 +104,10 @@ async function apply(env: Env, db: Db, log: ClaimLog, now: Date): Promise<void> 
   };
   const invoiceId = (log.eventName === "Transfer" ? `0x${log.args.tokenId.toString(16).padStart(64, "0")}` : log.args.invoiceId).toLowerCase();
   const row = await liveClaim(db, invoiceId);
-  if (!row) return; // not one of ours
+  if (!row) return;
+  const [inv]=await db.select().from(invoices).where(eq(invoices.id,invoiceId));
+  if(inv&&inv.contractVersion!==version)return; // another deployment's obligation
+  if(inv)invoiceProtocol(env,inv);
 
   switch (log.eventName) {
     case "ClaimListed":
@@ -141,13 +154,15 @@ export async function runDefaults(env: Env, db: Db, chain: ChainClient, now: Dat
       .where(and(eq(claims.id, row.id), eq(claims.status, "funded"), or(isNull(claims.leaseUntil), lte(claims.leaseUntil, nowS))))
       .returning({ id: claims.id });
     if (leased.length === 0) continue;
+    const [inv]=await db.select().from(invoices).where(eq(invoices.id,row.invoiceId));
+    const protocol=invoiceProtocol(env,inv??{}),targetChain=versionChain(chain,protocol.version,protocol.router,env.ROUTER_ADDRESS);
     const data = encodeFunctionData({ abi: invoiceClaimAbi, functionName: "markDefault", args: [row.invoiceId as Hex] });
-    const sent = await sendFromTank({ db, chain, now }, row.merchantId, { to: env.INVOICE_CLAIM_ADDRESS as Address, data });
+    const sent = await sendFromTank({ db, chain:targetChain, now }, row.merchantId, { to: protocol.claim, data });
     let txHash: string | undefined = sent.ok ? sent.txHash : undefined;
     if (!sent.ok && !(sent.code === "rejected" && (sent.reason === "NotFunded" || sent.reason === "GraceNotOver"))) continue; // our side, or already in flight: next run
     if (!sent.ok && sent.code === "rejected" && sent.reason === "GraceNotOver") continue;
     // The contract is the source of truth: take whatever it says now (default, or settled/defaulted by someone else).
-    const st = await chain.claimState(row.invoiceId as Hex);
+    const st = await targetChain.claimState(row.invoiceId as Hex);
     const status = st.status === "defaulted" || st.status === "settled" ? st.status : null;
     if (!status) continue;
     const moved = await db.update(claims).set({ status, leaseUntil: null, closedAt: now.toISOString(), ...(txHash ? { closeTxHash: txHash } : {}), updatedAt: now.toISOString() }).where(and(eq(claims.id, row.id), eq(claims.status, "funded"))).returning({ id: claims.id });
