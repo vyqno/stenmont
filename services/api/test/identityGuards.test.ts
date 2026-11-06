@@ -5,6 +5,7 @@ it("production never accepts a Turnstile dummy secret or dummy token", async () 
   let calls = 0; const f = async () => { calls++; return Response.json({ success: true, hostname: "app.stenmont.com", action: "signup" }); };
   expect(await verifyTurnstile({ ENVIRONMENT: "production", APP_URL: "https://app.stenmont.com", TURNSTILE_SECRET_KEY: dummy }, "good-token", "signup", f as typeof fetch)).toBe(false);
   expect(await verifyTurnstile({ ENVIRONMENT: "production", APP_URL: "https://app.stenmont.com", TURNSTILE_SECRET_KEY: "real-secret" }, "XXXX.DUMMY.TOKEN.XXXX", "signup", f as typeof fetch)).toBe(false);
+  expect(await verifyTurnstile({ ENVIRONMENT: "production", APP_URL: "https://app.stenmont.com", TURNSTILE_SITE_KEY: "1x00000000000000000000AA", TURNSTILE_SECRET_KEY: "real-secret" }, "good-token", "signup", f as typeof fetch)).toBe(false);
   expect(calls).toBe(0);
 });
 it("verifies server-side success, action and hostname; refuses missing or failed tokens", async () => {
