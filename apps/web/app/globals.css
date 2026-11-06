@@ -89,3 +89,18 @@ h1, h2, h3 {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0ms !important; scroll-behavior: auto !important; }
 }
+
+/* Consistency layer. Display headings: the display cut sets very narrow word spaces, so words ran together ("Sign in"). */
+:where(h1, h2, h3) { word-spacing: 0.06em; letter-spacing: -0.015em; text-wrap: balance; }
+
+/* Links. Stand-alone links (their own line, a button-like action, navigation) carry no underline: weight and an arrow mark them.
+   Links inside running text keep a thin, quiet underline so they stay recognisable without colour alone. */
+:where(a, button).underline { text-decoration-line: none; font-weight: 500; }
+:where(a, button).underline:hover { text-decoration-line: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+:where(p, li, dd, td, label, small) :where(a, button).underline,
+.docs-prose p a, .docs-prose li a, .docs-rail a, .docs-sidebar-note a {
+  text-decoration-line: underline; text-decoration-thickness: 1px; text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 32%, transparent); font-weight: inherit;
+}
+:where(p, li, dd, td, label, small) :where(a, button).underline:hover,
+.docs-prose p a:hover, .docs-prose li a:hover, .docs-rail a:hover, .docs-sidebar-note a:hover { text-decoration-color: currentColor; }
