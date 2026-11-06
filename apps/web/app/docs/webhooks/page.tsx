@@ -18,7 +18,7 @@ export default function Webhooks() {
       <Code name="webhookEvent" />
 
       <h2>Delivery</h2>
-      <p>Answer any 2xx within 10 seconds. Otherwise Stenmont retries up to 10 times, after 20 seconds and then doubling up to an hour. Delivery is at least once: the same event <code>id</code> can arrive twice, so make your handler safe to repeat.</p>
+      <p>Answer any 2xx within 10 seconds. Otherwise Stenmont retries up to 10 times, after 20 seconds and then doubling up to an hour. Delivery is at least once. After signature verification, match the stored invoice ID, paid status and expected amount to the order. Atomically fulfil once and deduplicate event IDs. Never fulfil from metadata or a return URL alone.</p>
 
       <h2>Verify the signature</h2>
       <p>Never act on an event you have not verified. The header looks like <code>Stenmont-Signature: t=1793960000,v1=9f2c…</code>.</p>

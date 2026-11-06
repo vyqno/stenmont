@@ -15,20 +15,21 @@ export const SAMPLES = {
     code: `curl -X POST ${API_URL}/v1/invoices \\
   -H "Authorization: Bearer $STENMONT_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -H "Idempotency-Key: $(uuidgen)" \\
+  -H "Idempotency-Key: $ORDER_CHECKOUT_KEY" \\
   -d '{"amount":"25.00","successUrl":"https://shop.example/thanks","cancelUrl":"https://shop.example","metadata":{"order":"1042"}}'`,
   },
 
   createInvoiceFetch: {
     lang: "js",
     code: `// Server side only. The API key must never reach a browser.
-async function createCheckout(order) {
+// Persist a UUID as order.checkoutKey before the first attempt; reuse it on retries.
+async function createCheckout(order, saveInvoice) {
   const res = await fetch(\`\${process.env.STENMONT_API_URL}/v1/invoices\`, {
     method: "POST",
     headers: {
       authorization: \`Bearer \${process.env.STENMONT_API_KEY}\`,
       "content-type": "application/json",
-      "idempotency-key": crypto.randomUUID(),
+      "idempotency-key": order.checkoutKey,
     },
     body: JSON.stringify({
       amount: order.total, // dollars, as a string with at most 6 decimals, for example "25.00"
@@ -39,7 +40,8 @@ async function createCheckout(order) {
   });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error.code + ": " + body.error.message);
-  return body.payUrl; // send the customer here
+  await saveInvoice(order.id, { invoiceId: body.id, total: order.total });
+  return body.payUrl; // send the customer here only after the binding is saved
 }`,
   },
 
@@ -52,14 +54,16 @@ const stenmont = new Stenmont({
   baseUrl: process.env.STENMONT_API_URL, // ${API_URL} while testing; the default is production
 });
 
-export async function createCheckout(order: { id: string; total: string }) {
+// Persist checkoutKey with the order before the first attempt; reuse the same body/key.
+export async function createCheckout(order: { id: string; total: string; checkoutKey: string }, saveInvoice: (id: string, record: { invoiceId: string; total: string }) => Promise<void>) {
   const session = await stenmont.checkout.sessions.create({
     amount: order.total,
     successUrl: \`https://shop.example/orders/\${order.id}\`,
     cancelUrl: "https://shop.example/cart",
     metadata: { order: order.id },
-  });
-  return session.url; // send the customer here
+  }, { idempotencyKey: order.checkoutKey });
+  await saveInvoice(order.id, { invoiceId: session.id, total: order.total });
+  return session.url; // send the customer here only after the binding is saved
 }`,
   },
 
@@ -82,17 +86,29 @@ const csv = await stenmont.exports.paymentsCsv({ from: "2026-11-01", to: "2026-1
     lang: "ts",
     code: `import { verifyWebhook } from "@stenmont/sdk";
 
-export async function handleWebhook(rawBody: string, signatureHeader: string) {
-  // Throws if the signature is wrong or the timestamp is more than 5 minutes old.
-  const event = await verifyWebhook<{ invoice: { metadata: { order?: string } } }>(
-    rawBody,
-    signatureHeader,
-    process.env.STENMONT_WEBHOOK_SECRET!,
+// Your order-store adapter must load the durable binding and atomically deduplicate fulfilment.
+export async function handleWebhook(rawBody: string, signatureHeader: string, orders: {
+  get: (id: string) => Promise<{ invoiceId: string; total: string } | null>;
+  markPaidOnce: (id: string, eventId: string) => Promise<unknown>;
+}) {
+  const event = await verifyWebhook<{ invoice: { id: string; status: string; amount: string; amountPaid: string; metadata: { order?: string } } }>(
+    rawBody, signatureHeader, process.env.STENMONT_WEBHOOK_SECRET!,
   );
-  if (event.type === "invoice.paid") {
-    // Safe to run twice: an event can be delivered more than once.
-    await markOrderPaid(event.data.invoice.metadata.order);
+  if (event.type !== "invoice.paid") return;
+  const invoice = event.data.invoice;
+  const orderId = invoice.metadata.order;
+  const order = orderId ? await orders.get(orderId) : null;
+  // Exact micro-units, never floating point; tolerate API decimal normalization.
+  const units = (value: string) => {
+    if (!/^\\d+(?:\\.\\d{1,6})?$/.test(value)) throw new Error("invoice mismatch");
+    const [whole, fraction = ""] = value.split(".");
+    return BigInt(whole!) * 1_000_000n + BigInt(fraction.padEnd(6, "0"));
+  };
+  if (!order || !orderId || order.invoiceId !== invoice.id || invoice.status !== "paid" ||
+      units(order.total) !== units(invoice.amount) || units(invoice.amountPaid) < units(order.total)) {
+    throw new Error("invoice mismatch");
   }
+  await orders.markPaidOnce(orderId, event.id);
 }`,
   },
 

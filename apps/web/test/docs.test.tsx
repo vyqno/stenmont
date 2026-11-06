@@ -22,7 +22,7 @@ const root = join(import.meta.dirname, "../../..");
 const web = join(import.meta.dirname, "..");
 const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor as new (...args: string[]) => (...a: unknown[]) => Promise<unknown>;
 const secret = "whsec_docs_test";
-const body = JSON.stringify({ id: "evt_1", type: "invoice.paid", created: 1, data: { invoice: { metadata: { order: "1042" } } }, livemode: false });
+const body = JSON.stringify({ id: "evt_1", type: "invoice.paid", created: 1, data: { invoice: { id: "invoice-right", status: "paid", amount: "25", amountPaid: "25", metadata: { order: "1042" } } }, livemode: false });
 const now = 1_793_960_000;
 
 describe("webhook verification samples agree with the signer", () => {
@@ -60,6 +60,27 @@ describe("webhook verification samples agree with the signer", () => {
 const runnable = (code: string) =>
   ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText.replace(/^import .*$/gm, "").replaceAll("export ", "");
 
+describe("integration sample safety", () => {
+  it("reuses a persisted checkout key rather than generating one per attempt", () => {
+    for (const name of ["createInvoiceFetch", "sdkCheckout"] as const) {
+      expect(SAMPLES[name].code).toContain("order.checkoutKey");
+      expect(SAMPLES[name].code).not.toContain("crypto.randomUUID()");
+      expect(SAMPLES[name].code).toContain("saveInvoice");
+    }
+  });
+  it("binds signed paid events to the stored invoice and amount before fulfilment", async () => {
+    const paid: string[] = [];
+    const make = new AsyncFunction("verifyWebhook", "process", `${runnable(SAMPLES.sdkWebhook.code)}\nreturn handleWebhook;`);
+    const handle = await make(sdk.verifyWebhook, { env: { STENMONT_WEBHOOK_SECRET: secret } });
+    const orders = { get: async () => ({ invoiceId: "invoice-right", total: "25" }), markPaidOnce: async (id: string) => paid.push(id) };
+    for (const invoice of [{ id: "invoice-wrong", amount: "25", amountPaid: "25" }, { id: "invoice-right", amount: "250", amountPaid: "250" }, { id: "invoice-right", amount: "25", amountPaid: "2" }]) {
+      const raw = JSON.stringify({ id: "event", type: "invoice.paid", data: { invoice: { ...invoice, status: "paid", metadata: { order: "1042" } } } });
+      await expect(handle(raw, await sdk.signWebhook(secret, raw), orders)).rejects.toThrow(/mismatch/);
+    }
+    expect(paid).toEqual([]);
+  });
+});
+
 describe("SDK samples run against the real SDK", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -71,7 +92,7 @@ describe("SDK samples run against the real SDK", () => {
     });
     const make = new AsyncFunction("Stenmont", "process", `${runnable(SAMPLES.sdkCheckout.code)}\nreturn createCheckout;`);
     const createCheckout = (await make(sdk.Stenmont, { env: { STENMONT_API_KEY: "sk_test_x", STENMONT_API_URL: API_URL } })) as (o: object) => Promise<string>;
-    expect(await createCheckout({ id: "1042", total: "25.00" })).toBe(`${APP_URL}/pay/0xabc`);
+    expect(await createCheckout({ id: "1042", total: "25.00", checkoutKey: "persisted-checkout-key" }, async () => {})).toBe(`${APP_URL}/pay/0xabc`);
     expect(calls[0]!.url).toBe(`${API_URL}/v1/invoices`);
     expect((calls[0]!.init.headers as Record<string, string>).authorization).toBe("Bearer sk_test_x");
     expect(JSON.parse(calls[0]!.init.body as string)).toMatchObject({ amount: "25.00", metadata: { order: "1042" } });
@@ -80,7 +101,8 @@ describe("SDK samples run against the real SDK", () => {
   it("the webhook handler (SDK) accepts a signed event and refuses a forged one", async () => {
     const paid: unknown[] = [];
     const make = new AsyncFunction("verifyWebhook", "process", "markOrderPaid", `${runnable(SAMPLES.sdkWebhook.code)}\nreturn handleWebhook;`);
-    const handle = (await make(sdk.verifyWebhook, { env: { STENMONT_WEBHOOK_SECRET: secret } }, async (o: unknown) => void paid.push(o))) as (b: string, h: string) => Promise<void>;
+    const handler = await make(sdk.verifyWebhook, { env: { STENMONT_WEBHOOK_SECRET: secret } }, async () => {});
+    const handle = (b: string, h: string) => handler(b, h, { get: async () => ({ invoiceId: "invoice-right", total: "25.00" }), markPaidOnce: async (id: string) => paid.push(id) });
     const signed = await sdk.signWebhook(secret, body);
     await handle(body, signed);
     expect(paid).toEqual(["1042"]);
@@ -96,10 +118,10 @@ describe("SDK samples run against the real SDK", () => {
     };
     const make = new AsyncFunction("fetch", "process", `${SAMPLES.createInvoiceFetch.code}\nreturn createCheckout;`);
     const createCheckout = (await make(fakeFetch, { env: { STENMONT_API_KEY: "sk_test_x", STENMONT_API_URL: API_URL } })) as (o: object) => Promise<string>;
-    expect(await createCheckout({ id: "7", total: "3.50" })).toBe("https://pay.example/x");
+    expect(await createCheckout({ id: "7", total: "3.50", checkoutKey: "persisted-checkout-key" }, async () => {})).toBe("https://pay.example/x");
     const h = calls[0]!.init.headers as Record<string, string>;
     expect(h.authorization).toBe("Bearer sk_test_x");
-    expect(h["idempotency-key"]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(h["idempotency-key"]).toBe("persisted-checkout-key");
     expect(Object.keys(JSON.parse(calls[0]!.init.body as string))).toEqual(["amount", "successUrl", "cancelUrl", "metadata"]);
   });
 

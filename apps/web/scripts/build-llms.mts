@@ -23,7 +23,7 @@ Everything below is the TEST NETWORK (Whitechain Sepolia, test USDT). No real mo
 
 Server to server: send the business's API key as "Authorization: Bearer $STENMONT_API_KEY". The key looks like sk_test_ followed by 32 hex characters. The business creates it in the dashboard (Settings, API keys) and it is shown once. Keep it in an environment variable or the host's secret settings. Never put it in browser code, theme files, HTML, logs or a repository. Never ask for it in a chat.
 
-Every POST to /v1/ needs an "Idempotency-Key" header (any unique string up to 255 characters, a UUID is fine). Repeating a request with the same key returns the first answer instead of doing it twice.
+Every POST to /v1/ needs an "Idempotency-Key" header (any unique string up to 255 characters, a UUID is fine). Persist the key with the order before the first attempt. Reuse the same key and body on every retry. Save the returned invoice ID and amount before redirecting. Repeating a request with the same key returns the first answer instead of doing it twice.
 
 Errors are JSON: {"error": {"code": "...", "message": "..."}}. Codes you will meet: invalid_request (400, with details), idempotency_key_required (400), unauthorized (401), payments_paused (403, the business paused payments in the dashboard), invoice_number_taken (409), rate_limited (429), chain_error (502, the invoice could not be created onchain; try again).
 
@@ -55,7 +55,7 @@ Register an endpoint: POST ${API_URL}/v1/webhook-endpoints with {"url": "https:/
 
 Event types: invoice.created, invoice.partially_paid, invoice.paid, invoice.cancelled, invoice.reminder, refund.created, subscription.created, subscription.charged, subscription.past_due, subscription.cancelled, claim.funded, claim.settled, claim.defaulted. The dashboard's site check also sends site.test to your endpoint; answer 2xx.
 
-Delivery is a POST with a JSON body {id, type, created, data, livemode} and these headers: Stenmont-Signature, Stenmont-Event-Id, Content-Type: application/json. Answer with any 2xx within 10 seconds. Anything else is retried up to 10 times, starting after 20 seconds and doubling up to one hour. Delivery is at least once, so the same event id can arrive twice: make your handler safe to repeat.
+Delivery is a POST with a JSON body {id, type, created, data, livemode} and these headers: Stenmont-Signature, Stenmont-Event-Id, Content-Type: application/json. Answer with any 2xx within 10 seconds. Anything else is retried up to 10 times, starting after 20 seconds and doubling up to one hour. Delivery is at least once. After signature verification, load the stored order binding and check invoice ID, status and amount. Atomically mark the order paid once and deduplicate event IDs; never fulfil from metadata or a success redirect alone.
 
 ${fence("webhookEvent")}
 
@@ -102,7 +102,7 @@ Client configuration (Claude Code .mcp.json style):
 
 ${fence("mcpConfig")}
 
-Sign-in with OAuth instead of an API key is planned and not available yet.
+OAuth with PKCE is available for scoped agent connections; see ${APP_URL}/docs/mcp.
 
 ## x402: charge an AI agent per request
 
@@ -120,7 +120,7 @@ The agent's limits are checked before anything is signed: per request, per day, 
 2. They add the site's address (https only). The page shows a DNS TXT record to add: name _stenmont.<host>, value stenmont-verify=<token>.
 3. They pick their platform (Next.js, plain HTML, Shopify theme, WooCommerce, Webflow, other), copy the prompt and paste it into their AI coding agent.
 4. The agent builds a server-side checkout, a webhook handler and a Pay button, following the rules above, and keeps the key out of client code.
-5. A test payment: the agent creates a 1.00 invoice with successUrl on the site and gives the owner its payUrl; the owner pays with a passkey (test funds are added automatically).
+5. A test payment: the agent creates a 1.00 invoice with successUrl on the site and gives the owner its payUrl; the owner pays with a passkey (use an already-funded payer account; Stenmont does not supply payment funds).
 6. The dashboard shows four checks, each with a time: site reachable, domain verified (DNS), webhook answers 2xx to a signed site.test event, test payment paid. A live/paused switch stops new invoices (403 payments_paused) and shows customers a "temporarily unavailable" page.
 
 ## Limits you should know about
