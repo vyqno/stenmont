@@ -69,6 +69,10 @@ export const FRIENDLY: Record<string, string> = {
   subscription_rejected: "This agreement couldn't be approved. Please try again.",
   not_available: "This subscription is no longer available.",
   not_found: "We couldn't find this subscription.",
+  invalid_link: "This link has expired or isn't valid.",
+  wallet_network: "We couldn't switch your app to the right network. Please switch it and try again.",
+  wallet_failed: "We couldn't complete that with your app. Please try again.",
+  wallet_insufficient: "That account doesn't have enough funds for this payment. Pick another account or add funds.",
 };
 
 export const friendly = (code: string) => FRIENDLY[code] ?? "Something went wrong. Please try again.";

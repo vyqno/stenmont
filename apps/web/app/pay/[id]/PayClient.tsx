@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Hex } from "viem";
 import { toUnits } from "@stenmont/shared";
+import FundingHelp from "../../../components/FundingHelp";
+import { ACCOUNT_COPY, accountUrl, saveAccountToken } from "../../../lib/account";
 import { createPasskey, loadPasskey, signDigest } from "../../../lib/passkey";
 import { ZERO_SALT, apiBase, formatAmount, friendly, isTestEnvironment, payChallenge, payViewKind, routerFor } from "../../../lib/pay";
+import { WALLET_COPY, WalletError, injectedProvider, signWalletPayment, walletBalance, type Eip1193 } from "../../../lib/wallet";
 
 type Invoice = {
   id: string;
@@ -25,7 +28,7 @@ type View =
   | { kind: "paused"; invoice: Invoice }
   | { kind: "ready"; invoice: Invoice; notice?: string }
   | { kind: "working"; invoice: Invoice; step: string }
-  | { kind: "paid"; invoice: Invoice; receipt: string | null };
+  | { kind: "paid"; invoice: Invoice; receipt: string | null; keepLink: string | null };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const random32 = () => (`0x${[...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("")}`) as Hex;
@@ -42,8 +45,29 @@ async function post(base: string, path: string, body: unknown) {
   return { ok: res.ok, json };
 }
 
+/** Sends a signed payment through the relay (the relayer pays the fees). "Busy" is momentary, so the same approval is sent again without a second prompt. */
+async function sendPayment(base: string, payload: unknown) {
+  let sent = await post(base, "/relay/pay", payload);
+  for (let attempt = 1; attempt <= 3 && !sent.ok && sent.json.error?.code === "busy"; attempt++) {
+    await sleep(2_000 * attempt);
+    sent = await post(base, "/relay/pay", payload);
+  }
+  if (!sent.ok) throw new PayError(sent.json.error?.code ?? "chain_error");
+  return sent.json;
+}
+
+/** The page after a payment: the receipt, and a link back to every receipt this person has (also remembered on this device). */
+function paidView(invoice: Invoice, sent: Record<string, unknown>): View {
+  const txHash = sent.txHash as string | undefined;
+  const token = sent.accountToken as string | undefined;
+  if (token) saveAccountToken(localStorage, token);
+  return { kind: "paid", invoice, receipt: txHash ? `https://explorer.testnet.whitechain.io/tx/${txHash}` : null, keepLink: token ? accountUrl(location.origin, token) : null };
+}
+
 export default function PayClient({ id }: { id: string }) {
   const [view, setView] = useState<View>({ kind: "loading" });
+  const [provider, setProvider] = useState<Eip1193 | null>(null);
+  useEffect(() => setProvider(injectedProvider(window)), []); // after mount, so the server and first client render agree
 
   useEffect(() => {
     let alive = true;
@@ -53,7 +77,7 @@ export default function PayClient({ id }: { id: string }) {
         if (!alive) return;
         if (!invoice) return setView({ kind: "missing" });
         const kind = payViewKind(invoice);
-        setView(kind === "ready" ? { kind, invoice } : kind === "paid" ? { kind, invoice, receipt: null } : kind === "paused" ? { kind, invoice } : { kind: "missing" });
+        setView(kind === "ready" ? { kind, invoice } : kind === "paid" ? { kind, invoice, receipt: null, keepLink: null } : kind === "paused" ? { kind, invoice } : { kind: "missing" });
       })
       .catch(() => alive && setView({ kind: "missing" }));
     return () => {
@@ -104,22 +128,32 @@ export default function PayClient({ id }: { id: string }) {
         signature,
         account: { qx: key.qx, qy: key.qy, salt: ZERO_SALT },
       };
-      let sent = await post(base, "/relay/pay", payload);
-      // "busy" is momentary (other payments are in flight): the same approval is simply sent again, no second prompt
-      for (let attempt = 1; attempt <= 3 && !sent.ok && sent.json.error?.code === "busy"; attempt++) {
-        await sleep(2_000 * attempt);
-        sent = await post(base, "/relay/pay", payload);
-      }
-      if (!sent.ok) throw new PayError(sent.json.error?.code ?? "chain_error");
-      const txHash = sent.json.txHash as string | undefined;
-      setView({
-        kind: "paid",
-        invoice,
-        receipt: txHash ? `https://explorer.testnet.whitechain.io/tx/${txHash}` : null,
-      });
+      setView(paidView(invoice, await sendPayment(base, payload)));
     } catch (e) {
       const code = e instanceof PayError ? e.code : e instanceof DOMException && e.name === "NotAllowedError" ? "cancelled" : "unknown";
       setView({ kind: "ready", invoice, notice: code === "insufficient" ? "You don't have enough funds for this payment." : friendly(code) });
+    }
+  }, []);
+
+  /** The same payment, signed by a wallet the person already has in this browser instead of a new passkey. Same relay, same fees paid for them. */
+  const payWithWallet = useCallback(async (invoice: Invoice, eth: Eip1193) => {
+    const host = location.hostname;
+    const base = apiBase(host);
+    const step = (s: string) => setView({ kind: "working", invoice, step: s });
+    try {
+      step("Confirm in your app…");
+      const need = toUnits(invoice.remaining);
+      const salt = random32();
+      const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3_600);
+      const { payer, signature } = await signWalletPayment(eth, { router: routerFor(host), invoiceId: invoice.id as Hex, value: need, validBefore, salt }, async (who) => {
+        if ((await walletBalance(eth, who)) < need) throw new WalletError("wallet_insufficient");
+      });
+      step("Sending your payment…");
+      const sent = await sendPayment(base, { invoiceId: invoice.id, value: invoice.remaining, payer, validAfter: "0", validBefore: validBefore.toString(), salt, signature });
+      setView(paidView(invoice, sent));
+    } catch (e) {
+      const code = e instanceof PayError || e instanceof WalletError ? e.code : "unknown";
+      setView({ kind: "ready", invoice, notice: friendly(code) });
     }
   }, []);
 
@@ -183,6 +217,15 @@ export default function PayClient({ id }: { id: string }) {
                 Pay {formatAmount(view.invoice.remaining)}
               </button>
               <p className="text-sm text-neutral-500">You&apos;ll confirm with Face ID, your fingerprint or your device PIN. Nothing to install.</p>
+              {provider && (
+                <div data-testid="wallet-option">
+                  <button type="button" onClick={() => payWithWallet(view.invoice, provider)} className="rounded-lg border border-neutral-400 px-6 py-3 font-medium hover:border-black dark:hover:border-white" data-testid="pay-with-wallet">
+                    {WALLET_COPY.button}
+                  </button>
+                  <p className="mt-1 text-sm text-neutral-500">{WALLET_COPY.hint}</p>
+                </div>
+              )}
+              <FundingHelp />
               {view.invoice.cancelUrl && (
                 <a className="text-sm underline" href={view.invoice.cancelUrl} data-testid="cancel-link">
                   Cancel and go back to {view.invoice.merchantName}
@@ -215,6 +258,15 @@ export default function PayClient({ id }: { id: string }) {
             <a className="underline" href={view.receipt} target="_blank" rel="noreferrer">
               View receipt
             </a>
+          )}
+          {view.keepLink && (
+            <div className="rounded-lg border border-neutral-300 p-4 text-sm" data-testid="keep-link">
+              <p className="font-medium">{ACCOUNT_COPY.keep}</p>
+              <a className="mt-1 block break-all underline" href={view.keepLink} data-testid="keep-link-url">
+                {view.keepLink.split("#")[0]}
+              </a>
+              <p className="mt-1 text-neutral-500">{ACCOUNT_COPY.keepHint}</p>
+            </div>
           )}
         </>
       )}

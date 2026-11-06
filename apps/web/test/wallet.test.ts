@@ -2,8 +2,8 @@ import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { hashTypedData, recoverTypedDataAddress, type Hex } from "viem";
 import { describe, expect, it } from "vitest";
 import { deployments } from "@stenmont/shared";
-import { payChallenge, ZERO_SALT } from "../lib/pay";
-import { WALLET_COPY, WALLET_NETWORK, injectedProvider, signWalletPayment, toTypedDataV4, walletBalance, type Eip1193 } from "../lib/wallet";
+import { FRIENDLY, payChallenge, ZERO_SALT } from "../lib/pay";
+import { WALLET_COPY, WALLET_NETWORK, WalletError, injectedProvider, signWalletPayment, toTypedDataV4, walletBalance, type Eip1193 } from "../lib/wallet";
 
 const ROUTER = deployments.environments.staging.PaymentRouter.address;
 const INVOICE = `0x${"ab".repeat(32)}` as Hex;
@@ -114,6 +114,15 @@ describe("connecting", () => {
     await expect(signWalletPayment(w.provider, { router: ROUTER, invoiceId: INVOICE, value: 1n, validBefore: 9_999_999_999n, salt: SALT })).rejects.toMatchObject({ code: "cancelled" });
   });
 
+  it("stops before signing when the check says the balance is short", async () => {
+    const w = fakeWallet({ balance: 1n });
+    const check = async (payer: `0x${string}`) => {
+      if ((await walletBalance(w.provider, payer)) < 5_000_000n) throw new WalletError("wallet_insufficient");
+    };
+    await expect(signWalletPayment(w.provider, { router: ROUTER, invoiceId: INVOICE, value: 5_000_000n, validBefore: 9_999_999_999n, salt: SALT }, check)).rejects.toMatchObject({ code: "wallet_insufficient" });
+    expect(w.calls.map((c) => c.method)).not.toContain("eth_signTypedData_v4");
+  });
+
   it("reads the balance of the paying account", async () => {
     const w = fakeWallet({ balance: 7_500_000n });
     expect(await walletBalance(w.provider, w.account.address)).toBe(7_500_000n);
@@ -124,7 +133,10 @@ describe("connecting", () => {
 
 describe("what a customer reads", () => {
   it("uses no crypto words in the messages (the option's own label is the one place it names a wallet)", () => {
-    for (const msg of Object.values(WALLET_COPY.messages)) expect(msg).not.toMatch(BANNED);
+    for (const code of ["cancelled", "wallet_network", "wallet_failed", "wallet_insufficient"]) {
+      expect(FRIENDLY[code], code).toBeTruthy();
+      expect(FRIENDLY[code]).not.toMatch(BANNED);
+    }
     expect(WALLET_COPY.hint).not.toMatch(BANNED);
     expect(WALLET_COPY.button).toBe("Pay with my own wallet");
   });

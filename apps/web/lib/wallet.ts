@@ -5,8 +5,8 @@ import { USDT_ADDRESS, buildReceiveAuth, payNonce, whitechainSepolia } from "@st
 export type Eip1193 = { request(args: { method: string; params?: unknown[] }): Promise<unknown> };
 
 /** The browser's wallet, if there is one that can answer requests. Null otherwise, and the option is then hidden. */
-export function injectedProvider(win: { ethereum?: unknown }): Eip1193 | null {
-  const p = win.ethereum as { request?: unknown } | null | undefined;
+export function injectedProvider(win: object): Eip1193 | null {
+  const p = (win as { ethereum?: unknown }).ethereum as { request?: unknown } | null | undefined;
   return p && typeof p === "object" && typeof p.request === "function" ? (p as Eip1193) : null;
 }
 
@@ -30,7 +30,7 @@ export function toTypedDataV4(a: PayAuthArgs): string {
 }
 
 export class WalletError extends Error {
-  constructor(readonly code: "cancelled" | "wallet_network" | "wallet_failed") {
+  constructor(readonly code: "cancelled" | "wallet_network" | "wallet_failed" | "wallet_insufficient") {
     super(code);
   }
 }
@@ -52,11 +52,17 @@ async function ensureNetwork(p: Eip1193) {
 }
 
 /** Connects, makes sure the wallet is on the right network, and signs the payment authorization. The relay sends it; the payer pays no network fee. */
-export async function signWalletPayment(p: Eip1193, a: { router: Address; invoiceId: Hex; value: bigint; validBefore: bigint; salt: Hex }): Promise<{ payer: Address; signature: Hex }> {
+export async function signWalletPayment(
+  p: Eip1193,
+  a: { router: Address; invoiceId: Hex; value: bigint; validBefore: bigint; salt: Hex },
+  /** Runs after connecting and before anything is signed, so a short balance never costs the person a pointless prompt. */
+  check?: (payer: Address) => Promise<void>,
+): Promise<{ payer: Address; signature: Hex }> {
   try {
     const [payer] = (await p.request({ method: "eth_requestAccounts" })) as Address[];
     if (!payer) throw new WalletError("wallet_failed");
     await ensureNetwork(p);
+    await check?.(payer);
     const signature = (await p.request({ method: "eth_signTypedData_v4", params: [payer, toTypedDataV4({ ...a, account: payer })] })) as Hex;
     return { payer, signature };
   } catch (e) {
@@ -71,14 +77,8 @@ export async function walletBalance(p: Eip1193, owner: Address): Promise<bigint>
   return BigInt((await p.request({ method: "eth_call", params: [{ to: USDT_ADDRESS, data }, "latest"] })) as string);
 }
 
-/** Plain words. The button names a wallet because that is what the person is looking for; nothing else does. */
+/** Plain words. The button names a wallet because that is what the person is looking for; nothing else does (error messages live in FRIENDLY in pay.ts). */
 export const WALLET_COPY = {
   button: "Pay with my own wallet",
   hint: "Already have funds in an app in this browser? Pay from there. You still pay no fees.",
-  messages: {
-    cancelled: "The request was cancelled.",
-    wallet_network: "We couldn't switch your app to the right network. Please switch it and try again.",
-    wallet_failed: "We couldn't complete that with your app. Please try again.",
-    wallet_insufficient: "That account doesn't have enough funds for this payment. Pick another account or add funds.",
-  },
 } as const;
