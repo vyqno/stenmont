@@ -4,6 +4,7 @@ import { z } from "zod";
 import { fromUnits } from "@stenmont/shared";
 import type { AppEnv } from "../app";
 import { invoices, payments, refunds } from "../db/schema";
+import { cell, row } from "../lib/csv";
 import { invalid } from "../lib/validation";
 
 const EXPLORER = "https://explorer.testnet.whitechain.io/tx/";
@@ -18,12 +19,6 @@ const query = z
   .object({ from: day.optional(), to: day.optional(), format: z.enum(["generic", "quickbooks"]).default("generic") })
   .refine((q) => !q.from || !q.to || q.from <= q.to, { message: "from must not be after to", path: ["from"] });
 
-/** RFC 4180 quoting, and a leading apostrophe on text that a spreadsheet would run as a formula (= + - @ tab CR). */
-function cell(value: string, text = true): string {
-  const v = text && /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-  return /[",\r\n]/.test(v) ? `"${v.replaceAll('"', '""')}"` : v;
-}
-const row = (cells: string[]) => cells.join(",");
 const money = (units: bigint, sign: 1n | -1n) => {
   const v = units * sign;
   return `${v < 0n ? "-" : ""}${fromUnits(v < 0n ? -v : v).replace(/^(\d+)$/, "$1.00").replace(/^(\d+\.\d)$/, "$10")}`;
