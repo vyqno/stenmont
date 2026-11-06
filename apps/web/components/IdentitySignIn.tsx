@@ -32,7 +32,7 @@ export function IdentitySignIn({ link = false }: {link?:boolean}) {
       {id&&<button type="button" disabled={busy} onClick={()=>{setId("");setCode("");}}>Use another email</button>}
     </form>}
     {verified&&link&&<button disabled={busy} onClick={connect} className="rounded border border-line px-4 py-3">Link verified identity to this business</button>}
-    <button className="text-left underline" onClick={()=>window.location.href = `${apiBase(location.hostname)}/auth/google/start`}>Continue with Google</button>
+    <button className="text-left underline" onClick={()=>router.push(`${apiBase(location.hostname)}/auth/google/start`)}>Continue with Google</button>
     {notice&&<p role="status" className="text-sm">{notice}</p>}
   </section>;
 }

@@ -38,10 +38,13 @@
   "env": {
     "staging": {
       "name": "stenmont-api-staging",
+      "send_email": [{ "name": "EMAIL", "allowed_sender_addresses": ["notifications@stenmont.com"] }],
       "workers_dev": false,
       "routes": [{ "pattern": "api-staging.stenmont.com", "custom_domain": true }],
       "vars": {
         "ENVIRONMENT": "staging",
+        "EMAIL_MODE": "sink",
+        "TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
         "WHITECHAIN_RPC": "https://rpc.testnet.whitechain.io",
         "WHITECHAIN_CHAIN_ID": "1874",
         "USDT_ADDRESS": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
