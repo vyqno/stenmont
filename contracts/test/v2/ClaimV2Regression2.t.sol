@@ -208,15 +208,16 @@ contract ClaimV2Regression2Test is ClaimBaseV2 {
         claim.onPaid(id, 1);
     }
 
-    function test_onPaid_unknownClaim_reverts_soTheRouterRevertsToo() public {
-        // a merchant who signed SetHook to the claim contract without listing: payments must not strand money
+    function test_onPaid_unknownClaim_reverts() public {
+        // the router only lets the claim attach itself through `list`, so this is defence in depth
         bytes32 id = _newInvoice(REF, AMOUNT);
-        router.setHook(id, address(claim), T0 + 1 days, _hookSig(merchantPk, id, address(claim), T0 + 1 days));
-        IPaymentRouterV2.Auth memory a = _payAuth(payerPk, id, 10e6, keccak256("s"));
+        bytes memory hookSig_ = _hookSig(merchantPk, id, address(claim), T0 + 1 days);
+        vm.expectRevert(IPaymentRouterV2.NotHook.selector);
+        router.setHook(id, address(claim), T0 + 1 days, hookSig_);
+        vm.prank(address(router));
         vm.expectRevert(InvoiceClaimV2.NotListed.selector);
-        router.pay(id, 10e6, payout, a);
+        claim.onPaid(id, 10e6);
         assertEq(usdt.balanceOf(address(claim)), 0);
-        assertEq(router.invoices(id).paid, 0);
     }
 
     function test_onPaid_afterSettled_goesToMerchant() public {

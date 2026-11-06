@@ -103,6 +103,8 @@ interface IPaymentRouterV2 {
     error NotAContract();
     error NotGuardianOrOwner();
     error InvoiceSold();
+    error NotHook();
+    error ReputationGasTooLow();
 
     function invoiceIdOf(address merchant, bytes32 ref) external pure returns (bytes32);
     function payNonce(bytes32 id, address payout, bytes32 salt) external pure returns (bytes32);

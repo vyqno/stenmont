@@ -64,7 +64,9 @@ contract RouterV2Regression3Test is RouterV2RegressionBase {
     function test_cancel_whenHookSet_revertsInvoiceSold() public {
         MockHookV2 hook = new MockHookV2();
         bytes32 id = _newInvoice(REF1, AMOUNT);
-        router.setHook(id, address(hook), T0 + 1 days, _hookSig(merchantPk, id, address(hook), T0 + 1 days));
+        bytes memory hookSig_ = _hookSig(merchantPk, id, address(hook), T0 + 1 days);
+        vm.prank(address(hook));
+        router.setHook(id, address(hook), T0 + 1 days, hookSig_);
         bytes memory sig = _cancelSig(merchantPk, id, T0 + 1 days);
         vm.expectRevert(IPaymentRouterV2.InvoiceSold.selector);
         router.cancel(id, T0 + 1 days, sig);
@@ -77,7 +79,9 @@ contract RouterV2Regression3Test is RouterV2RegressionBase {
     function test_cancel_byTheHookItself_works() public {
         MockHookV2 hook = new MockHookV2();
         bytes32 id = _newInvoice(REF1, AMOUNT);
-        router.setHook(id, address(hook), T0 + 1 days, _hookSig(merchantPk, id, address(hook), T0 + 1 days));
+        bytes memory hookSig_ = _hookSig(merchantPk, id, address(hook), T0 + 1 days);
+        vm.prank(address(hook));
+        router.setHook(id, address(hook), T0 + 1 days, hookSig_);
         bytes memory sig = _cancelSig(merchantPk, id, T0 + 1 days);
         vm.prank(address(hook));
         router.cancel(id, T0 + 1 days, sig);

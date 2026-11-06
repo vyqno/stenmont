@@ -139,10 +139,11 @@ contract PaymentRouterV2 is IPaymentRouterV2, EIP712, Ownable2Step, Pausable, Re
         _create(req);
     }
 
+    /// @dev Revoking works while paused, so a merchant can cut off a leaked creator key before the router reopens.
     function setCreator(address merchant, address creator, bool allowed, uint256 deadline, bytes calldata merchantSig)
         external
-        whenNotPaused
     {
+        if (allowed) _requireNotPaused();
         if (creator == address(0)) revert ZeroAddress();
         if (block.timestamp > deadline) revert Expired();
         bytes32 digest = _hashTypedDataV4(
@@ -183,8 +184,12 @@ contract PaymentRouterV2 is IPaymentRouterV2, EIP712, Ownable2Step, Pausable, Re
 
     // ------------------------------------------------------------------ merchant actions
 
+    /// @dev Only the hook itself may attach (InvoiceClaim.list calls this). Otherwise anyone could copy the merchant's
+    ///      SetHook signature out of a pending `list` call and attach the claim to an invoice it never listed, leaving
+    ///      an invoice that can be neither paid (the claim refuses unknown invoices) nor cancelled.
     function setHook(bytes32 id, address hook, uint256 deadline, bytes calldata merchantSig) external whenNotPaused {
         Invoice storage inv = _open(id);
+        if (msg.sender != hook) revert NotHook();
         if (block.timestamp > deadline) revert Expired();
         if (inv.paid != 0 || inv.hook != address(0)) revert HookLocked();
         if (inv.discountBps != 0) revert DiscountActive();
@@ -247,11 +252,17 @@ contract PaymentRouterV2 is IPaymentRouterV2, EIP712, Ownable2Step, Pausable, Re
         address rep = reputation;
         if (rep == address(0)) return;
         bool onTime = inv.dueDate == 0 || block.timestamp <= inv.dueDate;
-        // low-level on purpose: a high-level call reverts on an address without code, outside any try/catch
-        // slither-disable-next-line low-level-calls,unchecked-lowlevel -- result deliberately ignored, see above
-        rep.call{gas: REPUTATION_GAS}(
-            abi.encodeCall(IReputationRecorderV2.record, (payer, inv.merchant, paidBy[id][payer], onTime))
-        );
+        bytes memory data =
+            abi.encodeCall(IReputationRecorderV2.record, (payer, inv.merchant, paidBy[id][payer], onTime));
+        bool ok;
+        // Low-level on purpose: a high-level call reverts on an address without code, outside any try/catch. The
+        // result is ignored and no return data is copied, so a hostile registry cannot return-bomb the payer.
+        assembly ("memory-safe") {
+            ok := call(REPUTATION_GAS, rep, 0, add(data, 0x20), mload(data), 0, 0)
+        }
+        // EIP-150 gives the callee at most 63/64 of what is left. A failed call that left this frame under 1/63 of
+        // the budget was starved by the submitter's gas limit, not broken: refuse, so the record cannot be skipped.
+        if (!ok && gasleft() < REPUTATION_GAS / 63) revert ReputationGasTooLow();
     }
 
     // ------------------------------------------------------------------ refund
