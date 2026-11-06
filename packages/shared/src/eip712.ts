@@ -122,3 +122,18 @@ export const cancelSubscriptionTypes = {
 export function subscriptionDomain(verifyingContract: Address) {
   return { name: "Stenmont SubscriptionManager", version: "1", chainId: 1874, verifyingContract } as const satisfies TypedDataDomain;
 }
+
+/** EIP-2612 permit on the USDT token. A permit SETS the allowance (it does not add), so sign "current allowance + this cap". */
+export const permitTypes = {
+  Permit: [
+    { name: "owner", type: "address" },
+    { name: "spender", type: "address" },
+    { name: "value", type: "uint256" },
+    { name: "nonce", type: "uint256" },
+    { name: "deadline", type: "uint256" },
+  ],
+} as const;
+
+export function buildPermit(args: { owner: Address; spender: Address; value: bigint; nonce: bigint; deadline: bigint }) {
+  return { domain: usdtDomain, types: permitTypes, primaryType: "Permit" as const, message: args };
+}

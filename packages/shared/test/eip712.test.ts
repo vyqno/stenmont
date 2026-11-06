@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { hashDomain } from "viem";
 import { keccak256, toBytes } from "viem";
-import { buildReceiveAuth, buildTransferAuth, receiveAuthTypes, transferAuthTypes, usdtDomain } from "../src/eip712";
+import { buildReceiveAuth, buildTransferAuth, permitTypes, receiveAuthTypes, transferAuthTypes, usdtDomain } from "../src/eip712";
 import { USDT_ADDRESS } from "../src/chains";
 
 // Read from the live token on 2026-11-06: cast call USDT "DOMAIN_SEPARATOR()(bytes32)"
@@ -58,5 +58,14 @@ describe("USDT authorization typehashes match the live token", () => {
     });
     expect(a.primaryType).toBe("TransferWithAuthorization");
     expect(a.message.value).toBe(5_000_000n);
+  });
+});
+
+
+describe("permit", () => {
+  it("has the standard EIP-2612 typehash the token checks", () => {
+    const encoded = `Permit(${permitTypes.Permit.map((f) => `${f.type} ${f.name}`).join(",")})`;
+    expect(encoded).toBe("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    expect(keccak256(toBytes(encoded))).toBe("0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9");
   });
 });

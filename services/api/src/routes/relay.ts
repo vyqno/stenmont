@@ -61,8 +61,14 @@ relayRoutes.post("/account", async (c) => {
   }
   const { qx, qy, salt } = parsed.data;
   const addr = await c.var.chain.passkeyAddress(qx as Hex, qy as Hex, salt as Hex);
-  const [deployed, balance] = await Promise.all([c.var.chain.hasCode(addr), c.var.chain.usdtBalance(addr)]);
-  return c.json({ address: addr, deployed, balance: fromUnits(balance) });
+  const manager = c.env.SUBSCRIPTION_MANAGER_ADDRESS as Address;
+  const [deployed, balance, nonce, allowance] = await Promise.all([
+    c.var.chain.hasCode(addr),
+    c.var.chain.usdtBalance(addr),
+    c.var.chain.usdtNonce(addr),
+    c.var.chain.usdtAllowance(addr, manager),
+  ]);
+  return c.json({ address: addr, deployed, balance: fromUnits(balance), permitNonce: nonce.toString(), subscriptionAllowance: fromUnits(allowance) });
 });
 
 const FAUCET_AMOUNT = 5_000_000n; // 5 test USDT

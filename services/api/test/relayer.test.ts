@@ -314,10 +314,16 @@ describe("POST /relay/pay: passkey accounts are deployed on first use", () => {
 
 describe("GET /relay/account", () => {
   it("returns the counterfactual address, whether it exists, and its balance", async () => {
-    const t = setup({ async usdtBalance() { return 7_500_000n; }, async hasCode() { return false; } });
+    const t = setup({
+      async usdtBalance() { return 7_500_000n; },
+      async hasCode() { return false; },
+      async usdtNonce() { return 3n; },
+      async usdtAllowance() { return 12_000_000n; },
+    });
     const res = await t.req("/relay/account", { method: "POST", body: JSON.stringify({ qx: salt(1), qy: salt(2), salt: salt(0) }) });
     expect(res.status).toBe(200);
-    expect(await json(res)).toEqual({ address: PASSKEY_ADDRESS, deployed: false, balance: "7.5" });
+    // permitNonce and subscriptionAllowance are what a customer needs to sign a permit for a subscription
+    expect(await json(res)).toEqual({ address: PASSKEY_ADDRESS, deployed: false, balance: "7.5", permitNonce: "3", subscriptionAllowance: "12" });
   });
   it("validates its input", async () => {
     const t = setup();

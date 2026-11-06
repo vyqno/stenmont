@@ -74,6 +74,9 @@ export interface ChainClient {
   hasCode(address: Address): Promise<boolean>;
   passkeyAddress(qx: Hex, qy: Hex, salt: Hex): Promise<Address>;
   usdtBalance(address: Address): Promise<bigint>;
+  /** EIP-2612 nonce of the token for this owner (the next permit must use it). */
+  usdtNonce(address: Address): Promise<bigint>;
+  usdtAllowance(owner: Address, spender: Address): Promise<bigint>;
   /** Gas the call would use. Throws Rejected if the contracts would revert it. */
   estimateGas(call: Call): Promise<bigint>;
   gasPrice(): Promise<bigint>;
@@ -202,6 +205,8 @@ export function viemChain(env: Env): ChainClient {
     },
     passkeyAddress: (qx, qy, salt) =>
       publicClient.readContract({ address: env.FACTORY_ADDRESS as Address, abi: passkeyAccountFactoryAbi, functionName: "getAddress", args: [qx, qy, salt] }),
+    usdtNonce: (address) => publicClient.readContract({ address: USDT_ADDRESS, abi: usdtAbi, functionName: "nonces", args: [address] }),
+    usdtAllowance: (owner, spender) => publicClient.readContract({ address: USDT_ADDRESS, abi: usdtAbi, functionName: "allowance", args: [owner, spender] }),
     usdtBalance: (address) => publicClient.readContract({ address: USDT_ADDRESS, abi: usdtAbi, functionName: "balanceOf", args: [address] }),
     estimateGas: estimate,
     gasPrice: () => publicClient.getGasPrice(),
