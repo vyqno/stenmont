@@ -213,3 +213,9 @@ body:has(.auth-sheet), body:has(.public-record-page), body:has(.customer-store),
 
 /* Landing and generic code blocks */
 .v2 pre { margin: 0; font-size: 13.5px; line-height: 1.75; }
+
+/* Primary actions across the app: cornflower, ink on hover (matches the landing). */
+.bg-foreground { background-color: var(--blue); }
+:is(button, a).bg-foreground { color: var(--ink); border-color: var(--blue); transition: background-color .3s ease, color .3s ease, border-color .3s ease, transform .3s var(--rise); }
+:is(button, a).bg-foreground:hover:not(:disabled) { background-color: var(--ink); color: var(--paper); border-color: var(--ink); }
+:is(button, a).bg-foreground:active:not(:disabled) { transform: scale(0.985); }
