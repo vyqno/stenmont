@@ -140,3 +140,12 @@ These come from the event's project rules rather than PS.md.
 - Books has a service-signed two-line interim staging close and offline proof/tamper rejection. No LedgerAnchor is deployed.
 - Gemini generation remains held on the Vertex prediction-permission gate; no successful live reply is recorded. SDK/React publication, a final video and submission remain owner actions.
 - Local test counts and HTTP probes are not substitutes for any of these functional gates. See dated builder/release notes for commands actually run.
+
+## 12. Checkpoint 2026-11-07 03:00 IST
+
+- **Proven live:** a Shopify draft order became a Stenmont v2 invoice; a customer-side payer paid 0.117059 test USDT through the relay; the signed webhook marked Shopify order #1001 paid ([transaction](https://explorer.testnet.whitechain.io/tx/0xe0f73087b7d1b4b7a492222afd5fe182c51ab0f81a7c5e5657594b89d6250c41)). The exchange rate (85 INR per USDT) is a fixed demo value, not a live rate.
+- **Built, tested in a browser, not installed in a live theme:** a one-line storefront button served by the bridge (`GET /button.js`). The dev-store app has no theme-write scope.
+- **World:** the portal app had no actions registered; `enrol-business` and `enrol-business-v2` now exist and the API uses the second. A real World App scan, the investor proof, and the approve and deny refund run are **not run yet**.
+- **Not run yet:** the dashboard "Sell this invoice" flow end to end, the public settlement certificate on a live claim, and the refund approval journey.
+- **Interface:** brand v2 is deployed (three-colour palette, new landing, docs and dashboard styling).
+- **Operations:** invoice creation on staging is still paused for businesses outside the owner's own list; it is lifted after the financing run settles.
