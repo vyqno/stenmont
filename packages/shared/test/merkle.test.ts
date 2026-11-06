@@ -53,7 +53,7 @@ describe("tree", () => {
       for (let i = 0; i < n; i++) {
         const p = proofFor(t, i);
         expect(verifyProof(t.leaves[i]!, p, t.root)).toBe(true);
-        expect(verifyProof(leafHash({ txHash: H1, invoiceId: H2, amount: 999n, kind: "payment" }), p, t.root)).toBe(n === 1 ? false : false);
+        expect(verifyProof(leafHash({ txHash: H1, invoiceId: H2, amount: 999n, kind: "payment" }), p, t.root)).toBe(false);
       }
       expect(verifyProof(t.leaves[0]!, proofFor(t, 0), LB)).toBe(false);
     }

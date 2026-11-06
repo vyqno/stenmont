@@ -9,13 +9,13 @@ import { concat, hexToBytes, keccak256, stringToBytes, type Hex } from "viem";
  * - an odd node at the end of a level is carried up unchanged (never duplicated).
  * - the empty tree has the zero root.
  */
-export type Receipt = { txHash: Hex; invoiceId: Hex; amount: bigint; kind: string };
+export type ReceiptLeaf = { txHash: Hex; invoiceId: Hex; amount: bigint; kind: string };
 export type Tree = { root: Hex; leaves: Hex[]; layers: Hex[][] };
 
 const ZERO = `0x${"00".repeat(32)}` as Hex;
 const HEX32 = /^0x[0-9a-fA-F]{64}$/;
 
-export function leafHash(r: Receipt): Hex {
+export function leafHash(r: ReceiptLeaf): Hex {
   if (!HEX32.test(r.txHash) || !HEX32.test(r.invoiceId)) throw new Error("txHash and invoiceId must be 32-byte hex");
   if (r.amount < 0n) throw new Error("amount must not be negative");
   if (!/^[a-z_]{1,32}$/.test(r.kind)) throw new Error("kind must be lower-case letters and underscores");
