@@ -28,9 +28,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r lint
+      - run: pnpm -r --workspace-concurrency=1 lint
       - run: pnpm --filter @stenmont/web typecheck
-      - run: pnpm -r test
+      - run: VITEST_MAX_WORKERS=1 pnpm -r --workspace-concurrency=1 test
+      - run: pnpm --filter @stenmont/scripts seed-demo
 
   contracts:
     name: Contracts (format, build, test)
