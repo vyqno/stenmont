@@ -44,7 +44,7 @@ const DAY = 86_400_000;
 /** What each step means for the business, in plain words (the explanation panel). */
 export const STEP_EXPLANATIONS: Record<StepKey, string> = {
   listed: "You offered this unpaid invoice to investors at a discount. Nothing is paid yet, and until someone buys it you can still be paid by your customer as usual.",
-  investor: "Only people who proved they are real, with World, are allowed to buy. The approval is recorded on the blockchain, so the list of buyers cannot be edited quietly.",
+  investor: "Only people who proved they are real, with World, are allowed to buy. Each approval is recorded publicly and can be verified, so the list of buyers cannot be edited quietly.",
   funded: "An approved investor bought the invoice. You receive the cash today, the discounted price minus a small part we hold back until your customer pays.",
   payment: "Your customer pays the invoice as normal. The money goes straight to the investor, and the contract keeps count, so nobody has to chase or reconcile anything.",
   close: "When the investor has been repaid in full, the held-back amount comes back to you. If the customer has not paid a week after the due date, the held-back amount goes to the investor instead and you keep the cash you already received.",

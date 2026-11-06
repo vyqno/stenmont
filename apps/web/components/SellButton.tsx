@@ -6,6 +6,7 @@ import { useMerchant } from "../app/dashboard/DashboardShell";
 import { AuthError, api, signChallenge } from "../lib/auth";
 import { MAX_DISCOUNT_PCT, MAX_RESERVE_PCT, financingMessage, quoteSale } from "../lib/financing";
 import { formatAmount } from "../lib/pay";
+import { primaryButton } from "./ui";
 
 type Step = "closed" | "form" | "working" | "done";
 type Listing = { id: string; challenges: { terms: string; hook: string } };
@@ -80,7 +81,7 @@ export function SellButton({ invoiceId, face, onDone }: { invoiceId: string; fac
       )}
       <p className="text-xs text-muted">You will confirm twice on your device.</p>
       <div className="flex gap-2">
-        <button type="button" onClick={sell} disabled={!quote || step === "working"} className="rounded bg-brand px-3 py-1 font-medium text-on-brand disabled:opacity-50" data-testid="sell-submit">
+        <button type="button" onClick={sell} disabled={!quote || step === "working"} className={`rounded px-3 py-1 font-medium ${primaryButton}`} data-testid="sell-submit">
           {step === "working" ? "Confirm on your device…" : "List for investors"}
         </button>
         <button type="button" onClick={() => setStep("closed")} disabled={step === "working"} className="rounded border border-line px-3 py-1 disabled:opacity-50">Close</button>

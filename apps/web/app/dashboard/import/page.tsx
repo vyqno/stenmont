@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState, type ChangeEvent } from "react";
-import { Card } from "../../../components/ui";
 import { AuthError, api } from "../../../lib/auth";
 import { buildImportRequest, describeReport, formProblem, importMessage, isRate, warningLine, type ImportForm, type Report } from "../../../lib/catalog";
 import { connectedRequest, connectProblem, connectRequest, isShopifyConsentUrl, returnFromShopify } from "../../../lib/shopifyConnect";
+import { Card, primaryButton } from "../../../components/ui";
 
 const field = "mt-1 block w-full rounded border border-line bg-surface px-3 py-2 text-sm";
-const button = "rounded bg-brand px-4 py-2 text-sm font-medium text-on-brand disabled:cursor-not-allowed disabled:opacity-50";
+const button = `rounded px-4 py-2 text-sm font-medium ${primaryButton}`;
 const ghost = "rounded border border-line px-4 py-2 text-sm font-medium hover:border-brand disabled:cursor-not-allowed disabled:opacity-50";
 const empty: ImportForm = { source: "csv", currency: "USD", rate: "", includeCustomers: false, files: {}, shop: "", token: "" };
 

@@ -63,3 +63,40 @@ export function Stat({ label, value, testId }: { label: string; value: string; t
     </div>
   );
 }
+
+/** The title block every dashboard page starts with: what this page is, in a sentence, and its one main action. */
+export function PageHeader({ title, description, action }: { title: string; description?: string; action?: React.ReactNode }) {
+  return (
+    <header className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h1 className="text-3xl font-bold">{title}</h1>
+        {description && <p className="mt-1 max-w-2xl text-muted">{description}</p>}
+      </div>
+      {action}
+    </header>
+  );
+}
+
+/** Says what is missing and offers the one next step. `action` is a link or button the caller supplies. */
+export function EmptyState({ title, description, action }: { title: string; description?: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-start gap-2 rounded-2xl border border-dashed border-line p-6" data-testid="empty-state">
+      <h3 className="font-bold">{title}</h3>
+      {description && <p className="max-w-xl text-sm text-muted">{description}</p>}
+      {action}
+    </div>
+  );
+}
+
+/** A loading or failure line that screen readers announce without moving focus. */
+export function PageNotice({ kind, children }: { kind: "loading" | "error"; children: React.ReactNode }) {
+  return kind === "error"
+    ? <p role="alert" className="text-danger">{children}</p>
+    : <p role="status" aria-busy="true" className="text-muted">{children}</p>;
+}
+
+export const actionLink = "inline-flex min-h-11 items-center rounded border border-foreground bg-foreground px-4 text-sm font-medium text-background hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2";
+export const secondaryLink = "inline-flex min-h-11 items-center rounded border border-line px-4 text-sm font-medium hover:border-brand focus-visible:outline-2 focus-visible:outline-offset-2";
+
+/** Colours of a primary button (ink on white, grey when disabled). Callers add their own size. */
+export const primaryButton = "bg-foreground text-background hover:opacity-90 disabled:cursor-not-allowed disabled:bg-grey disabled:text-muted disabled:hover:opacity-100";

@@ -6,6 +6,7 @@ import { Badge, Card } from "../../../components/ui";
 import { AuthError, api } from "../../../lib/auth";
 import { useApi } from "../../../lib/useApi";
 import { formatUsd, ladder, routeCards, type RouteCard, type VerificationStatus } from "../../../lib/verification";
+import { SIGN_IN_METHODS } from "../../../lib/signInMethods";
 import { WalletConnect } from "./WalletConnect";
 
 const link = "rounded border border-line px-4 py-2 text-sm font-medium hover:border-brand";
@@ -78,7 +79,9 @@ export default function Verification() {
                 {c.state === "pending" && <Badge tone="wait">In progress</Badge>}
               </div>
               <p className="text-sm text-muted">{c.plain}</p>
-              {c.state === "open" && c.route === "email" && <p className="mt-2 text-sm text-muted">Email codes are not switched on yet.</p>}
+              {c.state === "open" && c.route === "email" && (SIGN_IN_METHODS.email
+                ? <Link href="/dashboard/settings" className={`mt-2 inline-block ${link}`}>Verify in Settings</Link>
+                : <p className="mt-2 text-sm text-muted">Email codes are not switched on yet.</p>)}
               {c.state === "open" && LINKS[c.route] && <Link href={LINKS[c.route]!.href} className={`mt-2 inline-block ${link}`}>{LINKS[c.route]!.label}</Link>}
               {(c.state === "open" || c.state === "pending") && c.route === "documents" && (
                 <div className="mt-2 flex flex-wrap items-center gap-3">

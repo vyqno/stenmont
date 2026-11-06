@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ShopFrame, notifyCart } from "../../../../components/store/ShopFrame";
 import { fetchProduct } from "../../../../lib/shopApi";
 import { addToCart, formatPrice, htmlToText, loadCart, saveCart, stockLabel, type ShopInfo, type ShopProduct } from "../../../../lib/storefront";
+import { primaryButton } from "../../../../components/ui";
 
 type State = { kind: "loading" } | { kind: "missing" } | { kind: "ready"; shop: ShopInfo; product: ShopProduct };
 
@@ -79,7 +80,7 @@ export default function ProductClient({ slug, handle }: { slug: string; handle: 
                 Quantity
                 <input type="number" min={1} max={99} value={quantity} onChange={(e) => { setQuantity(Math.max(1, Math.min(99, Math.trunc(Number(e.target.value)) || 1))); setAdded(false); }} className="mt-1 block w-20 rounded border border-line bg-background p-2" data-testid="quantity" />
               </label>
-              <button type="button" onClick={add} disabled={!variant?.available} className="rounded-lg bg-brand px-6 py-2.5 font-medium text-on-brand disabled:opacity-40" data-testid="add-to-cart">
+              <button type="button" onClick={add} disabled={!variant?.available} className={`rounded-lg px-6 py-2.5 font-medium ${primaryButton}`} data-testid="add-to-cart">
                 Add to cart
               </button>
             </div>

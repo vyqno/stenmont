@@ -66,7 +66,7 @@ export function routeCards(s: VerificationStatus, now = Date.now()): RouteCard[]
 // ---- wallet sign-in --------------------------------------------------------------------------------------------------------
 
 export const SIWE_MINUTES = 10;
-export function buildWalletMessage(a: { address: string; nonce: string; host: string; origin: string; chainId?: number; now?: Date }): string {
+export function buildWalletMessage(a: { address: string; nonce: string; host: string; origin: string; chainId?: number; now?: Date; statement?: string }): string {
   const now = a.now ?? new Date();
   return createSiweMessage({
     address: a.address as `0x${string}`,
@@ -75,7 +75,7 @@ export function buildWalletMessage(a: { address: string; nonce: string; host: st
     uri: a.origin,
     nonce: a.nonce,
     version: "1",
-    statement: "Link this wallet to your Stenmont business.",
+    statement: a.statement ?? "Link this wallet to your Stenmont business.",
     issuedAt: now,
     expirationTime: new Date(now.getTime() + SIWE_MINUTES * 60_000),
   });

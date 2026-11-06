@@ -49,6 +49,7 @@ function SiteCard({ site, reload }: { site: Site; reload: () => void }) {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">{r.label}</p>
               <p className="text-sm text-muted">{r.detail}</p>
+              {r.kind === "webhook" && r.state !== "pass" && <a href="/dashboard/settings#webhooks" className="text-sm underline">Add or manage webhook endpoints in Settings</a>}
             </div>
             <div className="text-right">
               <Badge tone={STATE[r.state].tone}>{STATE[r.state].text}</Badge>

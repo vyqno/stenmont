@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMerchant } from "../app/dashboard/DashboardShell";
 import { refundApprovalPayload, refundApprovalState, type ApprovalParams, type ApprovalReason } from "../lib/refundApproval";
 import { AuthError, api, signChallenge } from "../lib/auth";
+import { primaryButton } from "./ui";
 
 type Step = "idle" | "working" | "sent" | "failed" | "needs_approval";
 
@@ -78,5 +79,5 @@ export function RefundButton({ invoiceId, onDone }: { invoiceId: string; onDone?
 /** The retry remains an explicit human action; denied/expired requests are never silently restarted. */
 export function RefundApprovalPrompt({ params, reason, busy, message, onApprove }: { params: ApprovalParams; reason: ApprovalReason; busy: boolean; message?: string; onApprove: () => void }) {
   const fresh = reason === "approval_denied" || reason === "approval_expired";
-  return <span className="inline-flex max-w-64 flex-col items-end gap-1 text-right text-xs"><span data-testid="needs-approval">{fresh ? `${reason === "approval_denied" ? "The previous approval was denied" : "The previous approval expired"}. Nothing was refunded. Request a fresh approval for the same $${params.amount} refund.` : `This refund is large ($${params.amount}). A person must approve it with World first.`}</span><button type="button" onClick={onApprove} disabled={busy} className="rounded bg-brand px-3 py-1 text-sm font-medium text-on-brand disabled:opacity-50" data-testid="approve-with-world">{busy ? "Starting approval…" : fresh ? "Request fresh World approval" : "Approve with World"}</button>{message && <span role="status" className="text-danger">{message}</span>}</span>;
+  return <span className="inline-flex max-w-64 flex-col items-end gap-1 text-right text-xs"><span data-testid="needs-approval">{fresh ? `${reason === "approval_denied" ? "The previous approval was denied" : "The previous approval expired"}. Nothing was refunded. Request a fresh approval for the same $${params.amount} refund.` : `This refund is large ($${params.amount}). A person must approve it with World first.`}</span><button type="button" onClick={onApprove} disabled={busy} className={`rounded px-3 py-1 text-sm font-medium ${primaryButton}`} data-testid="approve-with-world">{busy ? "Starting approval…" : fresh ? "Request fresh World approval" : "Approve with World"}</button>{message && <span role="status" className="text-danger">{message}</span>}</span>;
 }

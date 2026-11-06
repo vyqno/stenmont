@@ -23,6 +23,7 @@ export const ROUTES = {
   "/dashboard/identity": ["Business identity", "Manage your ENS business name, team and agent records."],
   "/dashboard/import": ["Import catalogue", "Preview catalogue migration before confirming an import."],
   "/dashboard/invoices": ["Invoices", "Manage your private business invoices and receipts."],
+  "/dashboard/profile": ["Public profile", "Publish how customers and agents can pay your business."],
   "/dashboard/settings": ["Business settings", "Manage business access, API keys and connected apps."],
   "/dashboard/subscriptions": ["Subscriptions", "Review recurring agreements and B2B replacement plans."],
   "/dashboard/verification": ["Verification", "Review the facts behind your business verification tier."],

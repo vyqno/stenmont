@@ -1,56 +1,65 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
-import { Badge, Card, Stat, money, statusOf, units, type Invoice } from "../../components/ui";
-import { useApi } from "../../lib/useApi";
-import { fromUnits } from "@stenmont/shared";
+import { useMemo, useState } from "react";
+import { PageHeader, type Invoice } from "../../components/ui";
+import { booksStatus, dueSoon, monthKey, nextSteps, openInvoices, previousMonthKey, receivedIn, siteStatus, type BooksMonth, type SubLite } from "../../lib/overview";
+import type { Site, Switch } from "../../lib/sites";
+import { usePart, type Part } from "../../lib/useApi";
+import { OverviewView } from "./OverviewView";
+
+/** Builds one part of the page from other parts. Loading or failure of any input carries through. */
+function derive<A extends unknown[], T>(inputs: { [K in keyof A]: Part<A[K]> }, make: (...v: A) => T): Part<T> {
+  const parts = inputs as Part<unknown>[];
+  const bad = parts.find((x) => x.status === "error");
+  if (bad) return bad as Part<T>;
+  if (parts.some((x) => x.status === "loading")) return { status: "loading" };
+  return { status: "ready", value: make(...(parts.map((x) => (x as { value: unknown }).value) as A)) };
+}
 
 export default function Overview() {
-  const { data, error } = useApi<{ data: Invoice[] }>("/v1/invoices?limit=100");
   const [now] = useState(() => Date.now());
-  if (error) return <p role="status" className="text-danger">{error}</p>;
-  if (!data) return <p className="text-muted">Loading…</p>;
+  const date = useMemo(() => new Date(now), [now]);
+  const invoices = usePart<{ data: Invoice[] }>("/v1/invoices?limit=100");
+  const books = usePart<BooksMonth>(`/v1/books/${monthKey(date)}`);
+  const lastMonth = usePart<BooksMonth>(`/v1/books/${previousMonthKey(date)}`);
+  const subs = usePart<{ data: SubLite[] }>("/v1/subscriptions");
+  const sites = usePart<{ data: Site[] }>("/v1/sites");
+  const sw = usePart<Switch>("/v1/payment-switch");
+  const agent = usePart<{ daily: number; monthly: number; limits: { daily: number; monthly: number } }>("/v1/agent/usage");
+  const verification = usePart<{ tier: number }>("/v1/verification");
+  const products = usePart<{ data: unknown[] }>("/v1/products?limit=1");
+  const directory = usePart<{ publishedAt: string | null }>("/v1/ens/directory");
 
-  const rows = data.data;
-  let received = 0n;
-  let waiting = 0n;
-  let overdue = 0;
-  for (const i of rows) {
-    received += units(i.amountPaid) - units(i.amountRefunded);
-    if (i.status === "open" || i.status === "partially_paid") {
-      waiting += units(i.amount) - units(i.amountPaid);
-      if (i.dueDate && Date.parse(i.dueDate) < now) overdue++;
-    }
-  }
+  // An unreadable part is "unknown" (null), never guessed as "not done".
+  const val = <T,>(p: Part<T | null>): T | null => (p.status === "ready" ? p.value : null);
+  const loading = [verification, products, directory, sites].some((p) => p.status === "loading");
+  const steps: Part<ReturnType<typeof nextSteps>> = loading
+    ? { status: "loading" }
+    : {
+        status: "ready",
+        value: nextSteps({
+          tier: verification.status === "ready" ? (val(verification)?.tier ?? 0) : null,
+          siteReady: sites.status === "ready" ? (val(sites)?.data.some((s) => s.ready) ?? false) : null,
+          products: products.status === "ready" ? (val(products)?.data.length ?? 0) : null,
+          profilePublished: directory.status === "ready" ? !!val(directory)?.publishedAt : null,
+        }),
+      };
+  // Last month is a nicety: if it cannot be read the card simply leaves it out.
+  const previous: Part<BooksMonth | null> = lastMonth.status === "error" ? { status: "ready", value: null } : lastMonth;
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold">Overview</h1>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Received" value={money(fromUnits(received))} testId="stat-received" />
-        <Stat label="Waiting to be paid" value={money(fromUnits(waiting))} />
-        <Stat label="Overdue invoices" value={String(overdue)} />
-        <Stat label="Invoices" value={String(rows.length)} />
-      </div>
-      <Card title="Latest invoices">
-        {rows.length === 0 ? (
-          <p className="text-muted">Nothing yet. <Link href="/dashboard/invoices" className="text-foreground underline">Create your first invoice</Link>.</p>
-        ) : (
-          <ul className="divide-y divide-line">
-            {rows.slice(0, 5).map((i) => {
-              const s = statusOf(i, now);
-              return (
-                <li key={i.id} className="flex items-center justify-between gap-3 py-2">
-                  <span className="min-w-0 flex-1 truncate" title={i.number}>{i.number}</span>
-                  <span className="amount ml-auto shrink-0 whitespace-nowrap">{money(i.amount)}</span>
-                  <Badge tone={s.tone}>{s.label}</Badge>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Card>
+      <PageHeader title="Overview" description="Where your business stands today, from your own records." />
+      <OverviewView
+        now={now}
+        steps={steps}
+        received={derive([books], (b) => (b ? receivedIn(b.snapshot.lines) : null))}
+        invoices={derive([invoices], (i) => ({ rows: i?.data ?? [], ...openInvoices(i?.data ?? [], now) }))}
+        due={derive([subs], (s) => dueSoon(s?.data ?? [], now))}
+        site={derive([sites, sw], (s, w) => siteStatus(s?.data ?? [], w))}
+        books={derive([books, previous], (cur, prev) => booksStatus(date, cur, prev))}
+        agent={agent}
+      />
     </div>
   );
 }

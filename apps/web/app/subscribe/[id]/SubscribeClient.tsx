@@ -6,6 +6,7 @@ import { toUnits } from "@stenmont/shared";
 import { createPasskey, loadPasskey, signDigest } from "../../../lib/passkey";
 import { ZERO_SALT, apiBase, formatAmount, friendly } from "../../../lib/pay";
 import { cancelDigest, permitDigest, permitValue, planCopy, subscribeDigest, signingTerms, type Terms } from "../../../lib/subscribe";
+import { primaryButton } from "../../../components/ui";
 
 type View =
   | { kind: "loading" }
@@ -145,7 +146,7 @@ export default function SubscribeClient({ id }: { id: string }) {
                   {view.notice}
                 </p>
               )}
-              <button type="button" onClick={() => subscribe(view.terms)} className="rounded-lg bg-brand px-6 py-4 text-lg font-medium text-on-brand">
+              <button type="button" onClick={() => subscribe(view.terms)} className={`rounded-lg px-6 py-4 text-lg font-medium ${primaryButton}`}>
                 {copy!.button}
 
               </button>
