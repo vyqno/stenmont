@@ -13,6 +13,7 @@ import { importRoutes } from "./routes/import";
 import { shopifyCallbackRoutes, shopifyConnectRoutes } from "./routes/shopifyOauth";
 import { checkoutRoutes } from "./routes/checkout";
 import { catalogRoutes, storePublicRoutes } from "./routes/catalog";
+import { storeCheckoutRoutes } from "./routes/storeCheckout";
 import { identitySigninRoutes } from "./routes/identitySignin";
 import { authRoutes } from "./routes/auth";
 import { exportRoutes } from "./routes/exports";
@@ -63,7 +64,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
 
   // Browsers may call only the public endpoints, and only from our own app (or localhost outside production).
   const origin = (o: string, c: { env: Env }) => (isAppOrigin(o, c.env) ? o : null);
-  const publicCors = cors({ origin, allowMethods: ["GET", "POST", "OPTIONS"], allowHeaders: ["content-type"], maxAge: 600 });
+  const publicCors = cors({ origin, allowMethods: ["GET", "POST", "OPTIONS"], allowHeaders: ["content-type", "idempotency-key"], maxAge: 600 });
   // The sign-in and merchant API are for our own app only, and may carry the session cookie.
   const appCors = cors({
     origin,
@@ -116,6 +117,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.route("/auth", authRoutes);
   app.route("/invest", investRoutes);
   app.route("/store", storePublicRoutes);
+  app.route("/store", storeCheckoutRoutes);
   app.route("/public", publicClaimRoutes);
   app.route("/relay", relayRoutes);
   app.route("/relay", subscriptionRelayRoutes);
