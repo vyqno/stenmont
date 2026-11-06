@@ -5,6 +5,13 @@ import type { Relayer } from "./relayer/do";
 
 export type Env = {
   DB: D1Database;
+  TURNSTILE_SITE_KEY?: string;
+  TURNSTILE_SECRET_KEY?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  EMAIL_CODE_SECRET?: string;
+  EMAIL_MODE?: string;
+  EMAIL?: import("./email/transactional").MailEnv["EMAIL"];
   WEBHOOKS: Queue<WebhookJob>;
   RELAYER: DurableObjectNamespace<Relayer>;
   /** Serialises the ENS registrar wallet's transactions on Sepolia. */

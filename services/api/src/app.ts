@@ -13,6 +13,7 @@ import { importRoutes } from "./routes/import";
 import { shopifyCallbackRoutes, shopifyConnectRoutes } from "./routes/shopifyOauth";
 import { checkoutRoutes } from "./routes/checkout";
 import { catalogRoutes, storePublicRoutes } from "./routes/catalog";
+import { identitySigninRoutes } from "./routes/identitySignin";
 import { authRoutes } from "./routes/auth";
 import { exportRoutes } from "./routes/exports";
 import { financingRoutes } from "./routes/financing";
@@ -111,6 +112,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.route("/auth/world", worldAuthRoutes);
   app.route("/auth/shopify", shopifyCallbackRoutes);
   app.route("/auth/siwe", siweRoutes);
+  app.route("/auth", identitySigninRoutes);
   app.route("/auth", authRoutes);
   app.route("/invest", investRoutes);
   app.route("/store", storePublicRoutes);
