@@ -16,6 +16,8 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@fontsource-variable/geist-mono": "5.3.0",
+    "@fontsource-variable/onest": "5.3.1",
     "@opennextjs/cloudflare": "^1.20.16",
     "@stenmont/shared": "workspace:*",
     "@worldcoin/idkit": "^4.6.0",
@@ -26,6 +28,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
+    "@stenmont/sdk": "workspace:*",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -35,8 +38,7 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.1.0",
-    "wrangler": "^4.157.0",
-    "@stenmont/sdk": "workspace:*"
+    "wrangler": "^4.157.0"
   },
   "packageManager": "pnpm@12.16.1"
 }

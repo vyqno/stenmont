@@ -2,6 +2,8 @@
 
 /* Whitechain palette (brand-guidelines/COLORS.md). Add a token there before adding one here. */
 :root {
+  --font-onest: "Onest Variable";
+  --font-geist-mono: "Geist Mono Variable";
   --bg: #f8faf9;
   --surface: #ffffff;
   --line: #c7d0dc;
