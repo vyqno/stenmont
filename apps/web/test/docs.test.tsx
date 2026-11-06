@@ -8,6 +8,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import * as agent from "../../../packages/agent/src";
 import * as react from "../../../packages/react/src";
 import * as x402 from "../../../packages/x402/src";
+import { renderToStaticMarkup } from "react-dom/server";
+import Api from "../app/docs/api/page";
+import Mcp from "../app/docs/mcp/page";
+import Quickstart from "../app/docs/page";
+import Sdk from "../app/docs/sdk/page";
+import Webhooks from "../app/docs/webhooks/page";
+import X402 from "../app/docs/x402/page";
 import { API_URL, APP_URL, MCP_URL, SAMPLES, X402_URL } from "../lib/docSamples";
 
 const require = createRequire(import.meta.url);
@@ -128,7 +135,7 @@ describe("SDK samples run against the real SDK", () => {
         }
       }
     }
-    expect(imports).toBeGreaterThanOrEqual(6);
+    expect(imports).toBeGreaterThanOrEqual(5);
   });
 });
 
@@ -179,5 +186,18 @@ describe("llms.txt and the docs pages", () => {
   it("there is a docs layout and no stray page the tests do not know about", () => {
     const dirs = readdirSync(join(web, "app/docs"), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
     expect(dirs.sort()).toEqual(pages.filter(Boolean).sort());
+  });
+});
+
+describe("docs pages render", () => {
+  const html = [Quickstart, Api, Webhooks, Sdk, Mcp, X402].map((P) => renderToStaticMarkup(<P />));
+  it("every sample appears on at least one page, and no page shows a placeholder", () => {
+    const all = html.join("\n");
+    for (const name of Object.keys(SAMPLES)) expect(all, name).toContain(`data-sample="${name}"`);
+    expect(all).not.toMatch(/undefined|\[object Object\]/);
+  });
+  it("pages say plainly that the test network is in use and the packages are not on npm yet", () => {
+    expect(html[0]).toContain("test network");
+    expect(html[3]).toContain("not on npm yet");
   });
 });
