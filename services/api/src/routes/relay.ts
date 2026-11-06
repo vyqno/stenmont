@@ -9,6 +9,7 @@ import { relayerTxs } from "../db/schema";
 import { fail } from "../errors";
 import { hitRateLimit } from "../relayer/caps";
 import { STATUS_OF, relayPay } from "../relayer/relay";
+import { issueAccountToken } from "./account";
 import { clientIp } from "../lib/request";
 import { amountSchema, invalid } from "../lib/validation";
 
@@ -48,7 +49,11 @@ relayRoutes.post("/pay", async (c) => {
       ip: clientIp(c),
     },
   );
-  if (out.ok) return c.json({ status: "success", txHash: out.txHash, deployedAccount: out.deployedAccount });
+  if (out.ok) {
+    // The payer proved who they are by a signature the token accepted, so they get a link to their own receipts.
+    const accountToken = await issueAccountToken(c.env, b.payer, c.var.now());
+    return c.json({ status: "success", txHash: out.txHash, deployedAccount: out.deployedAccount, ...(accountToken ? { accountToken } : {}) });
+  }
   return fail(c, STATUS_OF[out.code], out.code, out.message, out.txHash ? { txHash: out.txHash } : undefined);
 });
 

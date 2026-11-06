@@ -8,6 +8,7 @@ import type { Env } from "./env";
 import { viemEns, type EnsClient } from "./ens/client";
 import { ensRoutes } from "./routes/ens";
 import { fail } from "./errors";
+import { accountRoutes } from "./routes/account";
 import { apiKeyRoutes } from "./routes/apiKeys";
 import { importRoutes } from "./routes/import";
 import { shopifyCallbackRoutes, shopifyConnectRoutes } from "./routes/shopifyOauth";
@@ -81,6 +82,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.use("/invest/*", publicCors);
   app.use("/store/*", publicCors);
   app.use("/public/*", publicCors);
+  app.use("/account/*", cors({ origin, allowMethods: ["GET", "OPTIONS"], allowHeaders: ["authorization"], maxAge: 600 }));
 
   app.get("/health", (c) => c.json({ ok: true }));
 
@@ -119,6 +121,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.route("/store", storePublicRoutes);
   app.route("/store", storeCheckoutRoutes);
   app.route("/public", publicClaimRoutes);
+  app.route("/account", accountRoutes);
   app.route("/relay", relayRoutes);
   app.route("/relay", subscriptionRelayRoutes);
   app.route("/", subscriptionPublicRoutes);
