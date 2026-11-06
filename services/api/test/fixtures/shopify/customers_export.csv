@@ -1,0 +1,5 @@
+Customer ID,First Name,Last Name,Email,Accepts Email Marketing,Default Address Company,Default Address Address1,Default Address City,Default Address Province Code,Default Address Country Code,Default Address Zip,Default Address Phone,Phone,Accepts SMS Marketing,Total Spent,Total Orders,Note,Tax Exempt
+'1001,Ada,Example,ada@example.test,yes,,1 Test Street,Testville,,GB,AB1 2CD,+440000000000,+440000000000,no,120.00,2,VIP customer,no
+'1002,Bob,"O'Neil, Jr.",BOB@Example.test,no,,2 Test Street,Testville,,US,00000,,,no,0.00,0,,no
+'1003,,,not-an-email,no,,,,,,,,,no,0.00,0,,no
+'1004,=Evil,Name,evil@example.test,no,,,,,DE,,,,no,0.00,0,,no
