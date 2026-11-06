@@ -1,0 +1,134 @@
+{
+  "network": "Ethereum Sepolia",
+  "chainId": 11155111,
+  "writesBroadcast": 0,
+  "runtime": {
+    "block": "12076653",
+    "contracts": {
+      "resolver": {
+        "address": "0x115eb53F0c60696633855F90b138178Fb40b2b2C",
+        "bytes": 15608,
+        "hash": "0x02d6c15c6443251e5d3c5acbd971d66057c8e13ee0d0f046d5c65cd27a20b007",
+        "selectors": {
+          "resolve(bytes,bytes)": true,
+          "getRecordId(bytes32)": true,
+          "linkToNode(bytes,bytes32)": true,
+          "linkToRecord(bytes,uint256)": true,
+          "grantSetterRoles(bytes,address)": true,
+          "grantRoles(uint256,uint256,address)": true,
+          "grantRootRoles(uint256,address)": true,
+          "safeTransferFrom(address,address,uint256,uint256,bytes)": false,
+          "transferFrom(address,address,uint256)": false,
+          "register(string,address,address,address,uint256,uint64)": false,
+          "getState(uint256)": false
+        }
+      },
+      "registry": {
+        "address": "0x9BD8a88719068D09ecee662f36C0E3856708366a",
+        "bytes": 18982,
+        "hash": "0xed6d71bc90b0882fa63ef78a8dddabff2730b4c1cab9eab2ad91fa2aacd269f7",
+        "selectors": {
+          "resolve(bytes,bytes)": false,
+          "getRecordId(bytes32)": false,
+          "linkToNode(bytes,bytes32)": false,
+          "linkToRecord(bytes,uint256)": false,
+          "grantSetterRoles(bytes,address)": false,
+          "grantRoles(uint256,uint256,address)": true,
+          "grantRootRoles(uint256,address)": true,
+          "safeTransferFrom(address,address,uint256,uint256,bytes)": true,
+          "transferFrom(address,address,uint256)": false,
+          "register(string,address,address,address,uint256,uint64)": true,
+          "getState(uint256)": true
+        }
+      },
+      "parent": {
+        "address": "0xE100C72C3BD9781a7AE4d653E0518b54888A5f0c",
+        "bytes": 77,
+        "hash": "0x0593890d8df08b6542fee68112e1052ce02b33ac859fa6fe136a941c1e19fc89",
+        "selectors": {
+          "resolve(bytes,bytes)": false,
+          "getRecordId(bytes32)": false,
+          "linkToNode(bytes,bytes32)": false,
+          "linkToRecord(bytes,uint256)": false,
+          "grantSetterRoles(bytes,address)": false,
+          "grantRoles(uint256,uint256,address)": false,
+          "grantRootRoles(uint256,address)": false,
+          "safeTransferFrom(address,address,uint256,uint256,bytes)": false,
+          "transferFrom(address,address,uint256)": false,
+          "register(string,address,address,address,uint256,uint64)": false,
+          "getState(uint256)": false
+        }
+      }
+    }
+  },
+  "authority": {
+    "name": "e2emw4k3tmp.stenmont.eth",
+    "member": "0x96b8b60c0f93D4a2519f0a3d90c9B7eF555196a9",
+    "blockNumber": "12076670",
+    "blockTimestamp": "1793969376",
+    "owner": "0x5373B398C0Ba32904B139C625A6dE5dbBF1Aa0CC",
+    "expiry": "1825443408",
+    "status": 2,
+    "activeResolver": "0x20B7D9F0d0C56cE8d25B8e577344E72d7aC62fCd",
+    "recordId": "1",
+    "directPayout": "0x5373B398C0Ba32904B139C625A6dE5dbBF1Aa0CC",
+    "roleBitmaps": {
+      "ownerToken": "0",
+      "memberRoot": "0",
+      "profile": "16",
+      "context": "0",
+      "registrarRoot": "0"
+    },
+    "authority": {
+      "registered": true,
+      "expired": false,
+      "transferPermission": false,
+      "recordAliasingAvailable": false,
+      "financeCanEditProfile": true,
+      "collectionsCanEditContext": false,
+      "publicAuditNeedsGrant": false,
+      "invoiceHolderWildcard": false,
+      "warning": "Registry expiry stops normal name resolution; it does not revoke independent direct resolver permissions. Bundle aliasing shares payout records too and is not a policy-only alias."
+    },
+    "invoiceProbe": {
+      "name": "inv-1.e2emw4k3tmp.stenmont.eth",
+      "address": "0x0000000000000000000000000000000000000000",
+      "meaning": "Direct resolver observation only; an address is not proof of a current cross-chain claim holder."
+    }
+  },
+  "probes": {
+    "block": "12076670",
+    "readOnly": true,
+    "financeProfileRoles": "16",
+    "financePayoutRoles": "0",
+    "nonTransferable": {
+      "simulation": "reverted",
+      "error": "TransferDisallowed"
+    },
+    "aliasDenied": {
+      "simulation": "reverted",
+      "error": "EACUnauthorizedAccountRoles"
+    },
+    "profileAllowed": {
+      "simulation": "success; no transaction sent"
+    },
+    "payoutDenied": {
+      "simulation": "reverted",
+      "error": "EACUnauthorizedAccountRoles"
+    },
+    "revokedAgent": {
+      "name": "billing-bot.e2emw4k3tmp.stenmont.eth",
+      "state": {
+        "status": 0,
+        "expiry": "1793944428",
+        "latestOwner": "0x0000000000000000000000000000000000000000",
+        "tokenId": "96566039127205492499595741560183044474225457721628919617858644682678892232705",
+        "resource": "96566039127205492499595741560183044474225457721628919617858644682678892232706"
+      },
+      "registryResolver": "0x0000000000000000000000000000000000000000",
+      "storedContext": "Drafts refunds for the finance team"
+    },
+    "standardBusinessResolve": "0x5373B398C0Ba32904B139C625A6dE5dbBF1Aa0CC",
+    "standardRevokedAgentResolve": null
+  }
+}

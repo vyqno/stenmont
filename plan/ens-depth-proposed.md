@@ -1,0 +1,10 @@
+# ENS depth beyond the deployed configuration
+
+Status: proposed, not approved or deployed. Existing immutable payout records and registrar-only keys must remain unchanged.
+
+1. **Invoice claim-holder names:** current Sepolia stored-record resolvers cannot follow Whitechain ownership. Specify a reviewed cross-chain proof or CCIP-Read gateway, trusted signer/verifier distribution, exact chain/claim/token binding, freshness/expiry, owner-change invalidation and fail-closed lookup rules. A stale mirrored address is insufficient. Registering exact child names alone is not wildcard resolution. Do not repoint an existing locked business resolver.
+2. **Policy aliases:** record linking aliases the complete record bundle, including addresses. Use a separately reviewed policy-only resolver/namespace if implementing shared policy; no payout or tier record may be linked through a merchant-controlled operation. Its deployment, roles, intended parent and readback need explicit approval before activation.
+3. **Team names:** the registry can mint names without transfer-admin at registration, as existing business/agent creation does. A dedicated team-name product still needs named role-to-record mappings, restricted creation/revocation flow, audit records and negative grant tests. Owner, finance, collections agent and auditor are not interchangeable root roles. Auditor public reads need no chain write; private data must stay authenticated.
+4. **Agent expiry:** normal resolver lookup stops at registry expiry; an old resolver still exposes historic records and independent setter rights until revoked. Any product promising automatic credential revocation needs explicit scheduled permission revocation and retry recovery, separate from name expiry.
+
+Acceptance for later implementation: real staging write plus `resolve()` readback; denied protected-key mutation; transfer/expiry boundary tests; current-holder change and stale-proof denial; no false safety/KYC or cross-chain atomicity claim. W15 inspection evidence is in `docs/WAVE2-W15.md`.
