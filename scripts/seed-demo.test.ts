@@ -4,6 +4,7 @@ const config = {apiUrl:'https://api-staging.stenmont.com', namespace:'demo-20261
 function api() {
   const products: any[] = [], invoices = new Map<string, any>(), subscriptions = new Map<string, any>();
   const calls: {path:string;method:string;key:string|null}[] = [];
+  const responses=new Map<string,string>();
   const fetcher:typeof fetch = async (input, init) => {
     const url = new URL(String(input)), method = init?.method ?? 'GET', headers = new Headers(init?.headers);
     expect(headers.get('authorization')).toBe('Bearer fixture-only');
@@ -16,8 +17,8 @@ function api() {
     const rows = url.pathname.startsWith('/v1/invoices') ? invoices : subscriptions;
     if(method==='GET')return Response.json([...rows.values()].find(r=>r.id===url.pathname.split('/').at(-1)));
     const key=headers.get('idempotency-key')!;
-    if(!rows.has(key))rows.set(key,{...body,id:`r${rows.size}`,status:url.pathname==='/v1/invoices'?'open':'offered'});
-    return Response.json(rows.get(key),{status:201});
+    if(!rows.has(key)){rows.set(key,{...body,id:`r${rows.size}`,status:url.pathname==='/v1/invoices'?'open':'offered'});responses.set(key,JSON.stringify(rows.get(key)));}
+    return new Response(responses.get(key),{status:201,headers:{'content-type':'application/json'}});
   };
   return {fetcher,calls,products,invoices,subscriptions};
 }
