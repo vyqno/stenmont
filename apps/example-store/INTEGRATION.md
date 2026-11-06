@@ -1,17 +1,11 @@
 # Adding Stenmont to a store
 
-The example store started as a plain cart with a fake Pay button (commit `feat(example-store): add baseline store with a stand-in checkout`). Adding Stenmont changed `src/index.ts` by **13 added lines** (the fake checkout it replaced was deleted), plus one dependency line.
+The example store started as a plain cart with a fake Pay button (commit `feat(example-store): add baseline store with a stand-in checkout`). Adding Stenmont changed `src/index.ts` by **10 added lines** (the fake checkout it replaced was deleted), plus one dependency line. The prices were also lowered for the test faucet; that is a shop setting, not part of the integration.
 
 ```diff
 +import { Stenmont, verifyWebhook } from "@stenmont/sdk";
 -type Env = { Bindings: { ORDERS: KVNamespace; SHOP_URL: string } };
 +type Env = { Bindings: { ORDERS: KVNamespace; SHOP_URL: string; STENMONT_API_KEY: string; STENMONT_API_URL: string; STENMONT_WEBHOOK_SECRET: string } };
--  { id: "tee", name: "Studio tee", price: "12.00" },
--  { id: "mug", name: "Desk mug", price: "8.50" },
--  { id: "print", name: "Poster print", price: "20.00" },
-+  { id: "tee", name: "Studio tee", price: "2.00" },
-+  { id: "mug", name: "Desk mug", price: "1.50" },
-+  { id: "print", name: "Poster print", price: "4.00" },
 -  return c.redirect(`/orders/${id}/pay`, 303); // a stand-in checkout; the real one replaces this
 +  const stenmont = new Stenmont({ apiKey: c.env.STENMONT_API_KEY, baseUrl: c.env.STENMONT_API_URL });
 +  const session = await stenmont.checkout.sessions.create({ amount: p.price, successUrl: `${c.env.SHOP_URL}/orders/${id}`, cancelUrl: c.env.SHOP_URL, metadata: { order: id } }).catch(() => null);
