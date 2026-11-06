@@ -5,7 +5,7 @@ turns a Shopify draft order into a Stenmont invoice, sends the customer to the S
 order in Shopify and records the payment as the manual method **Pay with USDT (Stenmont)**. It also keeps a small mirror of orders so a
 dashboard can show what is happening in the store.
 
-Status: built and unit-tested locally with an injected `fetch` (no real Shopify or Stenmont call has been made). Not deployed.
+Status: built and unit-tested locally (70 tests) with an injected `fetch` (no real Shopify or Stenmont call has been made). Not deployed.
 
 ## How it works
 
@@ -42,6 +42,33 @@ Shopify --orders/create, orders/paid--> POST /webhooks/shopify --> order mirror 
 - If the merchant edits the draft's price after the invoice was made, the old invoice is not used to complete it: the payment is put under `reviews` for a person.
 - Each invoice carries metadata `{shop, draftOrderId, shopifyTotal, shopifyCurrency, rate}` (orders placed with the manual method carry `orderId` instead of `draftOrderId`). Return links: `SHOP_URL/?stenmont=paid&draft=<id>` and `SHOP_URL/cart`.
 
+## Getting access to a store (2026)
+
+Since 1 January 2026 new Shopify apps are created in the **Dev Dashboard** and do not get a static Admin API token. The bridge therefore
+gets a short-lived token itself.
+
+1. Create the app in the Dev Dashboard. Set the scopes: `read_products`, `read_inventory`, `read_orders`, `write_orders`, `read_draft_orders`, `write_draft_orders`.
+2. Release a version of the app.
+3. Install it on the store with **custom distribution**: choose custom distribution, enter the store's `myshopify.com` domain, clear "Allow multi-store installs", generate the install link, and open it as the store owner.
+4. Put the app's Client ID and Client secret into the bridge as `SHOPIFY_CLIENT_ID` and `SHOPIFY_CLIENT_SECRET`.
+
+**Token.** The bridge calls the client credentials grant: `POST https://{shop}.myshopify.com/admin/oauth/access_token`, `application/x-www-form-urlencoded`,
+body `grant_type=client_credentials&client_id=...&client_secret=...` (no `scope`: the token carries what the store granted). The answer has `access_token`,
+`scope` and `expires_in` (always 86399, 24 hours). The token goes in the `X-Shopify-Access-Token` header, only to `https://{shop}/admin/...`, redirects refused.
+It is cached in KV and treated as expired 5 minutes early; a 401 fetches a fresh one and retries once; concurrent requests share a single refresh
+inside one Worker instance. It is never logged or returned. Source: https://shopify.dev/docs/apps/build/authentication-authorization/client-credentials-grant
+
+**When this works.** Only when the app and the store are in the **same organization** (both listed under the same org in the Dev Dashboard; a store made
+from the Shopify admin is not automatically in your org). For any other store Shopify answers `shop_not_permitted`, and the bridge returns the error code
+`shopify_shop_not_permitted` (and `shopify_invalid_client` for a wrong client id or secret). Other merchants would use the install link plus token exchange or the
+authorization code grant. **That is not implemented here.** The docs do not give the HTTP status or JSON shape of these errors, so the bridge looks for the code in the body.
+
+**Legacy override.** If a store already has a static Admin token (an older custom app), set `SHOPIFY_ADMIN_TOKEN`. It is then used as is: nothing is fetched or refreshed.
+
+**What this is and is not.** Shopify's native checkout payment gateway needs Payments Partner approval (the Payments Apps API), and a public App Store listing needs
+Shopify's review. This bridge is neither: it is the external-payment pattern (the customer leaves for the Stenmont pay page, and the order is completed afterwards),
+installed one store at a time by custom distribution.
+
 ## Install, path A: theme snippet
 
 1. Copy `theme/snippets/stenmont-pay.liquid` into the theme as `snippets/stenmont-pay.liquid`.
@@ -64,8 +91,10 @@ Secrets (`wrangler secret put <NAME> --env staging`):
 
 | Name | What it is |
 |---|---|
-| `SHOPIFY_ADMIN_TOKEN` | Admin API access token of a custom app with `write_draft_orders`, `read_draft_orders`, `write_orders`, `read_orders` (and the `mark_orders_as_paid` permission) |
-| `SHOPIFY_WEBHOOK_SECRET` | the app's client secret (Shopify signs webhooks with it) |
+| `SHOPIFY_CLIENT_ID` | the Dev Dashboard app's Client ID |
+| `SHOPIFY_CLIENT_SECRET` | the app's Client secret: used to get the Admin token, and Shopify signs webhooks with it |
+| `SHOPIFY_WEBHOOK_SECRET` | optional; defaults to `SHOPIFY_CLIENT_SECRET`. Set it only if webhooks are signed with a different secret |
+| `SHOPIFY_ADMIN_TOKEN` | optional legacy override: a static Admin token. When set, `SHOPIFY_CLIENT_ID` and `SHOPIFY_CLIENT_SECRET` are not needed for API calls |
 | `STENMONT_API_KEY` | a Stenmont API key for the business |
 | `STENMONT_WEBHOOK_SECRET` | the signing secret of the webhook endpoint registered in Stenmont (below) |
 | `BRIDGE_ADMIN_TOKEN` | a long random string you make up; guards `/invoice-send`, `/orders`, `/admin/*` |
@@ -76,7 +105,7 @@ Vars (`wrangler.jsonc`, `env.staging.vars`): `SHOPIFY_SHOP_DOMAIN` (`name.myshop
 
 1. `cd services/shopify-bridge && wrangler kv namespace create STATE --env staging`, paste the id into `env.staging.kv_namespaces`.
 2. Fill the vars above for staging.
-3. Put the five secrets with `wrangler secret put ... --env staging`.
+3. Put the secrets with `wrangler secret put ... --env staging`.
 4. `pnpm deploy:staging` (serves `shopify-bridge-staging.stenmont.com`).
 5. In Stenmont create a webhook endpoint for `https://shopify-bridge-staging.stenmont.com/webhooks/stenmont` (`POST /v1/webhook-endpoints`, events `invoice.paid` and `refund.created`); the secret in the response is `STENMONT_WEBHOOK_SECRET`. Set it, redeploy.
 6. `curl -X POST https://shopify-bridge-staging.stenmont.com/admin/register-webhooks -H "authorization: Bearer $BRIDGE_ADMIN_TOKEN"`.
@@ -84,7 +113,7 @@ Vars (`wrangler.jsonc`, `env.staging.vars`): `SHOPIFY_SHOP_DOMAIN` (`name.myshop
 
 ## Security
 
-Shop domain must match `^[a-z0-9][a-z0-9-]*\.myshopify\.com$` and the admin token is sent only to `https://{shop}/admin/api/{version}/graphql.json` with redirects refused. Secrets are never logged or returned; Shopify and Stenmont error text is never copied into responses. Shopify HMAC (base64, constant time) and Stenmont signatures (with replay window) are checked on the raw body before parsing. Admin routes compare the bearer in constant time. The mirror keeps id, number, total, currency, gateway names, status and timestamps only. Replays and out-of-order events change nothing (event ids, Shopify webhook ids, a `paid` record per draft, and "paid never goes backwards"). A Stenmont refund adds a tag and a note; it never refunds in Shopify. Each rule has a test in `services/shopify-bridge/test`.
+Shop domain must match `^[a-z0-9][a-z0-9-]*\.myshopify\.com$` and the Admin token (and the client credentials request) is sent only to `https://{shop}/admin/...` with redirects refused. Secrets are never logged or returned; Shopify and Stenmont error text is never copied into responses. Shopify HMAC (base64, constant time) and Stenmont signatures (with replay window) are checked on the raw body before parsing. Admin routes compare the bearer in constant time. The mirror keeps id, number, total, currency, gateway names, status and timestamps only. Replays and out-of-order events change nothing (event ids, Shopify webhook ids, a `paid` record per draft, and "paid never goes backwards"). A Stenmont refund adds a tag and a note; it never refunds in Shopify. Each rule has a test in `services/shopify-bridge/test`.
 
 ## What was verified against shopify.dev (2026-11-06) and what was not
 
@@ -107,7 +136,9 @@ Could not verify (the pages do not say; test on a development store first):
 - Whether `draftOrderComplete(paymentPending: true)` still produces a payment-pending order on 2026-10 given the deprecation note, and what the default (no argument) does. If it returns an already-paid order the bridge skips the manual payment, so the order is paid but the method name is not recorded.
 - Whether `orderCreateManualPayment` without `amount` records the full outstanding balance, and how it behaves on an already-paid order. The bridge falls back to `orderMarkAsPaid` if Shopify refuses, and fails (so Stenmont retries) if the order is still not `PAID`.
 - Whether `orderUpdate` replaces `note` (assumed yes: the bridge reads the old note and appends).
+- The HTTP status and JSON body of a failed token request (`shop_not_permitted`, `invalid_client`): the page names `shop_not_permitted` only.
 - Required scopes for `webhookSubscriptionCreate`, `tagsAdd`, and the `webhookSubscriptions` query (not on those pages).
 - That `id` and `total_price` in order webhooks are the numeric id and the shop-currency total (the bridge prefers `admin_graphql_api_id` and re-reads the total from the Admin API).
 - Duplicate-subscription behaviour of `webhookSubscriptionCreate` (the bridge lists first to avoid it).
+- The client credentials grant was read from the docs (request encoding, `access_token`, `scope`, `expires_in` = 86399, same-organization rule); it has not been run against a real store.
 - Everything above has been exercised only against fakes. Nothing has run against a real Shopify store or a real Stenmont API.
