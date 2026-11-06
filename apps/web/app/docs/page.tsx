@@ -9,7 +9,15 @@ export default function Quickstart() {
   return (
     <>
       <h1>Quickstart</h1>
-      <p>Stenmont lets your customers pay you in USDT with a passkey. They can use a passkey or an existing wallet; payers bring their own USDT. The relayer covers network fees within configured limits. You create an invoice from your server, send the customer to its pay page, and learn about the payment from a signed webhook.</p>
+      <p>Stenmont is a commerce and finance platform for businesses using stablecoins. Sell from a storefront or connect your existing site, get paid in USDT, close the books and explore Capital. Scoped agents help connect and operate that loop; people retain consequential approvals.</p>
+      <ul>
+        <li><a href="/dashboard/catalog">Sell</a>: manage products and variants, then use a hosted storefront or your own checkout.</li>
+        <li><a href="#checkout">Get paid</a>: create checkout on the server and match a signed payment event to the saved order.</li>
+        <li><a href="/dashboard/books">Close the books</a>: reconcile records and export service-signed snapshots. Onchain anchoring is not enabled.</li>
+        <li><a href="/dashboard/financing">Capital</a>: explore eligible receivables and investor funding. The live dashboard financing journey is still being verified; funding is not guaranteed.</li>
+        <li><a href="/docs/mcp">Agents</a>: install through Connect and use scoped tools. Live finance chat verification is pending.</li>
+      </ul>
+      <p>The checkout below uses an invoice as its payment record. Customers pay from a passkey account or an existing wallet with their own USDT; the relayer covers network fees within configured limits.</p>
       <Note>Everything here runs on the test network at <code>{API_URL}</code>. Test USDT has no value. Use an already-funded payer account; Stenmont is not an on-ramp and does not supply payment funds.</Note>
 
       <h2>The fast way: let your AI agent do it</h2>
@@ -20,7 +28,7 @@ export default function Quickstart() {
         <li>Press <strong>Check again</strong>. You are done when all four checks pass.</li>
       </ol>
 
-      <h2>The manual way</h2>
+      <h2 id="checkout">Connect checkout yourself</h2>
       <h3 className="mt-6 font-bold">1. Get an API key</h3>
       <p>In the dashboard, open Settings and make a key. It starts with <code>sk_test_</code> and is shown once. Keep it on your server as <code>STENMONT_API_KEY</code>. Never put it in browser code.</p>
       <h3 className="mt-6 font-bold">2. Create a checkout</h3>
