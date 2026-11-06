@@ -242,7 +242,8 @@ Each section is a set of staging slices, using the same test-first and completio
 
 - [x] Move to chatgpt-work-3 from integration/next and preserve missing fixes by merge.
 - [x] Combined full suite, lint and web typecheck.
-- [ ] Apply staging migrations 0031/0032, set ACCOUNT_LINK_SECRET and deploy API/web/MCP with smoke checks.
-- [ ] Browser: catalogue store/cart/checkout, receipts link, verified badge and wallet-option absence.
-- [ ] Condense builder notes; test abandoned-record cleanup and clean the leftover test records.
-- [ ] Repeat lifecycle dry-run after these steps; stop before another real run.
+- [x] Apply staging migrations 0031/0032, set ACCOUNT_LINK_SECRET and deploy API/web/MCP with smoke checks.
+- [x] Browser: catalogue store/cart/checkout, receipts link, verified badge and wallet-option absence.
+- [x] Condense builder notes; test abandoned-record cleanup and clean only the two unpaid records, preserving the paid receipt.
+- [x] Repeat lifecycle dry-run after these steps; stop before another real run.
+- [ ] Sir approves any further real tokenization lifecycle run.

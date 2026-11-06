@@ -274,3 +274,24 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 - 16:45 API-stage probes 24/26 (old web lacked store/account routes); web/MCP stages 26/26. Added one synthetic store and one $1 product under the existing proof business.
 - 16:45 Build exposed SSR location access; browser exposed store/shop mismatch. Final suite 1362 passed and corrected web build passed; web-only correction deploying before browser continuation.
 - Local work above was not pushed; staging/live evidence is recorded separately from local implementation. Production remains subject to sir's explicit instruction.
+
+- 17:01 Protect receipts and creation keys during cleanup.
+
+- 17:01 Expire abandoned staging invoices with chain guards.
+
+- 17:01 Retire stale orders through retry-safe maintenance.
+
+- 17:02 Browser acceptance: public product/cart reached pay; domain-backed Verified business badge shown; wallet option hidden without provider. Existing-wallet harness paid 1.00 test USDT (918025b8); receipts link opened account and displayed this invoice. Keys stayed in Node, no wallet funding.
+- 17:02 Cleanup review corrections passed: terminal retry repair, creation fingerprint binding and shared-order tombstone stability. Full suite 1398, lint/typecheck passed; API cleanup 41cf16e0 deployed after notice. Only two unpaid records selected; paid receipt retained.
+
+- 17:06 Expose return urls for store maintenance reconciliation.
+
+- 17:09 API eebe3351 and proof store 61632c51 pass 26/26 probes; maintenance without authorization returns 401. Final full suite 1399; lint/typecheck pass with one existing warning.
+- 17:09 Store maintenance changed b500fd67 open→expired and 6afa7aa8 creating→failed; matching creation key released. Paid e17c6c37 preserved. Repeat returned no changes; old order 410, paid order Paid, fresh Connect Ready.
+- 17:09 Repeated lifecycle dry-run passed after cleanup. No further real run started; awaiting sir. Evidence: docs/COMBINED-STAGING-ACCEPTANCE.md.
+
+- 17:10 Record combined release browser proof and cleanup.
+
+- 17:10 Explain tested expiry and retry recovery.
+
+- 17:10 Link completed abandoned invoice cleanup.
