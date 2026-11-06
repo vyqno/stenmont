@@ -9,6 +9,9 @@ import { viemEns, type EnsClient } from "./ens/client";
 import { ensRoutes } from "./routes/ens";
 import { fail } from "./errors";
 import { apiKeyRoutes } from "./routes/apiKeys";
+import { importRoutes } from "./routes/import";
+import { checkoutRoutes } from "./routes/checkout";
+import { catalogRoutes, storePublicRoutes } from "./routes/catalog";
 import { authRoutes } from "./routes/auth";
 import { exportRoutes } from "./routes/exports";
 import { financingRoutes } from "./routes/financing";
@@ -70,6 +73,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.use("/l/*", publicCors);
   app.use("/relay/*", publicCors);
   app.use("/invest/*", publicCors);
+  app.use("/store/*", publicCors);
 
   app.get("/health", (c) => c.json({ ok: true }));
 
@@ -91,11 +95,15 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/oauth", oauthGrantRoutes);
   v1.route("/sites", siteRoutes);
   v1.route("/payment-switch", switchRoutes);
+  v1.route("/", catalogRoutes);
+  v1.route("/store", checkoutRoutes);
+  v1.route("/import", importRoutes);
   app.route("/v1", v1);
   app.route("/", oauthRoutes);
   app.route("/auth/world", worldAuthRoutes);
   app.route("/auth", authRoutes);
   app.route("/invest", investRoutes);
+  app.route("/store", storePublicRoutes);
   app.route("/relay", relayRoutes);
   app.route("/relay", subscriptionRelayRoutes);
   app.route("/", subscriptionPublicRoutes);

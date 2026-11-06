@@ -1,0 +1,4 @@
+Name,Email,Financial Status,Paid at,Fulfillment Status,Fulfilled at,Accepts Marketing,Currency,Subtotal,Shipping,Taxes,Total,Discount Code,Discount Amount,Shipping Method,Created at,Lineitem quantity,Lineitem name,Lineitem price,Lineitem sku,Billing Name,Billing Street,Shipping Name,Shipping Street,Notes
+#1001,ada@example.test,paid,2026-10-01 10:00:00 +0000,fulfilled,2026-10-02 10:00:00 +0000,yes,EUR,100.00,5.00,0.00,105.00,SAVE10,10.00,Standard,2026-10-01 09:55:00 +0000,1,Linen Shirt - S / Blue,100.00,SH-S-BL,Ada Example,1 Test Street,Ada Example,1 Test Street,
+#1001,,,,,,,,,,,,,,,,2,Mug,2.50,MUG-1,,,,,
+#1002,bob@example.test,pending,,unfulfilled,,no,EUR,"1,234.50",0.00,0.00,"1,234.50",,,Standard,2026-10-03 11:00:00 +0000,1,Linen Shirt - M / Blue,"1,234.50",SH-M-BL,Bob,2 Test Street,Bob,2 Test Street,call me

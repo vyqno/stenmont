@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { keccak256, toBytes, zeroAddress, type Address } from "viem";
 import { z } from "zod";
 import { invoiceId, invoiceRef, toUnits } from "@stenmont/shared";
@@ -7,7 +7,7 @@ import type { AppEnv } from "../app";
 import { audit } from "../audit";
 import { invoices } from "../db/schema";
 import { fail } from "../errors";
-import { runIdempotent } from "../idempotency";
+import { runIdempotent, type IdempotentResult } from "../idempotency";
 import { randomHex } from "../lib/crypto";
 import { amountSchema, idSchema, invalid, returnUrlOk } from "../lib/validation";
 import { invoiceView } from "../lib/views";
@@ -46,15 +46,20 @@ invoiceRoutes.post("/", async (c) => {
   if (await isPaused(c.var.db, c.var.merchantId)) return fail(c, 403, "payments_paused", "Payments are paused for this business. Resume them in the dashboard.");
   const parsed = createSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return invalid(c, parsed.error);
-  const input = parsed.data;
+  return runIdempotent(c, c.var.merchant.id, () => createInvoice(c, parsed.data));
+});
+
+export type CreateInvoiceInput = z.infer<typeof createSchema>;
+
+/** The one way an invoice is made (the API route and the store checkout both come through here): limits, payee rules, onchain creation, audit, webhook. */
+export async function createInvoice(c: Context<AppEnv>, input: CreateInvoiceInput): Promise<IdempotentResult | Response> {
   const { db, chain, merchant } = c.var;
   for (const u of [input.successUrl, input.cancelUrl]) {
     if (u !== undefined && !returnUrlOk(u, c.env.ENVIRONMENT)) {
       return fail(c, 400, "invalid_request", "successUrl and cancelUrl must be public https addresses");
     }
   }
-
-  return runIdempotent(c, merchant.id, async () => {
+  {
     // Every invoice is a transaction paid by the platform, so creation is limited per business and overall.
     const at = c.var.now();
     const within = [
@@ -149,8 +154,8 @@ invoiceRoutes.post("/", async (c) => {
     await audit(db, { merchantId: merchant.id, actor: `merchant:${merchant.id}`, action: "invoice.created", payload: { id, number, txHash } });
     await emitEvent(db, c.env.WEBHOOKS, merchant.id, { id: `evt_created_${id}`, type: "invoice.created", data: { invoice: view } });
     return { status: 201 as const, body: view };
-  });
-});
+  }
+}
 
 invoiceRoutes.get("/", async (c) => {
   const parsed = listSchema.safeParse(c.req.query());

@@ -14,12 +14,15 @@
     "relay-pay": "tsx --env-file=../.env relay-pay.ts",
     "drain-sim": "tsx --env-file=../.env drain-sim.ts",
     "ens-setup": "tsx --env-file=../.env ens-setup.ts",
-    "agent-pays": "tsx --env-file=../.env agent-pays.ts"
+    "agent-pays": "tsx --env-file=../.env agent-pays.ts",
+    "shopify-import": "tsx --env-file=../.env shopify-import-demo.ts",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
   },
   "dependencies": {
     "@stenmont/shared": "workspace:*",

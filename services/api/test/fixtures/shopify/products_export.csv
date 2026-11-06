@@ -1,0 +1,11 @@
+Handle,Title,Body (HTML),Vendor,Product Category,Type,Tags,Published,Option1 Name,Option1 Value,Option2 Name,Option2 Value,Option3 Name,Option3 Value,Variant SKU,Variant Grams,Variant Inventory Tracker,Variant Inventory Qty,Variant Inventory Policy,Variant Fulfillment Service,Variant Price,Variant Compare At Price,Variant Requires Shipping,Variant Taxable,Variant Barcode,Image Src,Image Position,Image Alt Text,Gift Card,SEO Title,SEO Description,Status
+linen-shirt,Linen Shirt,"<p onclick=""x()"">Soft, breathable <b>linen</b>.</p><script>alert(1)</script>",Acme Co,Apparel,Shirts,"summer, linen",TRUE,Size,S,Color,Blue,,,SH-S-BL,200,shopify,5,deny,manual,"1,234.50",,TRUE,TRUE,,https://cdn.example/linen-front.jpg,1,Front view,FALSE,,,active
+linen-shirt,,,,,,,,,M,,Blue,,,SH-M-BL,200,shopify,0,deny,manual,1234.50,,TRUE,TRUE,,https://cdn.example/linen-side.jpg,2,Side view,,,,
+linen-shirt,,,,,,,,,L,,Blue,,,SH-L-BL,200,shopify,12,deny,manual,1234.50,,TRUE,TRUE,,,,,,,,
+linen-shirt,,,,,,,,,,,,,,,,,,,,,,,,,https://cdn.example/linen-back.jpg,3,,,,,
+mug,"Mug ""Classic""","<p>Line one</p>
+<p>Line two, with comma</p>",Acme Co,Home,Mugs,,TRUE,Title,Default Title,,,,,MUG-1,300,,,deny,manual,12.50,,TRUE,TRUE,,https://cdn.example/mug.jpg,1,,FALSE,,,active
+=cmd|' /C calc'!A0,Evil Title,<p>x</p>,@Vendor,,,,TRUE,Title,Default Title,,,,,+SKU1,0,shopify,3,deny,manual,5.00,,TRUE,TRUE,,,,,FALSE,,,active
+gift-card,Gift Card,<p>Give a gift</p>,Acme Co,Gift Cards,Gift Card,,TRUE,Denomination,25,,,,,GC-25,0,,,deny,manual,25.00,,FALSE,FALSE,,,,,TRUE,,,active
+secret-draft,Secret Draft,<p>not yet</p>,Acme Co,,,"subscription, new",FALSE,Title,Default Title,,,,,DR-1,0,shopify,1,deny,manual,3.00,,TRUE,TRUE,,,,,FALSE,,,draft
+broken-price,Broken Price,<p>x</p>,Acme Co,,,,TRUE,Title,Default Title,,,,,BP-1,0,shopify,1,deny,manual,abc,,TRUE,TRUE,,,,,FALSE,,,active
