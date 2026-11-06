@@ -18,7 +18,10 @@ describe("books close API", () => {
     expect(await verifyMonthBundle(b.bundle,b.bundle.signer)).toBe(true);
     expect(b.anchor.status).toBe("not_anchored");
     expect((await t.req("/v1/books/2026-10/close",{key,method:"POST"})).status).toBe(409);
-    expect((await t.req("/v1/books/2026-10/proof/1",{key})).status).toBe(200);
+    const proof=await (await t.req("/v1/books/2026-10/proof/1",{key})).json() as any;
+    const csv=await (await t.req("/v1/books/2026-10/export/ledger",{key})).text();
+    expect(csv).toContain("ledger_line_hash");
+    expect(csv).toContain(proof.leaf);
     const other = await seedMerchant(t.db,"m_2","Other",`sk_test_${"b".repeat(32)}`);
     expect((await t.req("/v1/books/2026-10/bundle",{key:other})).status).toBe(404);
     expect((await t.req("/v1/books/2026-10/proof/1",{key:other})).status).toBe(404);

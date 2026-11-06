@@ -65,7 +65,7 @@ booksRoutes.get("/:period/export/:format",async c=>{
   // Rehydrate the fixed snapshot only; a locked export never queries live source data.
   const snapshot=bundle?bundle.snapshot:JSON.parse(booksJson(reconcile(await loadBooks(c,period))));
   const result={...snapshot,lines:snapshot.lines.map((l:any)=>({...l,amount:BigInt(l.amount),usdtValue:l.usdtValue===null?null:BigInt(l.usdtValue)}))} as Result;
-  return new Response(ledgerCsv(result,format as BooksFormat),{headers:{"content-type":"text/csv; charset=utf-8","cache-control":"private, no-store"}});
+  return new Response(ledgerCsv(result,format as BooksFormat,{merchantId:c.var.merchantId}),{headers:{"content-type":"text/csv; charset=utf-8","cache-control":"private, no-store"}});
 });
 
 booksRoutes.get("/:period/anchor-intent",async c=>{

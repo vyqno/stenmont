@@ -1,3 +1,4 @@
+import { ledgerLineHash } from "@stenmont/shared";
 import { cell, row } from "../lib/csv";
 import { ACCOUNTS, type Line, type Result } from "./reconcile";
 
@@ -21,7 +22,7 @@ const cashMoves = (r: Result) =>
 
 export type BooksFormat = "ledger" | "xero" | "quickbooks";
 
-export function ledgerCsv(r: Result, format: BooksFormat): string {
+export function ledgerCsv(r: Result, format: BooksFormat, context?: {merchantId:string}): string {
   let out: string[];
   if (format === "xero") {
     // Xero Central's CSV statement fields: Date, Amount, Payee, Description, Reference.
@@ -38,11 +39,12 @@ export function ledgerCsv(r: Result, format: BooksFormat): string {
     ];
   } else {
     out = [
-      "seq,date,type,invoice,description,debit_account,credit_account,amount,currency,usdt_value,tx_hash,explorer_url,leaf_id,adjustment_for",
+      "seq,date,type,invoice,description,debit_account,credit_account,amount,currency,usdt_value,tx_hash,explorer_url,leaf_id,adjustment_for" + (context ? ",ledger_line_hash" : ""),
       ...r.lines.map((l) =>
         row([
           String(l.seq), l.date, l.kind, cell(l.invoice ?? ""), cell(l.description), cell(l.debit ?? ""), cell(l.credit ?? ""), amountOf(l), l.currency,
           l.usdtValue === null ? "" : fixed(l.usdtValue, 6, 2), l.txHash ?? "", l.txHash ? EXPLORER + l.txHash : "", l.leafId ?? "", l.adjustmentFor ?? "",
+          ...(context ? [ledgerLineHash(context.merchantId, r.period, l)] : []),
         ]),
       ),
     ];
