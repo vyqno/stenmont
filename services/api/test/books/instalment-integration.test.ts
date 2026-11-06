@@ -41,3 +41,13 @@ it("deduplicates charge gas against measured relayer costs and never invents mis
  expect(data.snapshot.lines.filter((l:any)=>l.kind==="gas")).toHaveLength(1);
  expect(data.snapshot.lines.find((l:any)=>l.kind==="gas")).toMatchObject({amount:"50",txHash:tx("1")});
 });
+it("does not book charge gas twice when its matching relayer row arrives in a later month",async()=>{
+ const t=setup({}, {BOOKS_SIGNING_KEY:generatePrivateKey()});const key=await seedMerchant(t.db);const invoice=await seedInvoice(t.db);
+ await t.db.prepare("UPDATE invoices SET status='cancelled',created_at=? WHERE id=?").bind("2026-10-01T00:00:00.000Z",invoice).run();
+ await charge(t,invoice,"early");
+ expect((await t.req("/v1/books/2026-10/close",{key,method:"POST"})).status).toBe(201);
+ t.clock.now=new Date("2026-11-06T12:01:00Z");
+ await t.db.prepare("INSERT INTO relayer_txs(id,merchant_id,kind,status,idempotency_key,created_at,updated_at,tx_hash,wbt_cost) VALUES(?,?,?,?,?,?,?,?,?)").bind("later","m_1","instalment","success","later","2026-11-06T12:00:00.000Z","2026-11-06T12:00:00.000Z",tx("1"),"30").run();
+ const data=await (await t.req("/v1/books/2026-11",{key})).json() as any;
+ expect(data.snapshot.lines).toHaveLength(0);
+});

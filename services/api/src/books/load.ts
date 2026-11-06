@@ -33,7 +33,11 @@ export async function loadBooks(c:Context<AppEnv>,period:string, cutoff?:string)
   }
   for (const r of instalments) {
     const key=r.txHash.toLowerCase();
-    if (r.gasCostWbt && !measuredGas.has(key)) measuredGas.set(key,{id:`instalment-gas:${r.id}`,txHash:r.txHash,kind:"replacement_instalment",wei:BigInt(r.gasCostWbt),at:r.observedAt,recordedAt:observed.get(`instalment-gas:${r.id}`)});
+    if (measuredGas.has(key)) {
+      const existing=measuredGas.get(key)!;
+      // The immutable charge receipt remains the event date even if a matching relayer row is finalized later.
+      measuredGas.set(key,{...existing,at:r.observedAt,recordedAt:r.gasCostWbt?observed.get(`instalment-gas:${r.id}`):existing.recordedAt});
+    } else if (r.gasCostWbt) measuredGas.set(key,{id:`instalment-gas:${r.id}`,txHash:r.txHash,kind:"replacement_instalment",wei:BigInt(r.gasCostWbt),at:r.observedAt,recordedAt:observed.get(`instalment-gas:${r.id}`)});
   }
   return {period,closedPeriods,
     invoices:inv.map(r=>({...r,amount:BigInt(r.amount)})),
