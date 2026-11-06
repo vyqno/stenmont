@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../../lib/seo";
 import { API_URL } from "../../../lib/docSamples";
 import { Code, Note } from "../Code";
 
-export const metadata: Metadata = { title: "SDK and React · Stenmont docs", description: "The server client and the Pay button." };
+
+export const metadata = pageMetadata("/docs/sdk");
 
 export default function Sdk() {
   return (

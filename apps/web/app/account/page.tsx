@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../lib/seo";
 import AccountClient from "./AccountClient";
 
-export const metadata: Metadata = { title: "Your receipts · Stenmont", robots: { index: false }, referrer: "no-referrer" };
+
+export const metadata = pageMetadata("/account");
 
 export default function AccountPage() {
   return <AccountClient />;

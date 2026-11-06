@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../../lib/seo";
 import PayClient from "./PayClient";
 
-export const metadata: Metadata = { title: "Pay · Stenmont", robots: { index: false } };
+
+export const metadata = pageMetadata("/pay/[id]");
 
 export default async function PayPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

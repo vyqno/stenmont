@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../../lib/seo";
 import SubscribeClient from "./SubscribeClient";
 
-export const metadata: Metadata = { title: "Subscribe · Stenmont", robots: { index: false } };
+
+export const metadata = pageMetadata("/subscribe/[id]");
 
 export default async function SubscribePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

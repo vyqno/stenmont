@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../../lib/seo";
 import Portfolio from "./Portfolio";
 
-export const metadata: Metadata = { title: "Your portfolio · Stenmont" };
+
+export const metadata = pageMetadata("/invest/portfolio");
 
 export default function PortfolioPage() {
   return <Portfolio />;

@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../../lib/seo";
 import ClaimClient from "./ClaimClient";
 
-export const metadata: Metadata = { title: "Invoice for sale · Stenmont" };
+
+export const metadata = pageMetadata("/invest/[invoiceId]");
 
 export default async function ClaimPage({ params }: { params: Promise<{ invoiceId: string }> }) {
   const { invoiceId } = await params;

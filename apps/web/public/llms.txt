@@ -1,24 +1,25 @@
 # Stenmont
 
-> Stenmont lets a business accept USDT payments on Whitechain without touching crypto: the customer pays with a passkey (no wallet, no gas), the business gets invoices, refunds, subscriptions and an accountant export. This is the test network (test USDT, no real money). Full reference in one file: https://app-staging.stenmont.com/llms-full.txt
+> The agentic business kit for test-network USDT payments, invoices and connected records. Payers bring their own USDT; Stenmont does not fund wallets. Full reference: https://app-staging.stenmont.com/llms-full.txt
 
 Facts an agent needs:
-- API base: https://api-staging.stenmont.com . Auth: "Authorization: Bearer $STENMONT_API_KEY" (server side only; never in browser code, never in a repository, never in a chat).
-- Every POST to /v1/ needs an "Idempotency-Key" header.
-- Take a payment: POST /v1/invoices with {"amount": "25.00", "successUrl", "cancelUrl", "metadata": {"order": "..."}}, then send the customer to the "payUrl" in the response.
-- Webhooks: header "Stenmont-Signature: t=<unix>,v1=<hex>"; v1 is HMAC-SHA256 of "<t>.<raw body>" with STENMONT_WEBHOOK_SECRET; reject if t is more than 300 seconds old. Environment names: STENMONT_API_KEY, STENMONT_WEBHOOK_SECRET, STENMONT_API_URL.
-- To install on a site, the owner opens https://app-staging.stenmont.com/dashboard/connect , copies the prompt for their platform and gives it to you. Finish only when the page shows all four checks green.
+- API: https://api-staging.stenmont.com. Server-side Authorization: Bearer $STENMONT_API_KEY; never put credentials in a browser, repository or chat.
+- Persist an Idempotency-Key with the order before a checkout attempt; reuse it on retries.
+- Verify the raw webhook body with Stenmont-Signature and STENMONT_WEBHOOK_SECRET, then bind the stored invoice ID, amount and paid status before atomic fulfilment.
+- Connect: https://app-staging.stenmont.com/dashboard/connect; finish only after its four checks pass.
+- SDK and React packages are not published. Use HTTP until publication is explicitly approved.
 
 ## Docs
 
-- [Quickstart](https://app-staging.stenmont.com/docs): take a first payment in minutes
-- [API](https://app-staging.stenmont.com/docs/api): authentication, invoices, errors, idempotency
-- [Webhooks](https://app-staging.stenmont.com/docs/webhooks): events, retries, verifying the signature in Node and Python
-- [SDK and React](https://app-staging.stenmont.com/docs/sdk): server client and the Pay button
-- [MCP](https://app-staging.stenmont.com/docs/mcp): let an agent read invoices and draft refunds
-- [x402](https://app-staging.stenmont.com/docs/x402): charge or pay AI agents per request
+- [Quickstart](https://app-staging.stenmont.com/docs): Connect a server-side checkout and verify signed payment webhooks.
+- [API reference](https://app-staging.stenmont.com/docs/api): Authentication, invoices, errors and idempotent requests.
+- [MCP and OAuth](https://app-staging.stenmont.com/docs/mcp): Connect scoped agents using OAuth with PKCE and draft-only tools.
+- [SDK and React](https://app-staging.stenmont.com/docs/sdk): Use the server SDK and a checkout link in React.
+- [Webhook reference](https://app-staging.stenmont.com/docs/webhooks): Verify raw-body signatures and fulfil each paid order once.
+- [x402 payments](https://app-staging.stenmont.com/docs/x402): Price agent requests and settle authorized test USDT payments.
+- [Frequently asked questions](https://app-staging.stenmont.com/docs/faq): Test-network payments, payer funding, agent permissions and records.
 
 ## Optional
 
-- [Full reference as one text file](https://app-staging.stenmont.com/llms-full.txt): every code sample, all events and error codes
-- [Connect your site](https://app-staging.stenmont.com/dashboard/connect): prompts per platform and the status checks (sign-in required)
+- [Full reference](https://app-staging.stenmont.com/llms-full.txt): integration samples, current webhook events and MCP tools
+- [Documentation sitemap](https://app-staging.stenmont.com/docs/sitemap.xml): public documentation inventory

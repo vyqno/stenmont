@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../../lib/seo";
 import { MCP_URL } from "../../../lib/docSamples";
 import { Code, Note } from "../Code";
 
-export const metadata: Metadata = { title: "MCP · Stenmont docs", description: "Let an AI agent read invoices and draft refunds." };
+
+export const metadata = pageMetadata("/docs/mcp");
 
 export default function Mcp() {
   return (

@@ -1,6 +1,8 @@
+import { pageMetadata } from "../../../lib/seo";
 import Consent from "./Consent";
 
-export const metadata = { title: "Connect an app · Stenmont" };
+
+export const metadata = pageMetadata("/oauth/authorize");
 
 export default function Page() {
   return (

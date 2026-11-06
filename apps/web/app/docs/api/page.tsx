@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../../lib/seo";
 import { API_URL } from "../../../lib/docSamples";
 import { Code } from "../Code";
 
-export const metadata: Metadata = { title: "API · Stenmont docs", description: "Authentication, invoices, errors and idempotency." };
+
+export const metadata = pageMetadata("/docs/api");
 
 export default function Api() {
   return (
