@@ -38,6 +38,8 @@ export type Env = {
   INVOICE_CREATION_PAUSED?: string;
   /** Staging-only existing merchant exception; never honored in production or for v1 creation. */
   INVOICE_ACCEPTANCE_MERCHANT_ID?: string;
+  /** Comma-separated exact staging merchant IDs; same staging/v2 guard as the singular setting. */
+  INVOICE_ACCEPTANCE_MERCHANT_IDS?: string;
   ROUTER_V2_ADDRESS?: string;
   ROUTER_V2_DEPLOY_BLOCK?: string;
   INVOICE_CLAIM_V2_ADDRESS?: string;
