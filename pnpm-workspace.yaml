@@ -3,3 +3,8 @@ packages:
   - services/*
   - apps/*
   - scripts
+
+# Native tooling used by Vite/Next and Cloudflare. Keep all other dependency scripts blocked.
+allowBuilds:
+  esbuild: true
+  workerd: true
