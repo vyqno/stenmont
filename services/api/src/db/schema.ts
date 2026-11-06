@@ -577,3 +577,60 @@ export const storeOrders = sqliteTable(
   },
   (t) => [index("store_orders_merchant_idx").on(t.merchantId, t.status)],
 );
+
+// ---- verification tiers -------------------------------------------------------------------------------------------
+// Only a provider's reference and its decision are kept: never documents or personal details.
+
+export const verificationRecords = sqliteTable(
+  "verification_records",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id").notNull(),
+    tier: integer("tier").notNull(),
+    method: text("method").notNull(), // email | domain | world | kyc
+    provider: text("provider"),
+    reference: text("reference"),
+    decision: text("decision").notNull(), // approved | rejected | pending
+    decidedAt: text("decided_at").notNull(),
+    expiresAt: text("expires_at"),
+  },
+  (t) => [index("verification_records_merchant").on(t.merchantId, t.method), uniqueIndex("verification_records_provider_ref").on(t.provider, t.reference)],
+);
+
+/** Optional per-tier overrides of the demo defaults in `verification/tiers.ts`. Money is USDT base units as TEXT. */
+export const verificationLimits = sqliteTable("verification_limits", {
+  tier: integer("tier").primaryKey(),
+  perInvoice: text("per_invoice").notNull(),
+  dailyVolume: text("daily_volume").notNull(),
+  financingCap: text("financing_cap").notNull(),
+  investor: integer("investor").notNull().default(0),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const kycWebhookEvents = sqliteTable(
+  "kyc_webhook_events",
+  { provider: text("provider").notNull(), eventId: text("event_id").notNull(), receivedAt: text("received_at").notNull() },
+  (t) => [primaryKey({ columns: [t.provider, t.eventId] })],
+);
+
+/** A wallet that may sign in to a business (EIP-4361). One wallet, one business. */
+export const walletLogins = sqliteTable(
+  "wallet_logins",
+  { address: text("address").primaryKey(), merchantId: text("merchant_id").notNull(), createdAt: text("created_at").notNull() },
+  (t) => [index("wallet_logins_merchant").on(t.merchantId)],
+);
+
+export const siweNonces = sqliteTable("siwe_nonces", {
+  nonce: text("nonce").primaryKey(),
+  merchantId: text("merchant_id"),
+  expiresAt: text("expires_at").notNull(),
+  usedAt: text("used_at"),
+});
+
+/** The tier last published to the business's ENS name. */
+export const tierBadges = sqliteTable("tier_badges", {
+  merchantId: text("merchant_id").primaryKey(),
+  publishedTier: integer("published_tier").notNull(),
+  txHash: text("tx_hash"),
+  publishedAt: text("published_at").notNull(),
+});
