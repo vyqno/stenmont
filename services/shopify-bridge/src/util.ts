@@ -26,7 +26,7 @@ export async function safeEqual(a: string, b: string): Promise<boolean> {
 /** Shopify signs the RAW body with the app secret and sends the HMAC-SHA256 as base64 in X-Shopify-Hmac-Sha256. */
 export async function verifyShopifyHmac(secret: string, rawBody: string, headerB64: string | undefined): Promise<boolean> {
   if (!secret || !headerB64) return false;
-  let sig: Uint8Array;
+  let sig: Uint8Array<ArrayBuffer>;
   try {
     sig = Uint8Array.from(atob(headerB64.trim()), (c) => c.charCodeAt(0));
   } catch {
