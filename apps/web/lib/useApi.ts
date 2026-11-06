@@ -13,3 +13,20 @@ export function useApi<T>(path: string) {
   useEffect(reload, [reload]);
   return { data, error, reload };
 }
+
+/** What one part of a page knows: still loading, failed, or the answer. */
+export type Part<T> = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; value: T };
+
+/** Like useApi, but a 404 is a normal answer ("none yet") and becomes `null`. Each part of a page fails on its own. */
+export function usePart<T>(path: string): Part<T | null> {
+  const [part, setPart] = useState<Part<T | null>>({ status: "loading" });
+  useEffect(() => {
+    let live = true;
+    api.get<T>(path).then(
+      (value) => live && setPart({ status: "ready", value }),
+      (e: Error & { code?: string }) => live && setPart(e.code === "not_found" ? { status: "ready", value: null } : { status: "error", message: e.message }),
+    );
+    return () => { live = false; };
+  }, [path]);
+  return part;
+}
