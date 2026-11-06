@@ -1,0 +1,22 @@
+"use client";
+
+import { useState } from "react";
+import { Badge } from "../ui";
+import { SampleLabel, WhiteCard } from "./Surface";
+
+export function InvoicePreview() {
+  const [party, setParty] = useState("Customer");
+  return <WhiteCard className="invoice-preview"><div className="preview-top"><div><SampleLabel /><h3>Invoices</h3></div><div className="segmented" aria-label="Invoice perspective">{["Customer", "Investor"].map(p => <button key={p} type="button" aria-pressed={party === p} onClick={() => setParty(p)}>{p}</button>)}</div></div><div className="preview-total"><span>{party === "Customer" ? "Payments received" : "Claims settled"}</span><strong>12,480<span>.00 USDT</span></strong><small>Illustrative November activity</small></div><div className="preview-table" role="table" aria-label="Sample settled invoices"><div role="row" className="table-head"><span role="columnheader">Invoice</span><span role="columnheader">Amount</span><span role="columnheader">Status</span></div>{[["INV–1042", "4,800.00"], ["INV–1041", "3,250.00"], ["INV–1040", "2,180.00"]].map(([id, amount]) => <div key={id} role="row"><span role="cell">{id}</span><span role="cell">{amount}</span><span role="cell"><Badge tone="ok">Settled</Badge></span></div>)}</div></WhiteCard>;
+}
+export function ConnectPreview() {
+  return <WhiteCard className="connect-preview"><SampleLabel /><div className="preview-top"><h3>Your site, connected.</h3><span className="small-tag">4 / 4</span></div><p className="preview-sub">example.business · illustrative checks</p>{["Site reachable", "Domain ownership", "Signed webhook", "Test payment"].map((text, i) => <div className="check-row" key={text}><span className="check-dot">✓</span><span>{text}</span><span className="check-time">{i + 1} min ago</span></div>)}<p className="preview-foot">Sample checks. Connect your own site to verify it.</p></WhiteCard>;
+}
+export function BooksPreview() {
+  return <WhiteCard><SampleLabel /><div className="preview-top"><h3>November books</h3><span className="small-tag">Sample period</span></div><div className="book-totals"><div><span>Received</span><strong>12,480.00</strong></div><div><span>Refunded</span><strong>180.00</strong></div></div><div className="ledger-row"><span>Invoice payments</span><span>12,480.00 USDT</span></div><div className="ledger-row"><span>Refunds</span><span>−180.00 USDT</span></div><div className="ledger-row"><span>Financing advance</span><span>4,650.00 USDT</span></div><div className="proof-note"><span>◇</span><div><b>One period. A verifiable record.</b><p>Example bundle with a receipt inclusion proof.</p></div></div></WhiteCard>;
+}
+export function FinancingPreview() {
+  return <WhiteCard><SampleLabel /><div className="preview-top"><h3>Invoice INV–1042</h3><span className="small-tag">Receivable</span></div><div className="claim-amount"><span>Face value</span><strong>4,800.00 <small>USDT</small></strong></div><ol className="preview-timeline">{[["Invoice listed", "Terms approved by the business"], ["Investor funded", "Illustrative advance: 4,650.00 USDT"], ["Buyer paid", "Payment routed to the claim"], ["Claim settled", "Recorded against the invoice"]].map(([title, detail],i) => <li key={title}><span>{String(i + 1).padStart(2,"0")}</span><div><b>{title}</b><p>{detail}</p></div></li>)}</ol><div className="mini-certificate"><span>↗</span><div><b>Settlement certificate</b><p>Sample certificate · no live transaction</p></div><span>◇</span></div></WhiteCard>;
+}
+export function AgentPreview() {
+  return <WhiteCard className="agent-preview"><SampleLabel /><div className="preview-top"><h3>Your finance agent</h3><span className="small-tag">Draft only</span></div><div className="chat-message human">Which invoices need a follow-up?</div><div className="chat-message assistant"><span className="agent-dot" />I found 3 overdue invoices in this sample. I can prepare a reminder for your review.</div><div className="agent-draft"><span className="eyebrow">Draft reminder</span><p>Hi, a quick reminder that invoice INV–1038 is due. Please let us know if you need a copy.</p><span className="small-tag">Human approval required</span></div><div className="sample-composer">Ask about your business records <span>↑</span></div></WhiteCard>;
+}

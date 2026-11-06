@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../components/brand/brand-ui.css";
 
 /* Approved Stenmont palette. Legacy aliases remain for existing UI consumers. */
 :root {
