@@ -127,3 +127,25 @@ describe("the link a payer is given after paying", () => {
     expect(body).not.toHaveProperty("accountToken");
   });
 });
+
+describe("actual replacement receipts", () => {
+  it("shows only the payer's receipts with matching invoice/merchant ownership and the actual transaction link", async () => {
+    const w = await world();
+    await seedMerchant(w.t.db, "m_2", "Other", `sk_test_${"b".repeat(32)}`);
+    const inv = await seedInvoice(w.t.db, "REPLACED", 100_000_000n);
+    await w.t.db.prepare("update invoices set status='cancelled' where id=?").bind(inv).run();
+    const insert = (id: string, merchant: string, payer: string, hash: string) => w.t.db.prepare("insert into instalment_charges(id,merchant_id,invoice_id,subscription_id,agreement_id,payer,amount,tx_hash,observed_at) values (?,?,?,?,?,?,?,?,?)").bind(id,merchant,inv,"plan","agreement",payer,"33333334",hash,"2026-11-05T10:00:00.000Z").run();
+    const hash = `0x${"e5".repeat(32)}`;
+    await insert("alice", "m_1", ALICE, hash);
+    await insert("bob", "m_1", BOB, `0x${"f6".repeat(32)}`);
+    await insert("foreign", "m_2", ALICE, `0x${"07".repeat(32)}`);
+    const body = await (await w.get(await w.link(ALICE))).json() as any;
+    const replacement = body.payments.filter((p: any) => p.rail === "replacement_subscription");
+    expect(replacement).toEqual([{ invoiceNumber: "REPLACED", merchantName: "Acme", amount: "33.333334", at: "2026-11-05T10:00:00.000Z", receiptUrl: `https://explorer.testnet.whitechain.io/tx/${hash}`, rail: "replacement_subscription", timeBasis: "observed" }]);
+    expect(JSON.stringify(body)).not.toContain("f6".repeat(32));
+    expect(JSON.stringify(body)).not.toContain("07".repeat(32));
+    expect(body.refunds).toHaveLength(1); // actual existing refund only; no replacement refund is synthesized
+    expect(await w.t.db.prepare("select status,amount_paid from invoices where id=?").bind(inv).first()).toMatchObject({ status: "cancelled", amount_paid: "0" });
+    expect((await (await w.get(await w.link(BOB))).json() as any).payments.filter((p: any) => p.rail === "replacement_subscription")).toHaveLength(1);
+  });
+});
