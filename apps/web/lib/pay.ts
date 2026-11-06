@@ -5,7 +5,8 @@ import { buildReceiveAuth, deployments, formatUSDT, payNonce, toUnits } from "@s
 export const ZERO_SALT = `0x${"00".repeat(32)}` as Hex;
 
 export function apiBase(hostname: string, localApi = "http://localhost:8787"): string {
-  if (hostname === "app-staging.stenmont.com") return "https://api-staging.stenmont.com";
+  if (hostname === "testnet.stenmont.com") return "https://api-testnet.stenmont.com";
+  if (hostname === "app-staging.stenmont.com") return "https://api-staging.stenmont.com"; // the current staging names, until the testnet names are live
   if (hostname === "app.stenmont.com") return "https://api.stenmont.com";
   if (hostname === "localhost" || hostname === "127.0.0.1") return localApi;
   throw new Error(`unknown host: ${hostname}`);

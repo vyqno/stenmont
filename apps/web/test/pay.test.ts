@@ -7,18 +7,19 @@ const BANNED = /\b(gas|wbt|usdt|seed|chain|wallet|crypto|ethereum|token|blockcha
 
 describe("hosts", () => {
   it("maps each app host to its own API", () => {
+    expect(apiBase("testnet.stenmont.com")).toBe("https://api-testnet.stenmont.com");
     expect(apiBase("app-staging.stenmont.com")).toBe("https://api-staging.stenmont.com");
     expect(apiBase("app.stenmont.com")).toBe("https://api.stenmont.com");
     expect(apiBase("localhost")).toBe("http://localhost:8787");
     expect(() => apiBase("evil.example")).toThrow();
   });
   it("knows which hosts are test environments", () => {
-    expect(isTestEnvironment("app-staging.stenmont.com")).toBe(true);
+    expect(isTestEnvironment("testnet.stenmont.com")).toBe(true);
     expect(isTestEnvironment("localhost")).toBe(true);
     expect(isTestEnvironment("app.stenmont.com")).toBe(false);
   });
   it("uses the staging router for staging and local, and refuses production until it exists", () => {
-    expect(routerFor("app-staging.stenmont.com")).toBe(deployments.environments.staging.PaymentRouter.address);
+    expect(routerFor("testnet.stenmont.com")).toBe(deployments.environments.staging.PaymentRouter.address);
     expect(routerFor("localhost")).toBe(deployments.environments.staging.PaymentRouter.address);
     expect(() => routerFor("app.stenmont.com")).toThrow();
   });

@@ -23,7 +23,7 @@ test("a shopper buys from the example store, pays with one tap, comes back, and 
   await expect(page.getByTestId("paid")).toBeVisible({ timeout: 150_000 });
 
   // back in the shop (the pay page sends the shopper back by itself)
-  await page.waitForURL(/shop-staging\.stenmont\.com\/orders\//, { timeout: 20_000 });
+  await page.waitForURL(/shop-app-staging\.stenmont\.com\/orders\//, { timeout: 20_000 });
   // the order flips to paid when Stenmont's signed webhook arrives (the indexer runs every minute)
   await expect(page.getByTestId("status")).toHaveText("Paid", { timeout: 180_000 });
 });
