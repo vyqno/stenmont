@@ -1,0 +1,34 @@
+# Router v2 activation plan
+
+Status: source only, undeployed. Owner approval and reviewed test/security evidence are required before W9 activation. Wave 1 leaves all v1 contracts, ABI exports, addresses, client pay nonces and indexer cursors unchanged. Never send v2 authorizations to v1.
+
+## Protocol
+
+PaymentRouterV2 domain is `Stenmont PaymentRouter`, version `2`. CreateInvoice additionally signs `uint16 discountBps,uint64 discountUntil` immediately after dueDate. The v2 USDT payment nonce is `keccak256(abi.encode("STENMONT_PAY_V2", invoiceId, payout, salt))`. The authorization still targets the router address. `pay(id,value,expectedPayout,auth)` checks expectedPayout against the immutable invoice payout before transferring. The payer must independently resolve/check the trusted payout before signing. A malicious creator can create an invoice with another payout; it cannot spend a signature bound to the trusted payout. A claim hook is authorized separately by the merchant and may receive the payout on behalf of its holder.
+
+Early discount is a single-payment offer. The waived amount rounds down (`amount*bps/10000`); the payer pays the remainder. Only an unhooked, previously unpaid invoice inside the inclusive window can settle at that amount. A partial payment forfeits the discount. Full face-value payment is always allowed. Refund caps use actual USDT received, never waived value. Every invoice with nonzero discount terms is permanently ineligible for a hook, even after expiry; a funded claim therefore cannot acquire a discount. Terms cannot be edited.
+
+InvoiceAck signs `InvoiceAck(bytes32 invoiceId,uint128 amount,uint64 dueDate,address buyer,uint256 nonce,uint256 deadline)` in domain `Stenmont InvoiceAck`, version `1`. Router is immutable. Only its nominated payerLock may acknowledge an open invoice; merchant=self and unlocked invoices are refused. Acknowledgement means receipt and no dispute at signing time, not an irrevocable legal waiver. Acknowledgement is advisory underwriting evidence, not a financing eligibility gate.
+
+ReputationRegistryV2 distinct counterparties are merchant addresses. Self-payment is excluded and repeated payments to one merchant count once in `onTimeCounterparties`. Other counters retain per-invoice semantics. Distinct addresses are not independent humans: off-chain underwriting must filter for separately verified merchants. The router records only a fully paying single payer; split-payer invoices are excluded to avoid giving the final dust payer a full-invoice credit.
+
+## Exact approved staging redeploy sequence
+
+1. Snapshot v1 deployment JSON, API/web/MCP configuration, indexer cursors and outstanding invoice/subscription/claim inventory. Keep v1 readable/payable; immutable contracts cannot migrate existing balances or authorizations. Pause creation during cutover. Do not pause old repayment/refund paths as a migration shortcut.
+2. Deploy InvestorRegistry with approved owner/guardian/attester and existing eligibility policy. Re-establish investor permissions through the normal approved flow; no blanket allowlist.
+3. Deploy PaymentRouterV2 with official USDT, owner, guardian, attester and refund threshold. Record its deployment block.
+4. Deploy SubscriptionManager with official USDT and the approved roles/configuration. Its API compatibility and existing subscriptions need separate addresses/cursors; keep the old manager serving existing agreements.
+5. Deploy InvoiceClaimV2 against the new registry and router, with approved owner/guardian. Keep old claim repayment/default/withdrawal paths operational.
+6. Deploy InvoiceAck against the new router. Deploy ReputationRegistryV2, grant `setRecorder(newRouter,true)` from its owner, then `newRouter.setReputation(newReputation)`. Do not grant the old router a v2 recorder role. Set any delegated creator on the new router through fresh merchant-signed SetCreator authorizations. Confirm owner/guardian/attester addresses and permissions with readbacks.
+7. Deploy LedgerAnchor independently if approved. Domain `Stenmont LedgerAnchor`, version `1`; anchor accepts `(merchant,periodId,root,lineCount,deadline,merchantSig)`. Signature type: `Anchor(address merchant,bytes32 periodId,bytes32 root,uint256 lineCount,uint256 nonce,uint256 deadline)`. Read nonce per merchant. Use `keccak256(bytes("YYYY-MM"))` for periodId. ERC-1271 merchants work. One merchant/period can be anchored once. Set `ANCHOR_REGISTRY` only after real deployment/readback and adapter verification; leave unset otherwise.
+8. Verify new sources on explorer; regenerate isolated v2 ABIs (`node contracts/script/export-v2.mjs`). Only after approval switch application imports/configuration intentionally. Update contracts/deployments/1874.json with new addresses plus retained retired-v1 metadata, never erase history. API and web must agree on router/claim/registry/reputation/ack/subscription addresses and domain/nonce versions. Review actual environment variable names in each consumer; an address replacement alone is insufficient.
+9. Start each new-contract indexer at its exact deployment block; retain old-contract cursors and event provenance. Deduplicate by chain/contract/txHash/logIndex. Backfill before opening creation. Do not reuse v1 cursors for v2. W3 anchor adapter must validate receipt success and emitted merchant/period/root/lineCount before recording success.
+10. Run SDK checkout, dashboard refund, subscription, shop regressions; acknowledgement (including wrong buyer), tampered payout denial with unchanged balances, discounted payment/refund and full financing fund/pay/settle/default lifecycle. Save real explorer evidence. Only then resume creation.
+
+## Rollback
+
+If smoke checks fail, stop new creation and restore v1 application configuration and ABI imports from the snapshot. Keep v2 indexer data partitioned and its already-created obligations payable through an explicitly versioned path. Do not replay signed v1 requests on v2, reset token nonces, delete claim records, or redirect funded claims. Revoking new delegated creators needs merchant authorization; contract ownership remains with the approved owner. A deployed immutable router cannot be upgraded back.
+
+## Held acceptance items
+
+No deploy, broadcast, explorer verification or live flow is part of Wave 1. A literal zero USDT balance on InvoiceClaim after funding conflicts with its reserve and deferred-payout design. Preserve economics: assert balance equals reserves plus pending liabilities, and zero after all successful settlement payouts. Owner decision is needed to change custody claims or remove reserves. Full money-path coverage and static-analysis results are reported in WAVE1-W1.md; absent evidence is not approval.
