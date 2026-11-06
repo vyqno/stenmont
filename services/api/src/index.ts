@@ -9,6 +9,7 @@ import { runRenewals } from "./renewals";
 
 export type { Env } from "./env";
 export { Relayer } from "./relayer/do";
+export { EnsSender } from "./ens/sender";
 
 const app = createApp();
 

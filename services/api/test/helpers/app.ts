@@ -3,6 +3,7 @@ import type { ChainClient } from "../../src/chain";
 import type { Env } from "../../src/env";
 import { newD1 } from "./d1";
 import { fakeChain } from "./chain";
+import { fakeEns } from "./ens";
 import { sha256Hex } from "../../src/lib/crypto";
 
 export const MERCHANT_ADDRESS = "0x50c94c3021962047F10c9c58D80C4A7b73182a63";
@@ -42,9 +43,10 @@ export async function seedMerchant(db: D1Database, id = "m_1", name = "Acme", ke
 export function setup(chainOverrides: Partial<ChainClient> = {}, envOverrides: Partial<Env> = {}) {
   const db = newD1();
   const chain = fakeChain(chainOverrides);
+  const ens = fakeEns();
   const env = { ...baseEnv(db), ...envOverrides } as Env;
   const clock = { now: new Date("2026-11-06T12:00:00Z") };
-  const app = createApp({ chain: () => chain, now: () => clock.now });
+  const app = createApp({ chain: () => chain, ens: () => ens, now: () => clock.now });
   const req = (path: string, init: RequestInit & { key?: string; idem?: string } = {}) => {
     const headers = new Headers(init.headers);
     if (init.key) headers.set("authorization", `Bearer ${init.key}`);
@@ -52,5 +54,5 @@ export function setup(chainOverrides: Partial<ChainClient> = {}, envOverrides: P
     if (init.body && !headers.has("content-type")) headers.set("content-type", "application/json");
     return app.request(path, { ...init, headers }, env);
   };
-  return { db, chain, env, app, req, clock };
+  return { db, chain, ens, env, app, req, clock };
 }

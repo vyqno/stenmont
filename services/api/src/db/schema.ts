@@ -166,6 +166,22 @@ export const subscriptions = sqliteTable("subscriptions", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const ensNames = sqliteTable(
+  "ens_names",
+  {
+    merchantId: text("merchant_id").primaryKey(), // one name per business
+    label: text("label").notNull(),
+    name: text("name").notNull(),
+    resolver: text("resolver").notNull(), // the name's own resolver (permissions are per key, so each name needs its own)
+    agentRegistry: text("agent_registry").notNull(), // the registry that holds the business's agent names
+    payoutLocked: integer("payout_locked").notNull().default(0),
+    status: text("status").notNull(), // claiming | active
+    txHashes: text("tx_hashes").notNull().default("[]"),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("ens_names_label_uq").on(t.label)],
+);
+
 export const paymentLinks = sqliteTable(
   "payment_links",
   {

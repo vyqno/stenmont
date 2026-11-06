@@ -5,6 +5,8 @@ import { isAppOrigin, requireAuth } from "./auth";
 import { viemChain, type ChainClient } from "./chain";
 import type { merchants } from "./db/schema";
 import type { Env } from "./env";
+import { viemEns, type EnsClient } from "./ens/client";
+import { ensRoutes } from "./routes/ens";
 import { fail } from "./errors";
 import { apiKeyRoutes } from "./routes/apiKeys";
 import { authRoutes } from "./routes/auth";
@@ -22,9 +24,9 @@ export type Db = DrizzleD1Database;
 export type Merchant = typeof merchants.$inferSelect;
 export type AppEnv = {
   Bindings: Env;
-  Variables: { db: Db; chain: ChainClient; now: () => Date; merchantId: string; merchant: Merchant };
+  Variables: { db: Db; chain: ChainClient; ens: EnsClient; now: () => Date; merchantId: string; merchant: Merchant };
 };
-export type Deps = { chain: (env: Env) => ChainClient; now: () => Date };
+export type Deps = { chain: (env: Env) => ChainClient; ens?: (env: Env) => EnsClient; now: () => Date };
 
 export function createApp(deps: Deps = { chain: viemChain, now: () => new Date() }) {
   const app = new Hono<AppEnv>();
@@ -32,6 +34,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.use("*", async (c, next) => {
     c.set("db", drizzle(c.env.DB));
     c.set("chain", deps.chain(c.env));
+    c.set("ens", (deps.ens ?? viemEns)(c.env));
     c.set("now", deps.now);
     await next();
   });
@@ -66,6 +69,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/api-keys", apiKeyRoutes);
   v1.route("/refunds", refundRoutes);
   v1.route("/subscriptions", subscriptionRoutes);
+  v1.route("/ens", ensRoutes);
   app.route("/v1", v1);
   app.route("/auth", authRoutes);
   app.route("/relay", relayRoutes);

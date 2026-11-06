@@ -64,6 +64,13 @@
       "when": 1793930741683,
       "tag": "0008_checkout_return_urls",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1793936514944,
+      "tag": "0009_ens_names",
+      "breakpoints": true
     }
   ]
 }

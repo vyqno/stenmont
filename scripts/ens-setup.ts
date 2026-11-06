@@ -73,9 +73,21 @@ if (registry === zeroAddress) {
 }
 console.log("stenmont.eth subregistry:", registry);
 
-// 4. let the registrar issue subnames (all roles on the registry's root, including the admin roles)
-if (!(await pub.readContract({ address: registry, abi: userRegistry, functionName: "hasRootRoles", args: [ALL_ROLES, registrar.address] }))) {
-  await send("grant registrar all roles", await wallet.writeContract({ address: registry, abi: userRegistry, functionName: "grantRootRoles", args: [ALL_ROLES, registrar.address] }));
+// 4. the registrar may ONLY register subnames. It must not be able to re-point or delete a name, or the payout lock
+//    (see Task 5.4) could be sidestepped by pointing the name at another resolver. The owner of stenmont.eth (the
+//    deployer, later a multisig) stays the root of trust.
+const ROLE_REGISTRAR = 1n << 0n;
+const hasRoot = (bitmap: bigint) => pub.readContract({ address: registry, abi: userRegistry, functionName: "hasRootRoles", args: [bitmap, registrar.address] });
+if (!(await hasRoot(ROLE_REGISTRAR))) {
+  await send("grant registrar the register role", await wallet.writeContract({ address: registry, abi: userRegistry, functionName: "grantRootRoles", args: [ROLE_REGISTRAR, registrar.address] }));
+}
+const extra = ALL_ROLES & ~ROLE_REGISTRAR;
+// revoke piece by piece: only the roles it actually holds
+for (let bit = 0n; bit < 256n; bit += 4n) {
+  const role = 1n << bit;
+  if ((extra & role) !== 0n && (await hasRoot(role))) {
+    await send(`revoke registrar role bit ${bit}`, await wallet.writeContract({ address: registry, abi: parseAbi(["function revokeRootRoles(uint256 roleBitmap, address account) returns (bool)"]), functionName: "revokeRootRoles", args: [role, registrar.address] }));
+  }
 }
 
 // 5. record it

@@ -45,7 +45,10 @@ export const ensRegistryAbi = parseAbi([
   "function grantRootRoles(uint256 roleBitmap, address account) returns (bool)",
   "function initialize((address account, uint256 roleBitmap)[] grants)",
 ]);
-export const verifiableFactoryAbi = parseAbi(["function deployProxy(address implementation, uint256 salt, bytes data) returns (address)"]);
+export const verifiableFactoryAbi = parseAbi([
+  "function deployProxy(address implementation, uint256 salt, bytes data) returns (address)",
+  "function proxyLogic() view returns (address)",
+]);
 export const permissionedResolverAbi = parseAbi([
   "function initialize((address account, uint256 roleBitmap)[] grants, bytes[] calls)",
   "function setAddress(bytes name, uint256 coinType, bytes addressBytes)",

@@ -47,18 +47,24 @@
 **Files:** Create `services/api/src/ens/{names.ts,routes.ts}`, tests
 **Produces:** `claimBusinessName(merchantId: string, label: string): Promise<{name: string; txHash: Hex}>`; route `POST /v1/ens/claim-name {label}`; text records `stenmont.payout` (the merchant's passkey account) and `stenmont.profile`.
 
-- [ ] Failing tests: valid label creates the subname and sets `stenmont.payout`; taken label returns 409; label with uppercase or spaces returns 400; `getEnsAddress("acme.stenmont.eth")` resolves to the merchant payout
-- [ ] Run → FAIL; implement; run → PASS (against Sepolia with the test key)
-- [ ] Commit line: `feat: issue business ENS names`
+- [x] Failing tests: valid label creates the subname and sets `stenmont.payout`; taken label returns 409; label with uppercase or spaces returns 400; `getEnsAddress("acme.stenmont.eth")` resolves to the merchant payout
+- [x] Run → FAIL; implement; run → PASS (against Sepolia with the test key)
+- [x] Commit line: `feat: issue business ENS names`
+
+**Built:** `POST /v1/ens/claim-name {label}` gives a business `label.stenmont.eth`: its own agent registry, its own resolver (address and `stenmont.payout` set to the business's payout account) and the subname owned by that account with no rights. Labels are 3 to 32 lowercase letters, digits and hyphens; platform words are reserved; one name per business; a taken label is a 409 and a chain failure leaves nothing half-made (steps already done onchain are skipped on retry). **Live on staging:** a new business claims a name, it resolves through the standard ENS path to the business account, a repeat is a 409 (1.5 minutes).
+
 
 ### Task 5.4: Roles and the payout lock (Enhanced Access Control)
 
 **Files:** Modify `services/api/src/ens/names.ts`; Create `services/api/src/ens/roles.ts`, tests
 **Produces:** `grantFinanceRole(name: string, member: Address): Promise<Hex>` (member may edit only `stenmont.profile`), `lockPayout(name: string): Promise<Hex>` (after locking, `stenmont.payout` cannot change without the owner's role and a delay).
 
-- [ ] Failing tests: finance member edits `stenmont.profile` → ok; same member edits `stenmont.payout` → reverts; after `lockPayout`, even the owner's immediate change reverts
-- [ ] Run → FAIL; implement; run → PASS
-- [ ] Commit line: `feat: add ENS role delegation and payout lock`
+- [x] Failing tests: finance member edits `stenmont.profile` → ok; same member edits `stenmont.payout` → reverts; after `lockPayout`, even the owner's immediate change reverts
+- [x] Run → FAIL; implement; run → PASS
+- [x] Commit line: `feat: add ENS role delegation and payout lock`
+
+**Built (differs from the sketch, because of what is deployed):** `POST /v1/ens/finance {member}` lets a team member edit only `stenmont.profile`; `POST /v1/ens/lock-payout` permanently takes the registrar's rights over the payout record (it keeps the profile record). After the lock no more members can be added, so add them first. Proven on Sepolia by `scripts/spikes/ens-claim.ts` (13 checks) and by the live API run. The registrar holds only the register role on the `stenmont.eth` registry (it cannot re-point or delete a name); the owner of `stenmont.eth` (the deployer, later a multisig) is the root of trust. The payout lock does not yet require a World approval (Task 5.9).
+
 
 ### Task 5.5: Agents as namespaces
 

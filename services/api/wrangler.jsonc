@@ -14,6 +14,7 @@
     "USDT_ADDRESS": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
     "SEPOLIA_RPC": "https://sepolia.gateway.tenderly.co",
     "ENS_ROOT_NAME": "stenmont.eth",
+    "ENS_SUBNAME_REGISTRY": "0xE100C72C3BD9781a7AE4d653E0518b54888A5f0c",
     "ROUTER_ADDRESS": "0xA5B6C9206Db75fD59307Bd22f7703387Bb8aB929",
     "ROUTER_DEPLOY_BLOCK": "12312560",
     "FACTORY_ADDRESS": "0x5101c37647581c81b462436af2D7ac8ccD08D33A",
@@ -22,8 +23,8 @@
     "APP_URL": "http://localhost:3000",
     "API_URL": "http://localhost:8787"
   },
-  "durable_objects": { "bindings": [{ "name": "RELAYER", "class_name": "Relayer" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Relayer"] }],
+  "durable_objects": { "bindings": [{ "name": "RELAYER", "class_name": "Relayer" }, { "name": "ENS_SENDER", "class_name": "EnsSender" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Relayer"] }, { "tag": "v2", "new_sqlite_classes": ["EnsSender"] }],
   "queues": {
     "producers": [{ "binding": "WEBHOOKS", "queue": "stenmont-webhooks-local" }],
     "consumers": [{ "queue": "stenmont-webhooks-local", "max_retries": 100 }]
@@ -43,6 +44,7 @@
         "USDT_ADDRESS": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
         "SEPOLIA_RPC": "https://sepolia.gateway.tenderly.co",
         "ENS_ROOT_NAME": "stenmont.eth",
+        "ENS_SUBNAME_REGISTRY": "0xE100C72C3BD9781a7AE4d653E0518b54888A5f0c",
         "ROUTER_ADDRESS": "0xA5B6C9206Db75fD59307Bd22f7703387Bb8aB929",
         "ROUTER_DEPLOY_BLOCK": "12312560",
         "FACTORY_ADDRESS": "0x5101c37647581c81b462436af2D7ac8ccD08D33A",
@@ -54,8 +56,8 @@
         "APP_URL": "https://app-staging.stenmont.com",
         "API_URL": "https://api-staging.stenmont.com"
       },
-      "durable_objects": { "bindings": [{ "name": "RELAYER", "class_name": "Relayer" }] },
-      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Relayer"] }],
+      "durable_objects": { "bindings": [{ "name": "RELAYER", "class_name": "Relayer" }, { "name": "ENS_SENDER", "class_name": "EnsSender" }] },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Relayer"] }, { "tag": "v2", "new_sqlite_classes": ["EnsSender"] }],
       "triggers": { "crons": ["* * * * *"] },
       "queues": {
         "producers": [{ "binding": "WEBHOOKS", "queue": "stenmont-webhooks-staging" }],
@@ -76,6 +78,7 @@
         "USDT_ADDRESS": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
         "SEPOLIA_RPC": "https://sepolia.gateway.tenderly.co",
         "ENS_ROOT_NAME": "stenmont.eth",
+        "ENS_SUBNAME_REGISTRY": "0x0000000000000000000000000000000000000000",
         "ROUTER_ADDRESS": "0x0000000000000000000000000000000000000000",
         "ROUTER_DEPLOY_BLOCK": "0",
         "FACTORY_ADDRESS": "0x0000000000000000000000000000000000000000",
@@ -86,8 +89,8 @@
         "API_URL": "https://api.stenmont.com"
       },
       // No cron trigger until the production router is deployed (ROUTER_ADDRESS above is a placeholder).
-      "durable_objects": { "bindings": [{ "name": "RELAYER", "class_name": "Relayer" }] },
-      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Relayer"] }],
+      "durable_objects": { "bindings": [{ "name": "RELAYER", "class_name": "Relayer" }, { "name": "ENS_SENDER", "class_name": "EnsSender" }] },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Relayer"] }, { "tag": "v2", "new_sqlite_classes": ["EnsSender"] }],
       "triggers": { "crons": [] },
       "queues": {
         "producers": [{ "binding": "WEBHOOKS", "queue": "stenmont-webhooks" }],
