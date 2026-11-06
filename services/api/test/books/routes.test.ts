@@ -82,3 +82,28 @@ it("refuses interim production snapshots and future staging snapshots",async()=>
  t.env.ENVIRONMENT="staging";
  expect((await t.req("/v1/books/2026-12/close",{key,method:"POST",body})).status).toBe(400);
 });
+
+it("allocates an event omitted by a concurrent close even when a preview observed it before the close committed",async()=>{
+ const t=setup({}, {BOOKS_SIGNING_KEY:generatePrivateKey()});const key=await seedMerchant(t.db);const invoice=await seedInvoice(t.db);
+ await t.db.prepare("UPDATE invoices SET created_at=? WHERE id=?").bind("2026-10-01T00:00:00.000Z",invoice).run();
+ const prepare=t.db.prepare.bind(t.db);let interleave=true;
+ t.db.prepare=((sql:string)=>{
+   const statement=prepare(sql);
+   if(!sql.startsWith("INSERT OR IGNORE INTO books_closes")||!interleave)return statement;
+   return {bind:(...args:unknown[])=>({run:async()=>{
+     interleave=false;
+     await prepare("INSERT INTO payments(id,invoice_id,payer,value,tx_hash,log_index,block_number,created_at) VALUES(?,?,?,?,?,?,?,?)").bind("race",invoice,"payer","1000000",`0x${"56".repeat(32)}`,0,1,"2026-10-05T00:00:00.000Z").run();
+     expect((await t.req("/v1/books/2026-10",{key})).status).toBe(200);
+     return statement.bind(...args).run();
+   }})};
+ }) as typeof t.db.prepare;
+ expect((await t.req("/v1/books/2026-10/close",{key,method:"POST"})).status).toBe(201);
+ const next=await (await t.req("/v1/books/2026-11",{key})).json() as any;
+ expect(next.snapshot.lines).toHaveLength(1);
+ expect(next.snapshot.lines[0]).toMatchObject({adjustmentFor:"2026-10",amount:"1000000"});
+ t.clock.now=new Date("2026-12-01T00:00:00Z");
+ expect((await t.req("/v1/books/2026-11/close",{key,method:"POST"})).status).toBe(201);
+ const locked=await (await t.req("/v1/books/2026-11/bundle",{key})).json() as any;
+ expect(locked.snapshot.bookedSourceIds).toContain("pay:race");
+ expect((await (await t.req("/v1/books/2026-12",{key})).json() as any).snapshot.lines).toHaveLength(0);
+});

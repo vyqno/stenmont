@@ -14,15 +14,15 @@ export type Inv = {
   /** Pay `bps` less if the invoice is settled by `until`. Nothing stores this yet; the module is ready for when something does. */
   earlyDiscount?: { bps: number; until: string } | null;
 };
-type Event = { id: string; invoiceId: string; value: bigint; txHash: string; blockNumber?: number; at: string; recordedAt?: string };
+type Event = { id: string; invoiceId: string; value: bigint; txHash: string; blockNumber?: number; at: string; recordedAt?: string; sourceKey?: string; bookedPeriod?: string };
 export type Pay = Event & { payer: string; rail?: "replacement_subscription"; agreementId?: string };
 export type Ref = Event & { to: string };
 export type Claim = {
   id: string; invoiceId: string; status: string; face: bigint; price: bigint; reserve: bigint;
-  fundRecordedAt?: string; closeRecordedAt?: string;
+  fundRecordedAt?: string; closeRecordedAt?: string; fundBookedPeriod?: string; closeBookedPeriod?: string;
   fundTxHash: string | null; closeTxHash: string | null; fundedAt: string | null; closedAt: string | null;
 };
-export type Gas = { id: string; txHash: string | null; kind: string; wei: bigint; at: string; recordedAt?: string };
+export type Gas = { id: string; txHash: string | null; kind: string; wei: bigint; at: string; recordedAt?: string; sourceKey?: string; bookedPeriod?: string };
 export type Input = {
   period: string; invoices: Inv[]; payments: Pay[]; refunds: Ref[]; claims: Claim[]; gas: Gas[];
   /** Months already closed -> when. An event for a closed month that arrives later is booked in the month it arrived. */
@@ -50,7 +50,7 @@ export type InvoiceRow = {
   taxRateBps: number | null; taxLabel: string | null;
 };
 export type Result = {
-  period: string; lines: Line[]; invoices: InvoiceRow[]; flags: Flag[]; leaves: (ReceiptLeaf & { leafId: Hex })[];
+  period: string; bookedSourceIds: string[]; lines: Line[]; invoices: InvoiceRow[]; flags: Flag[]; leaves: (ReceiptLeaf & { leafId: Hex })[];
   trialBalance: { account: string; currency: "USDT" | "WBT"; debit: bigint; credit: bigint }[];
   gasWei: bigint; gasUsdt: bigint | null; gasRateSource: string | null;
 };
@@ -85,7 +85,8 @@ export function reconcile(input: Input): Result {
   const claimsOf = new Map(input.claims.filter((c) => c.fundedAt && c.fundTxHash && ["funded", "settled", "defaulted"].includes(c.status)).map((c) => [c.invoiceId, c]));
 
   /** The date an event counts from: its own, unless its month was closed before we heard about it. */
-  const effective = (at: string, recorded: string | undefined) => {
+  const effective = (at: string, recorded: string | undefined, bookedPeriod?: string) => {
+    if (bookedPeriod) return { date: bookedPeriod === periodOf(at) ? at : periodBounds(bookedPeriod).start, adjustmentFor: bookedPeriod === periodOf(at) ? null : periodOf(at) };
     const closeAt = closed[periodOf(at)];
     if (closeAt && recorded && recorded > closeAt) {
       let month = periodOf(recorded) > periodOf(at) ? periodOf(recorded) : periodOf(periodBounds(periodOf(at)).end);
@@ -98,6 +99,7 @@ export function reconcile(input: Input): Result {
   };
   const inPeriod = (d: string) => d >= p.start && d < p.end;
 
+  const bookedSourceIds = new Set<string>();
   const flags: Flag[] = [];
   const flag = (code: FlagCode, severity: Flag["severity"], invoice: string | null, txHash: string | null, message: string) => flags.push({ code, severity, invoice, txHash, message });
   const groups: Group[] = [];
@@ -117,8 +119,8 @@ export function reconcile(input: Input): Result {
   type Ev = { kind: "pay" | "refund"; date: string; adj: string | null; row: Pay | Ref };
   const byInvoice = new Map<string, Ev[]>();
   const push = (e: Ev) => (byInvoice.get(e.row.invoiceId) ?? byInvoice.set(e.row.invoiceId, []).get(e.row.invoiceId)!).push(e);
-  for (const r of input.payments) { const e = effective(r.at, r.recordedAt); if (e.date < p.end) push({ kind: "pay", date: e.date, adj: e.adjustmentFor, row: r }); }
-  for (const r of input.refunds) { const e = effective(r.at, r.recordedAt); if (e.date < p.end) push({ kind: "refund", date: e.date, adj: e.adjustmentFor, row: r }); }
+  for (const r of input.payments) { const e = effective(r.at, r.recordedAt, r.bookedPeriod); if (e.date < p.end) push({ kind: "pay", date: e.date, adj: e.adjustmentFor, row: r }); }
+  for (const r of input.refunds) { const e = effective(r.at, r.recordedAt, r.bookedPeriod); if (e.date < p.end) push({ kind: "refund", date: e.date, adj: e.adjustmentFor, row: r }); }
 
   const rows: InvoiceRow[] = [];
   const eventInvoices = new Set<string>();
@@ -147,6 +149,7 @@ export function reconcile(input: Input): Result {
         let discountHere = 0n;
         if (inv?.earlyDiscount && earlyOffer > 0n && discount === 0n && paid >= inv.amount - earlyOffer && paid < inv.amount && e.date <= inv.earlyDiscount.until) { discountHere = earlyOffer; discount = earlyOffer; }
         if (!inside) continue;
+        bookedSourceIds.add(r.sourceKey ?? `pay:${r.id}`);
         const key = `pay:${r.txHash}:${r.id}`;
         const leaf = source(r.txHash, invoiceId, r.value, replacementReceipt ? "instalment" : "payment");
         const common = { invoice: num, invoiceId, txHash: r.txHash, leafId: leaf, currency: "USDT" as const, usdtValue: null };
@@ -169,6 +172,7 @@ export function reconcile(input: Input): Result {
         refunded += r.value;
         if (inside) { refundedIn += r.value; eventInvoices.add(invoiceId); }
         if (!inside) continue;
+        bookedSourceIds.add(r.sourceKey ?? `refund:${r.id}`);
         if (paid === 0n) flag("refund_without_payment", "warn", num, r.txHash, `A refund went out for ${num ?? invoiceId.slice(0, 10)} but no payment is on record.`);
         else if (r.value > before) flag("refund_exceeds_payment", "warn", num, r.txHash, `Refunds for ${num ?? invoiceId.slice(0, 10)} add up to more than was paid.`);
         const leaf = source(r.txHash, invoiceId, r.value, "refund");
@@ -214,14 +218,15 @@ export function reconcile(input: Input): Result {
 
   // Financing: funding, the reserve coming back, or the reserve lost.
   for (const original of claimsOf.values()) {
-    const fund = effective(original.fundedAt!, original.fundRecordedAt);
-    const close = original.closedAt ? effective(original.closedAt, original.closeRecordedAt) : null;
+    const fund = effective(original.fundedAt!, original.fundRecordedAt, original.fundBookedPeriod);
+    const close = original.closedAt ? effective(original.closedAt, original.closeRecordedAt, original.closeBookedPeriod) : null;
     const c = { ...original, fundedAt: fund.date, closedAt: close?.date ?? null };
     const inv = invById.get(c.invoiceId);
     const num = inv?.number ?? null;
     const base = { invoice: num, invoiceId: c.invoiceId, currency: "USDT" as const, usdtValue: null };
     const advance = c.price - c.reserve;
     if (inPeriod(c.fundedAt!)) {
+      bookedSourceIds.add(`fund:${c.id}:${c.fundTxHash}`);
       const common = { ...base, txHash: c.fundTxHash!, leafId: source(c.fundTxHash!, c.invoiceId, advance, "advance") };
       const lines: Group["lines"] = ([
         { ...lineBase(c.fundedAt!, fund.adjustmentFor, `Advance received for ${num ?? c.invoiceId.slice(0, 10)}`), kind: "advance", debit: ACCOUNTS.cash, credit: ACCOUNTS.revenue, amount: advance, ...common },
@@ -233,6 +238,7 @@ export function reconcile(input: Input): Result {
       groups.push({ date: c.fundedAt!, rank: 3, key: `fund:${c.id}`, lines });
     }
     if (c.closedAt && c.closeTxHash && inPeriod(c.closedAt) && c.reserve > 0n && (c.status === "settled" || c.status === "defaulted")) {
+      bookedSourceIds.add(`close:${c.id}:${c.closeTxHash}`);
       const settled = c.status === "settled";
       const kind = settled ? "reserve_release" : "reserve_forfeit";
       const common = { ...base, txHash: c.closeTxHash, leafId: source(c.closeTxHash, c.invoiceId, c.reserve, kind) };
@@ -250,9 +256,10 @@ export function reconcile(input: Input): Result {
   let gasWei = 0n;
   let gasUsdt: bigint | null = input.gasRate ? 0n : null;
   for (const original of input.gas) {
-    const date = effective(original.at, original.recordedAt);
+    const date = effective(original.at, original.recordedAt, original.bookedPeriod);
     const g = { ...original, at: date.date };
     if (!g.txHash || g.wei <= 0n || !inPeriod(g.at)) continue;
+    bookedSourceIds.add(g.sourceKey ?? `gas:${g.id}`);
     const usdtValue = input.gasRate ? (g.wei * input.gasRate.usdtPerWbt) / WEI : null;
     gasWei += g.wei;
     if (usdtValue !== null) gasUsdt = (gasUsdt ?? 0n) + usdtValue;
@@ -278,7 +285,7 @@ export function reconcile(input: Input): Result {
   const leaves = [...sources.values()].sort((a, b) => a.leafId.localeCompare(b.leafId));
   flags.sort((a, b) => a.code.localeCompare(b.code) || (a.invoice ?? "").localeCompare(b.invoice ?? "") || (a.txHash ?? "").localeCompare(b.txHash ?? ""));
   return {
-    period: input.period, lines, invoices: shown, flags, leaves,
+    period: input.period, bookedSourceIds: [...bookedSourceIds].sort(), lines, invoices: shown, flags, leaves,
     trialBalance: [...tb.values()].sort((a, b) => a.currency.localeCompare(b.currency) || a.account.localeCompare(b.account)),
     gasWei, gasUsdt, gasRateSource: input.gasRate?.source ?? null,
   };
