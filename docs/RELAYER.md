@@ -24,6 +24,10 @@ Reproduced deterministically in `services/api/test/relayerRace.test.ts` (a seede
 - A reservation settled after midnight UTC corrects only the balance; it no longer overwrites the new day's `spent_today`.
 - The drain test now waits between retries and has an explicit 30 s timeout. It measured loop speed, not behaviour.
 
-## Known limit, not changed here
+## Durable receipt recovery (local implementation)
 
-A receipt timeout leaves the reservation held and the `relayer_txs` row in `sent`; nothing reconciles it yet. The tank stays charged the worst case for a transaction that may or may not have landed.
+Migration0070 journals new gas holds atomically with the reservation. Immediate settlement and minute-cron recovery share a durable, atomic settlement marker. A confirmed receipt refunds unused gas once; a confirmed revert also releases the original payer allowance once. Missing receipts, RPC failures and unidentified broadcasts remain held. The recovery path never broadcasts or re-signs.
+
+A send RPC error now returns an uncertain timeout rather than releasing resources: acceptance may have happened before its response was lost. Payment authorization and payer allowance remain reserved, preventing that authorization from being broadcast again. Generic calling workflows still own their operation idempotency.
+
+Historical rows without the original reservation amount and crashes before a returned hash is persisted cannot be safely inferred. They require operator reconciliation or a future sender outbox. Generic gas costs are journaled but are not a new Books input in this change. See [durable recovery boundaries and tests](W10-RECOVERY.md). No live staging recovery is claimed.
