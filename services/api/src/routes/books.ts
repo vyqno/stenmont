@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { anchorMonth, anchorIntent, registryAdapter } from "../books/anchor";
 import { Hono } from "hono";
 import { booksJson, buildTree, ledgerLineHash, proofFor, type MonthBundle } from "@stenmont/shared";
 import { privateKeyToAccount } from "viem/accounts";
@@ -24,8 +26,9 @@ async function locked(c:Parameters<typeof loadBooks>[0],period:string) {
 booksRoutes.get("/:period",async c=>{
   const period=c.req.param("period"), bundle=await locked(c,period);
   const snapshot=bundle?.snapshot??JSON.parse(booksJson(reconcile(await loadBooks(c,period))));
+  const confirmed=await c.env.DB.prepare("SELECT tx_hash FROM books_anchors WHERE merchant_id=? AND period=?").bind(c.var.merchantId,period).first<{tx_hash:string}>();
   const signer=c.env.BOOKS_SIGNING_KEY?privateKeyToAccount(c.env.BOOKS_SIGNING_KEY as Hex).address:null;
-  return c.json({locked:!!bundle,snapshot,bundle,signer,anchor:{status:"not_anchored",configured:!!c.env.ANCHOR_REGISTRY}});
+  return c.json({locked:!!bundle,snapshot,bundle,signer,anchor:{status:confirmed?"anchored":"not_anchored",txHash:confirmed?.tx_hash??null,configured:!!c.env.ANCHOR_REGISTRY}});
 });
 booksRoutes.post("/:period/close",async c=>{
   const period=c.req.param("period");
@@ -60,4 +63,28 @@ booksRoutes.get("/:period/export/:format",async c=>{
   const snapshot=bundle?bundle.snapshot:JSON.parse(booksJson(reconcile(await loadBooks(c,period))));
   const result={...snapshot,lines:snapshot.lines.map((l:any)=>({...l,amount:BigInt(l.amount),usdtValue:l.usdtValue===null?null:BigInt(l.usdtValue)}))} as Result;
   return new Response(ledgerCsv(result,format as BooksFormat),{headers:{"content-type":"text/csv; charset=utf-8","cache-control":"private, no-store"}});
+});
+
+booksRoutes.get("/:period/anchor-intent",async c=>{
+  if(!c.env.ANCHOR_REGISTRY) return c.json({error:"anchor_not_configured"},503);
+  const bundle=await locked(c,c.req.param("period"));
+  if(!bundle) return c.json({error:"month_not_closed"},404);
+  if(!bundle.lineCount) return c.json({error:"empty_month_cannot_anchor"},400);
+  return c.json(await anchorIntent(c,bundle.period,bundle.root,bundle.lineCount));
+});
+const consentSchema=z.object({signature:z.string().regex(/^0x(?:[a-fA-F0-9]{2})+$/).max(20000),deadline:z.string().regex(/^\d{1,20}$/)});
+booksRoutes.post("/:period/anchor",async c=>{
+  if(!c.env.ANCHOR_REGISTRY) return c.json({error:"anchor_not_configured"},503);
+  const consent=consentSchema.safeParse(await c.req.json().catch(()=>null));
+  if(!consent.success) return c.json({error:"invalid_merchant_consent"},400);
+  const bundle=await locked(c,c.req.param("period"));
+  if(!bundle) return c.json({error:"month_not_closed"},404);
+  if(!bundle.lineCount) return c.json({error:"empty_month_cannot_anchor"},400);
+  const deadline=BigInt(consent.data.deadline),now=BigInt(Math.floor(c.var.now().getTime()/1000));
+  if(deadline<now || deadline>now+3600n) return c.json({error:"invalid_deadline"},400);
+  try {
+    const receipt=await anchorMonth(bundle.root,bundle.period,bundle.lineCount,registryAdapter(c,{signature:consent.data.signature as Hex,deadline,lineCount:bundle.lineCount}));
+    await c.env.DB.prepare("INSERT OR IGNORE INTO books_anchors(merchant_id,period,tx_hash,confirmed_at) VALUES(?,?,?,?)").bind(c.var.merchantId,bundle.period,receipt.txHash,c.var.now().toISOString()).run();
+    return c.json({status:"anchored",txHash:receipt.txHash});
+  } catch {return c.json({error:"anchor_not_confirmed"},502);}
 });

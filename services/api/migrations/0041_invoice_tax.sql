@@ -16,3 +16,11 @@ CREATE TABLE books_observed_events (
   observed_at text NOT NULL,
   PRIMARY KEY (merchant_id, source_id)
 );
+--> statement-breakpoint
+CREATE TABLE books_anchors (
+  merchant_id text NOT NULL,
+  period text NOT NULL,
+  tx_hash text NOT NULL,
+  confirmed_at text NOT NULL,
+  PRIMARY KEY (merchant_id, period)
+);
