@@ -14,3 +14,4 @@ export * from "./merkle";
 export * from "./books";
 
 export * from "./businessTrust";
+export * from "./ensDepth";
