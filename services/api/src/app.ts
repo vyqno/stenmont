@@ -11,6 +11,7 @@ import { viemEns, type EnsClient } from "./ens/client";
 import { ensRoutes } from "./routes/ens";
 import { agentRuntimeRoutes } from "./routes/agentRuntime";
 import { fail } from "./errors";
+import { apiSecurityHeaders } from "./lib/securityHeaders";
 import { accountRoutes } from "./routes/account";
 import { apiKeyRoutes } from "./routes/apiKeys";
 import { importRoutes } from "./routes/import";
@@ -60,6 +61,12 @@ export type Deps = { chain: (env: Env) => ChainClient; ens?: (env: Env) => EnsCl
 
 export function createApp(deps: Deps = { chain: viemChain, now: () => new Date() }) {
   const app = new Hono<AppEnv>();
+
+  // Every response, including errors and preflights, carries the baseline headers.
+  app.use("*", async (c, next) => {
+    for (const [k, v] of Object.entries(apiSecurityHeaders(new URL(c.req.url).protocol === "https:"))) c.header(k, v);
+    await next();
+  });
 
   // Static liveness must work before testnet credentials or dependencies are initialized.
   app.get("/health", (c) => c.json({ ok: true }));

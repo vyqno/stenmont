@@ -1,0 +1,4 @@
+# Cloudflare static-assets headers (OpenNext copies public/ into the assets directory).
+# Only content-hashed build output is immutable; unhashed files keep revalidating.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable

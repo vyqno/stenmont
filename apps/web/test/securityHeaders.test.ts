@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import config from "../next.config";
 import { securityHeaders } from "../lib/securityHeaders";
 
@@ -10,6 +11,7 @@ describe("web response security boundaries", () => {
     const general = new Headers(rules[0]!.headers.map((h): [string, string] => [h.key, h.value]));
     expect(general.get("x-content-type-options")).toBe("nosniff");
     expect(general.get("x-frame-options")).toBe("DENY");
+    expect(general.get("strict-transport-security")).toBe("max-age=31536000; includeSubDomains");
     expect(general.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
     expect(general.get("content-security-policy")).toBe("object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
     expect(general.get("permissions-policy")).not.toMatch(/publickey|payment|camera|microphone/);
@@ -22,6 +24,11 @@ describe("web response security boundaries", () => {
     expect(candidate).toContain("https://simulator.worldcoin.org");
     expect(candidate).toContain("https://world-id-assets.com");
     expect(general.get("content-security-policy")).not.toContain("script-src");
+  });
+  it("serves hashed build assets as immutable for a year through the Cloudflare assets headers file", () => {
+    const file = readFileSync(new URL("../public/_headers", import.meta.url), "utf8");
+    expect(file).toMatch(/^\/_next\/static\/\*\n[ \t]+Cache-Control: public, max-age=31536000, immutable$/m);
+    expect(file).not.toMatch(/^\/\*/m);
   });
   it("sets no-referrer on private, payment and authorization route families", () => {
     const rules = securityHeaders();
