@@ -142,10 +142,10 @@ describe("invoices between the same human", () => {
 
 describe("step-up approvals through World Agent Pass", () => {
   const refundParams = { invoiceId: `0x${"ab".repeat(32)}`, amount: "150", to: "0x2222222222222222222222222222222222222222" };
-  async function started() {
+  async function started(operation = "refund") {
     const x = await world();
     const cookie = await x.cookieFor("m_1");
-    const res = await x.post("/v1/approvals", { operation: "refund", params: refundParams });
+    const res = await x.post("/v1/approvals", { operation, params: refundParams });
     const b = await json(res);
     return { ...x, cookie, approval: b, res };
   }
@@ -198,6 +198,13 @@ describe("step-up approvals through World Agent Pass", () => {
     const wx = { ...wrong, cookie: await wrong.cookieFor("m_1"), approval: await json(await wrong.post("/v1/approvals", { operation: "refund", params: refundParams })) } as Awaited<ReturnType<typeof started>>;
     await rememberNonce(wx, "code_wrong");
     expect((await callback(wx, { code: "code_wrong", state: wx.approval.id })).headers.get("location")).toContain("result=denied");
+  });
+  it("returns agent-limit approvals and cancellations to Identity", async () => {
+    const x = await started("agent_limit");
+    await rememberNonce(x, "agent_ok");
+    expect((await callback(x, { code: "agent_ok", state: x.approval.id })).headers.get("location")).toBe(`https://app.test/dashboard/identity?approval=${x.approval.id}&result=approved`);
+    const cancelled = await started("agent_limit");
+    expect((await callback(cancelled, { error: "access_denied", state: cancelled.approval.id })).headers.get("location")).toBe(`https://app.test/dashboard/identity?approval=${cancelled.approval.id}&result=denied`);
   });
   it("only the signed-in business that asked can complete it, and a used callback does nothing the second time", async () => {
     const x = await started();

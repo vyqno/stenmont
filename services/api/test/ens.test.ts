@@ -83,6 +83,48 @@ describe("GET /v1/ens/name", () => {
   });
 });
 
+describe("dashboard ENS reads", () => {
+  it("checks a valid label against chain state without claiming it", async () => {
+    const { t, key } = await world();
+    const r = await t.req("/v1/ens/availability?label=acme", { key });
+    expect(r.status).toBe(200);
+    expect(await json(r)).toEqual({ label: "acme", available: true });
+    expect(t.ens.claims).toHaveLength(0);
+    t.ens.taken.add("acme");
+    expect(await json(await t.req("/v1/ens/availability?label=acme", { key }))).toEqual({ label: "acme", available: false });
+  });
+  it("rejects invalid or reserved labels and requires authentication", async () => {
+    const { t, key } = await world();
+    for (const label of ["", "api", "Bad Name", "ab", "-abc"]) {
+      expect((await t.req(`/v1/ens/availability?label=${encodeURIComponent(label)}`, { key })).status).toBe(400);
+    }
+    expect((await t.req("/v1/ens/availability?label=acme")).status).toBe(401);
+  });
+  it("never calls an unavailable provider an available name", async () => {
+    const { t, key } = await world();
+    t.ens.labelAvailable = async () => { throw new Error("RPC unavailable"); };
+    const r = await t.req("/v1/ens/availability?label=acme", { key });
+    expect(r.status).toBe(502);
+    expect((await json(r)).error.code).toBe("chain_error");
+  });
+  it("resolves only the authenticated business's name from the live provider", async () => {
+    const { t, key, claim } = await world();
+    expect((await t.req("/v1/ens/resolution", { key })).status).toBe(404);
+    await claim("acme");
+    const names: string[] = [];
+    t.ens.resolveAddress = async (name) => { names.push(name); return MEMBER; };
+    const r = await t.req("/v1/ens/resolution", { key });
+    expect(r.status).toBe(200);
+    expect(await json(r)).toEqual({ name: "acme.stenmont.eth", address: MEMBER });
+    expect(names).toEqual(["acme.stenmont.eth"]);
+    const other = await seedMerchant(t.db, "m_2", "Other", `sk_test_${"b".repeat(32)}`);
+    expect((await t.req("/v1/ens/resolution?name=acme.stenmont.eth", { key: other })).status).toBe(404);
+    expect(names).toHaveLength(1);
+    t.ens.resolveAddress = async () => { throw new Error("RPC unavailable"); };
+    expect((await t.req("/v1/ens/resolution", { key })).status).toBe(502);
+  });
+});
+
 describe("finance role and payout lock", () => {
   it("lets the business give a team member the right to edit only the profile record", async () => {
     const { t, key, claim } = await world();
