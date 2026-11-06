@@ -25,7 +25,7 @@ describe("site status panel", () => {
     expect(html).toContain("Passed");
     expect(html).toContain("Not passed");
     expect(html).toContain("Not checked");
-    expect(html).toContain('datetime="2026-11-06T10:05:00.000Z"');
+    expect(html).toContain('dateTime="2026-11-06T10:05:00.000Z"');
     expect(html).toContain("1 of 4 checks passed");
   });
   it("tells the owner the exact DNS record to add", () => {
