@@ -1,0 +1,18 @@
+<style>
+.trio { position: absolute; display: flex; gap: 22px; align-items: flex-start; overflow: hidden; }
+.trio .m { flex: 1; border-radius: 28px 28px 0 0; padding: 30px 26px; height: 100%; }
+.trio .m small { display: block; font-size: 17px; opacity: .7; margin-bottom: 8px; }
+.trio .m b { font-family: var(--display); font-weight: 700; font-size: 52px; letter-spacing: -.04em; line-height: 1; display: block; }
+.trio .m .r { display: flex; align-items: center; gap: 10px; font-size: 20px; padding: 14px 0; border-top: 1px solid rgba(5,5,5,.1); }
+.trio .m .r:first-of-type { margin-top: 18px; }
+.trio .m .ico { width: 22px; height: 22px; }
+.trio .t1 { background: var(--paper); color: var(--ink); margin-top: 40px; }
+.trio .t2 { background: var(--corn); color: var(--ink); margin-top: 0; }
+.trio .t3 { background: var(--grey); color: var(--ink); margin-top: 70px; }
+.trio .m p { font-size: 21px; line-height: 1.35; margin-top: 12px; }
+</style>
+<div class="trio" id="trio">
+  <div class="m t1"><small>Setup &middot; sample data</small><b>4 / 4 checks</b><div class="r">{{ok}}Site reachable</div><div class="r">{{ok}}Signed webhook</div><div class="r">{{ok}}Test payment</div></div>
+  <div class="m t2"><small>Books &middot; sample data</small><b>Month closed</b><p>Reconciled, with a proof root and exports.</p></div>
+  <div class="m t3"><small>Capital &middot; sample data</small><b>Funded today</b><p>Listed, funded, settled. Depends on an investor.</p></div>
+</div>

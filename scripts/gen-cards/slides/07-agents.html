@@ -1,0 +1,36 @@
+<style>
+.s7 .cp { padding: 32px 22px 0; } .s7 .cp h4 { font-weight: 400; font-size: 21px; margin-bottom: 16px; }
+.s7 .bx { background: rgba(255,255,255,.8); border: 1px solid var(--hair); border-radius: 12px; padding: 26px 16px; font-size: 16px; line-height: 1.4; }
+.s7 .ar { text-align: center; font-size: 14px; color: var(--ink-45); padding: 14px 0; }
+.s7 .tm { position: absolute; left: 22px; right: 22px; top: 24px; }
+.s7 .st { position: relative; background: var(--paper); border-radius: 22px; padding: 18px 18px 18px 62px; margin-bottom: 10px; box-shadow: 0 4px 14px rgba(5,5,5,.05); }
+.s7 .st .n { position: absolute; left: 18px; top: 18px; width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: var(--paper); font-size: 14px; font-weight: 700; display: grid; place-items: center; }
+.s7 .st small { display: block; font-size: 15px; color: var(--ink-60); }
+.s7 .st b { display: block; font-size: 20px; line-height: 1.25; margin-top: 2px; }
+.s7 .st code { font-family: var(--mono); font-size: 18px; font-weight: 600; background: var(--corn); border-radius: 8px; padding: 3px 9px; display: inline-block; margin-top: 4px; }
+.s7 .st .q { margin-top: 2px; } .s7 .st .q small { margin-top: 2px; }
+.s7 .st .q strong { font-family: var(--display); font-weight: 700; font-size: 54px; letter-spacing: -.04em; }
+.s7 .lk { display: inline-block; margin-top: 10px; background: var(--ink); color: var(--paper); border-radius: 14px; padding: 14px 24px; font-size: 19px; font-weight: 700; }
+.s7 .smp { position: absolute; left: 26px; bottom: 10px; font-size: 13px; color: var(--ink-60); }
+</style>
+<section class="slide s7">
+  <div class="top"><span class="eyebrow">06. Agent to agent</span><span class="counter">7/9</span></div>
+  <h2 class="h"><span class="a">Let agents do the</span><span class="b">back-and-forth.</span></h2>
+  <p class="sub">Copying between systems is where mistakes and delays creep in.</p>
+  <p class="instr">Show each <b>step</b> the agent took, so you can follow it and check it.</p>
+  <div class="pair">
+    <div class="card before"><div class="cp"><h4>By hand</h4>
+      <div class="bx">Email: &ldquo;Can you quote 40 units? &ndash; Sam&rdquo;</div><div class="ar">copy &darr; paste</div>
+      <div class="bx">Sheet: supplier / qty / price ?</div><div class="ar">retype &darr; paste</div>
+      <div class="bx">Chat: &ldquo;quote is 1200, I think&rdquo;</div><div class="ar">copy &darr; paste</div>
+      <div class="bx">Pay link pasted into the supplier&rsquo;s portal</div></div></div>
+    <div class="card after grey"><div class="tm">
+      <div class="st"><span class="n">1</span><small>Your agent resolves the name</small><b><code>supplier.stenmont.eth</code></b></div>
+      <div class="st"><span class="n">2</span><small>Reads its agent card</small><b>Can quote &middot; can issue a pay link &middot; USDT on the test network</b></div>
+      <div class="st"><span class="n">3</span><small>Requests a quote &middot; 40 units</small><div class="q"><strong>$1,200.00</strong><small>valid 24 hours</small></div></div>
+      <div class="st"><span class="n">4</span><small>Receives a pay link</small><span class="lk">Open pay link</span></div>
+    <div class="st"><span class="n">5</span><small>Saves it to your books</small><b>Quote added as a draft, nothing paid yet</b></div></div><span class="smp">Sample data</span></div>
+  </div>
+  <div class="caps"><div class="cap"><span class="pill b">Before</span><p>Copying and pasting between systems.</p></div><div class="cap"><span class="pill a">After</span><p>Name, card, quote, pay link, in order.</p></div></div>
+  <div class="foot"><span class="mark">stenmont</span><span>Sample data · Whitechain test network</span></div>
+</section>

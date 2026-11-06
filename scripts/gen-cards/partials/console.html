@@ -1,0 +1,27 @@
+<style>
+.console { position: absolute; background: var(--ink); color: var(--paper); border-radius: 40px 40px 0 0; padding: 36px 40px 0; overflow: hidden; }
+.console .ch { display: flex; align-items: center; justify-content: space-between; }
+.console .ch b { font-family: var(--display); font-size: 30px; letter-spacing: -.025em; }
+.console .ch span { font-size: 16px; color: rgba(255,255,255,.66); display: inline-flex; align-items: center; gap: 8px; }
+.console .um { margin: 26px 0 18px auto; width: fit-content; max-width: 86%; background: rgba(255,255,255,.12); border-radius: 22px 22px 6px 22px; padding: 15px 22px; font-size: 22px; line-height: 1.3; }
+.console .tk { display: flex; align-items: center; gap: 16px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 15px 20px; margin-bottom: 10px; }
+.console .tk .ic { flex: none; width: 38px; height: 38px; border-radius: 50%; background: var(--corn); display: grid; place-items: center; }
+.console .tk .ic svg { width: 20px; height: 20px; }
+.console .tk div { flex: 1; min-width: 0; }
+.console .tk b { display: block; font-size: 21px; font-weight: 700; letter-spacing: -.01em; }
+.console .tk small { display: block; font-size: 16px; color: rgba(255,255,255,.64); margin-top: 2px; }
+.console .tk em { font-style: normal; font-size: 15px; border-radius: 999px; padding: 6px 14px; background: rgba(255,255,255,.14); }
+.console .tk em.n { background: var(--corn); color: var(--ink); font-weight: 700; }
+.console .inp { margin-top: 14px; background: var(--paper); color: var(--ink-60); border-radius: 22px 22px 0 0; padding: 22px 24px 40px; font-size: 20px; }
+.console .smp { position: absolute; right: 40px; top: 44px; display: none; }
+</style>
+<div class="console" id="console">
+  <div class="ch"><b>Your financial agent</b><span><i class="dot"></i>Online · test network · sample data</span></div>
+  <div class="um">Set up the store, then close October and get ahead of anything overdue.</div>
+  <div class="tk"><span class="ic"><svg viewBox="0 0 20 20"><path d="M4.6 10.4l3.4 3.4 7.4-7.6" fill="none" stroke="#050505" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><b>Imported catalogue</b><small>42 products · 118 variants</small></div><em>Done</em></div>
+  <div class="tk"><span class="ic"><svg viewBox="0 0 20 20"><path d="M4.6 10.4l3.4 3.4 7.4-7.6" fill="none" stroke="#050505" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><b>Payment received</b><small>Order 1042 · $66.00</small></div><em>Paid</em></div>
+  <div class="tk"><span class="ic"><svg viewBox="0 0 20 20"><path d="M4.6 10.4l3.4 3.4 7.4-7.6" fill="none" stroke="#050505" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><b>October closed</b><small>Reconciled · proof ready</small></div><em>Done</em></div>
+  <div class="tk"><span class="ic"><svg viewBox="0 0 20 20"><path d="M4.6 10.4l3.4 3.4 7.4-7.6" fill="none" stroke="#050505" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><b>Replied to supplier.stenmont.eth</b><small>Quote requested</small></div><em>Sent</em></div>
+  <div class="tk"><span class="ic" style="background:rgba(255,255,255,.18)"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="3" fill="#fff"/></svg></span><div><b>Funding offer drafted</b><small>$1,000.00 receivable · you decide</small></div><em class="n">Approve</em></div>
+  <div class="inp">Ask your agent&hellip;</div>
+</div>
