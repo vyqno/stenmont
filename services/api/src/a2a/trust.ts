@@ -17,7 +17,7 @@ a2aTrustRoutes.get("/a2a/:merchantId/trust", async c => {
   if (!access?.enabled) return fail(c, 404, "not_found", "Agent discovery unavailable");
   const [merchant] = await c.var.db.select().from(merchants).where(and(eq(merchants.id, mid), eq(merchants.status, "active")));
   const [ens] = await c.var.db.select().from(ensNames).where(and(eq(ensNames.merchantId, mid), eq(ensNames.status, "active")));
-  const [world] = await c.var.db.select().from(worldEnrollments).where(and(eq(worldEnrollments.merchantId, mid), eq(worldEnrollments.action, "enrol-business")));
+  const [world] = await c.var.db.select().from(worldEnrollments).where(and(eq(worldEnrollments.merchantId, mid), eq(worldEnrollments.action, "enrol-business-v2")));
   if (!merchant?.payoutAddress || !ens || !world || !world.proofEnvironment) return fail(c, 409, "facts_incomplete", "Current domain, ENS and World enrollment with recorded proof provenance are all required");
   let resolved: string | null;
   try { resolved = await c.var.ens.resolveAddress(ens.name, { strict: true }); } catch { return fail(c, 503, "ens_unavailable", "ENS observation unavailable"); }

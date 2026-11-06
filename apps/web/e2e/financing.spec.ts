@@ -37,7 +37,7 @@ test("a business that is not verified is pointed to Verify your business when it
 });
 
 test.skip("a verified business lists an invoice and it appears on the public market", async () => {
-  // Needs a business that completed World ID verification ("enrol-business"). World cannot be completed headless, so this
+  // Needs a business that completed World ID verification ("enrol-business-v2"). World cannot be completed headless, so this
   // is run by hand: verify the business in Settings, then sell the invoice (two passkey prompts), then check /invest.
 });
 

@@ -290,3 +290,6 @@ Each section is a set of staging slices, using the same test-first and completio
 
 - [x] World real-app environment diagnosis and exact staging-deployment/production-proof fixture coverage; portal IDs/signer matched.
 - [ ] Fresh real World retry after staging API production-proof override; successful proof/listing not yet claimed.
+
+- [x] Prepare merchant actionv2 consistently, including same-human lookup;1180 API and389 web tests passed.
+- [ ] Sir reports portal max-verifications result; any action-v2 deployment remains explicitly held.

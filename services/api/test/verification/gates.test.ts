@@ -19,7 +19,7 @@ async function tierUp(t: T, tier: 1 | 2 | 3 | 4, merchantId = "m_1") {
     await db.insert(sites).values({ id: "s1", merchantId, url: "https://acme.example", host: "acme.example", token: "t", createdAt: "2026-11-01T00:00:00Z" });
     await db.insert(siteChecks).values({ siteId: "s1", kind: "domain", ok: 1, detail: "ok", checkedAt: "2026-11-01T00:00:00Z" });
   }
-  if (tier === 3) await db.insert(worldEnrollments).values({ id: "w1", merchantId, action: "enrol-business", nullifier: "1", verifiedAt: "2026-11-01T00:00:00Z" });
+  if (tier === 3) await db.insert(worldEnrollments).values({ id: "w1", merchantId, action: "enrol-business-v2", nullifier: "1", verifiedAt: "2026-11-01T00:00:00Z" });
   if (tier === 4) await recordVerification(db, { merchantId, method: "kyc", provider: "mock", reference: "r1", decision: "approved", decidedAt: t.clock.now });
 }
 

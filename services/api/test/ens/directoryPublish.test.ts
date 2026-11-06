@@ -141,7 +141,7 @@ describe("runDirectoryRefresh (hourly)", () => {
     const { t, key, db } = await world();
     await publish(t, key, { payUrl: "https://pay.acme.example/c" });
     expect(await runDirectoryRefresh(deps(t))).toEqual({ published: 0, failed: 0 });
-    await db.insert(worldEnrollments).values({ id: "w_1", merchantId: "m_1", action: "enrol-business", nullifier: "n1", verifiedAt: "2026-11-01T00:00:00Z" });
+    await db.insert(worldEnrollments).values({ id: "w_1", merchantId: "m_1", action: "enrol-business-v2", nullifier: "n1", verifiedAt: "2026-11-01T00:00:00Z" });
     expect(await runDirectoryRefresh(deps(t))).toEqual({ published: 1, failed: 0 });
     const last = t.ens.textWrites.at(-1)!;
     expect(Object.keys(last.records)).toEqual([LIMITS_KEY]);
@@ -150,7 +150,7 @@ describe("runDirectoryRefresh (hourly)", () => {
   it("counts a chain failure and carries on with the next business", async () => {
     const { t, key } = await world();
     await publish(t, key, {});
-    await dbOf(t.db).insert(worldEnrollments).values({ id: "w_1", merchantId: "m_1", action: "enrol-business", nullifier: "n1", verifiedAt: "2026-11-01T00:00:00Z" });
+    await dbOf(t.db).insert(worldEnrollments).values({ id: "w_1", merchantId: "m_1", action: "enrol-business-v2", nullifier: "n1", verifiedAt: "2026-11-01T00:00:00Z" });
     t.ens.setTextRecords = async () => {
       throw new Error("down");
     };

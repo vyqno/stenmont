@@ -11,7 +11,7 @@ export async function assertDifferentHumans(
   repo: Pick<WorldRepo, "nullifiersFor">,
   buyerMerchantId: string,
   supplierMerchantId: string,
-  action = "enrol-business",
+  action = "enrol-business-v2",
 ): Promise<{ ok: true } | { ok: false; code: "same_human" }> {
   const rows = await repo.nullifiersFor([buyerMerchantId, supplierMerchantId], action);
   const of = (id: string) => rows.filter((r) => r.merchantId === id).map((r) => r.nullifier);

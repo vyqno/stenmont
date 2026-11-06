@@ -29,7 +29,7 @@ function fakeWorld(over: { verify?: () => Response; claims?: (nonce: string) => 
   const f = (async (url: string, init?: RequestInit) => {
     const u = String(url);
     calls.push({ url: u, body: init?.body && String(init.body).startsWith("{") ? JSON.parse(String(init.body)) : init?.body, auth: new Headers(init?.headers).get("authorization") });
-    if (u.includes("/api/v4/verify/")) return (over.verify ?? (() => Response.json({ success: true, environment: "staging", nullifier: "0xabc", action: "enrol-business" })))();
+    if (u.includes("/api/v4/verify/")) return (over.verify ?? (() => Response.json({ success: true, environment: "staging", nullifier: "0xabc", action: "enrol-business-v2" })))();
     if (u.endsWith("/.well-known/jwks.json")) return Response.json(key.jwks);
     if (u.endsWith("/api/v1/token")) {
       const form = new URLSearchParams(String(init?.body));
@@ -67,7 +67,7 @@ async function world(over: Parameters<typeof fakeWorld>[0] = {}, envOver = {}) {
 describe("POST /v1/world/rp-signature", () => {
   it("signs a request context for the enrolment action and says which app and environment to use", async () => {
     const { post } = await world();
-    const res = await post("/v1/world/rp-signature", { action: "enrol-business" });
+    const res = await post("/v1/world/rp-signature", { action: "enrol-business-v2" });
     expect(res.status).toBe(200);
     const b = await json(res);
     expect(b).toMatchObject({ app_id: "app_test", environment: "staging", rp_context: { rp_id: "rp_test" } });
@@ -77,46 +77,46 @@ describe("POST /v1/world/rp-signature", () => {
   it("only signs known actions, needs a signed-in business, and is unavailable when World is not configured", async () => {
     const { t, post } = await world();
     expect((await post("/v1/world/rp-signature", { action: "anything" })).status).toBe(400);
-    expect((await t.req("/v1/world/rp-signature", { method: "POST", body: JSON.stringify({ action: "enrol-business" }) })).status).toBe(401);
+    expect((await t.req("/v1/world/rp-signature", { method: "POST", body: JSON.stringify({ action: "enrol-business-v2" }) })).status).toBe(401);
     const bare = await world({}, { WORLD_RP_SIGNING_KEY: undefined });
-    expect((await bare.post("/v1/world/rp-signature", { action: "enrol-business" })).status).toBe(503);
+    expect((await bare.post("/v1/world/rp-signature", { action: "enrol-business-v2" })).status).toBe(503);
   });
 });
 
 describe("POST /v1/world/verify (one person, one business)", () => {
-  const proof = { protocol_version: "4.0", nonce: "n", action: "enrol-business", environment: "staging", responses: [{ identifier: "proof_of_human", nullifier: "0xabc" }] };
+  const proof = { protocol_version: "4.0", nonce: "n", action: "enrol-business-v2", environment: "staging", responses: [{ identifier: "proof_of_human", nullifier: "0xabc" }] };
   it("checks the proof with World, enrols the business, and stores the nullifier as a number", async () => {
     const { t, w, post } = await world();
-    const res = await post("/v1/world/verify", { action: "enrol-business", idkitResponse: proof });
+    const res = await post("/v1/world/verify", { action: "enrol-business-v2", idkitResponse: proof });
     expect(res.status).toBe(200);
     expect(await json(res)).toMatchObject({ enrolled: true });
     expect(w.calls.find((c) => c.url.includes("/api/v4/verify/rp_test"))?.body).toMatchObject({ environment: "staging" });
-    expect((await dbOf(t.db).select().from(worldEnrollments))[0]).toMatchObject({ merchantId: "m_1", action: "enrol-business", proofEnvironment: "staging", nullifier: BigInt("0xabc").toString() });
+    expect((await dbOf(t.db).select().from(worldEnrollments))[0]).toMatchObject({ merchantId: "m_1", action: "enrol-business-v2", proofEnvironment: "staging", nullifier: BigInt("0xabc").toString() });
   });
   it("shows the status of the signed-in business", async () => {
     const { t, post, key1, key2 } = await world();
-    await post("/v1/world/verify", { action: "enrol-business", idkitResponse: proof });
+    await post("/v1/world/verify", { action: "enrol-business-v2", idkitResponse: proof });
     expect((await json(await t.req("/v1/world/status", { key: key1 }))).enrolled).toBe(true);
     expect((await json(await t.req("/v1/world/status", { key: key2 }))).enrolled).toBe(false);
   });
   it("refuses the same person enrolling a second business, and a business enrolling twice", async () => {
     const { post, key2 } = await world();
-    expect((await post("/v1/world/verify", { action: "enrol-business", idkitResponse: proof })).status).toBe(200);
-    const again = await post("/v1/world/verify", { action: "enrol-business", idkitResponse: proof });
+    expect((await post("/v1/world/verify", { action: "enrol-business-v2", idkitResponse: proof })).status).toBe(200);
+    const again = await post("/v1/world/verify", { action: "enrol-business-v2", idkitResponse: proof });
     expect(again.status).toBe(409);
     expect((await json(again)).error.code).toBe("already_enrolled");
-    const second = await post("/v1/world/verify", { action: "enrol-business", idkitResponse: proof }, key2);
+    const second = await post("/v1/world/verify", { action: "enrol-business-v2", idkitResponse: proof }, key2);
     expect(second.status).toBe(409);
     expect((await json(second)).error.code).toBe("duplicate");
   });
   it("a rejected proof is 422, an unreachable World is 502, and neither stores anything", async () => {
     const bad = await world({ verify: () => Response.json({ code: "invalid_proof", detail: "bad" }, { status: 400 }) });
-    expect((await bad.post("/v1/world/verify", { action: "enrol-business", idkitResponse: proof })).status).toBe(422);
+    expect((await bad.post("/v1/world/verify", { action: "enrol-business-v2", idkitResponse: proof })).status).toBe(422);
     const down = await world({ verify: () => new Response("x", { status: 503 }) });
-    expect((await down.post("/v1/world/verify", { action: "enrol-business", idkitResponse: proof })).status).toBe(502);
+    expect((await down.post("/v1/world/verify", { action: "enrol-business-v2", idkitResponse: proof })).status).toBe(502);
     expect(await dbOf(down.t.db).select().from(worldEnrollments)).toHaveLength(0);
     const wrongEnv = await world();
-    expect((await wrongEnv.post("/v1/world/verify", { action: "enrol-business", idkitResponse: { ...proof, environment: "production" } })).status).toBe(422);
+    expect((await wrongEnv.post("/v1/world/verify", { action: "enrol-business-v2", idkitResponse: { ...proof, environment: "production" } })).status).toBe(422);
   });
 });
 
@@ -126,14 +126,14 @@ describe("invoices between the same human", () => {
     const db = dbOf(t.db);
     const stamp = t.clock.now.toISOString();
     await db.insert(worldEnrollments).values([
-      { id: "e1", merchantId: "m_1", action: "enrol-business", nullifier: "5", verifiedAt: stamp },
-      { id: "e2", merchantId: "m_2", action: "enrol-business", nullifier: "6", verifiedAt: stamp },
+      { id: "e1", merchantId: "m_1", action: "enrol-business-v2", nullifier: "5", verifiedAt: stamp },
+      { id: "e2", merchantId: "m_2", action: "enrol-business-v2", nullifier: "6", verifiedAt: stamp },
     ]);
     const make = (buyer: string, k = key1) => t.req("/v1/invoices", { method: "POST", key: k, idem: crypto.randomUUID(), body: JSON.stringify({ amount: "5", buyerMerchantId: buyer }) });
     expect((await make("m_2")).status).toBe(201);
     // The same person cannot be behind two enrolled businesses at all: the database refuses a second row for one nullifier,
     // so the same-human check on invoices is a second line of defence (its logic is tested in test/world).
-    await expect(db.insert(worldEnrollments).values({ id: "e3", merchantId: "m_3", action: "enrol-business", nullifier: "5", verifiedAt: stamp })).rejects.toThrow();
+    await expect(db.insert(worldEnrollments).values({ id: "e3", merchantId: "m_3", action: "enrol-business-v2", nullifier: "5", verifiedAt: stamp })).rejects.toThrow();
     expect((await make("m_nobody")).status).toBe(404);
     expect(await db.select().from(invoices).where(eq(invoices.buyerMerchantId, "m_2"))).toHaveLength(1);
     void post;
