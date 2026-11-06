@@ -59,6 +59,8 @@ export type Env = {
   SHOPIFY_CLIENT_SECRET?: string;
   /** Signs the sandbox KYC provider's webhooks. Test environments only: the sandbox provider is off in production and without this. */
   KYC_MOCK_WEBHOOK_SECRET?: string;
+  /** "yes" = allowlisting an investor needs tier 4 (documents). Leave unset in test environments so a World-verified person can be allowed. */
+  INVESTOR_REQUIRES_KYC?: string;
   /** Test environments: business sign-ups (activations) per IP per hour (default 5). Each costs the platform gas. */
   ACTIVATE_IP_LIMIT?: string;
 };

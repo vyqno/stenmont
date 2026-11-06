@@ -294,9 +294,9 @@ describe("the investor allowlist (World ID)", () => {
     return raw(t, account, ip);
   };
 
-  it("needs tier 4: an account with no business, or a business without documents, is refused before any proof is spent", async () => {
+  it("needs tier 4 when INVESTOR_REQUIRES_KYC is yes: an account with no business, or a business without documents, is refused before any proof is spent", async () => {
     const w = fakeWorld();
-    const t = setup({}, WORLD_ENV, { fetch: w.f });
+    const t = setup({}, { ...WORLD_ENV, INVESTOR_REQUIRES_KYC: "yes" }, { fetch: w.f });
     const none = await raw(t);
     expect(none.status).toBe(403);
     const body = await json(none);
@@ -311,6 +311,11 @@ describe("the investor allowlist (World ID)", () => {
     expect(t.chain.allowedSent).toHaveLength(0);
     await kycBusiness(t, INVESTOR);
     expect((await raw(t)).status).toBe(200);
+  });
+  it("without INVESTOR_REQUIRES_KYC a World-verified person with no business is allowed (the private route, test environments)", async () => {
+    const t = setup({}, WORLD_ENV, { fetch: fakeWorld().f });
+    expect((await raw(t)).status).toBe(200);
+    expect(t.chain.allowedSent).toHaveLength(1);
   });
   it("matches the account case-insensitively", async () => {
     const mixed = "0xAbCdEf0123456789aBcDeF0123456789AbCdEf01";

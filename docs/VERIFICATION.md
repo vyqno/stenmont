@@ -39,3 +39,7 @@ The message must be exactly what a canonical writer produces for its fields, for
 ## ENS badge
 
 The tier is published as the text record `stenmont.tier` on the business's ENS name. The platform's registrar writes it and nobody else: no role for that record is ever granted to the business, a team member or an agent (a test decodes the grants to prove it). `lockPayout` now also pre-grants the record to the registrar before its root rights are dropped. A name whose payout was locked before this change cannot receive the badge; the failure is recorded and nothing else breaks.
+
+## Investor eligibility by environment
+
+`INVESTOR_REQUIRES_KYC=yes` (production) makes allowlisting an investor require tier 4. Test environments leave it unset, so a World-verified person (the private route) can be allowlisted for demos. Real investors need documents-based verification.
