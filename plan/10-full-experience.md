@@ -50,13 +50,13 @@
 - [ ] Books depth: reconciliation, another export format and tax lines.
 - [ ] Minimal storefront.
 
-Live acceptance that creates a business account requires the owner's explicit yes. Real World verification and additional test funds remain owner handoffs.
+The owner authorized isolated staging test businesses using the Playwright virtual authenticator; keep runs low, use no real funds, never create third-party accounts, and report creations. Real World verification and additional test funds remain owner handoffs.
 
 ## Part I: implementation and acceptance detail
 
 ### I1. ENS dashboard (first implementation slice)
 
-**Current verification, 2026-11-06:** API availability/resolution and agent-input tests observed RED then GREEN; World callback return-path test observed RED then GREEN. Full TypeScript suite: 497 passed (API 335, web 26); lint exits 0 with the pre-existing unused-import warning; web typecheck exits 0; Cloudflare web build passes. The local API-double Chromium test now passes after narrowing an ambiguous alert selector. API and web Workers were deployed directly to staging; API health and the web Identity route return 200, and unauthenticated availability returns 401. Real ENS claim, World approval, agent revocation, and Aside evidence remain **not run**, so this slice is not complete. The owner authorized small local Identity commits on 2026-11-06; pushes remain prohibited.
+**Current verification, 2026-11-06:** API availability/resolution and agent-input tests observed RED then GREEN; World callback return-path test observed RED then GREEN. Full TypeScript suite: 497 passed (API 335, web 26); lint exits 0 with the pre-existing unused-import warning; web typecheck exits 0; Cloudflare web build passes. The local API-double Chromium test now passes after narrowing an ambiguous alert selector. API and web Workers were deployed directly to staging; API health and the web Identity route return 200, and unauthenticated availability returns 401. The live Identity Playwright test passed once in 3.7 minutes: real ENS claim/resolution, finance grant, permanent lock, approval-required gate, agent creation/resolution/revocation and mobile width. Real World approval completion and Aside evidence remain **not run**, so this slice is not complete. The owner authorized small local Identity commits on 2026-11-06; pushes remain prohibited.
 
 **Files:** `apps/web/app/dashboard/identity/page.tsx` (new), `apps/web/app/dashboard/DashboardShell.tsx`, `apps/web/lib/identity.ts` (new), `services/api/src/routes/ens.ts`, `services/api/src/ens/client.ts`; extend `services/api/test/ens.test.ts`; add `apps/web/test/identity.test.ts` and `apps/web/e2e/identity.spec.ts`.
 
@@ -65,6 +65,7 @@ Live acceptance that creates a business account requires the owner's explicit ye
 - [x] Write failing API tests: invalid/reserved/taken labels; provider-driven resolution; tenant isolation; RPC failure returns a retryable error and never a false availability result. These local tests use an ENS test double; live acceptance remains separate.
 - [ ] Write failing web tests: validation, stale availability, exact agent-limit approval parameters and API errors. Add browser assertions for visible claim, resolution, finance role, permanent-lock confirmation, create/list/revoke agent, invalid input and reload recovery.
 - [ ] Run targeted tests and observe the expected failures before implementation.
+- [x] Run the authorized live Identity browser acceptance once on staging (1 passed, 3.7 minutes; one isolated test business).
 - [x] Add Identity navigation and screen: availability → claim → resolution; finance member limited to `stenmont.profile`; explain members must be added before permanent payout lock; require explicit confirmation. Agent form exposes limits, scopes, expiry, context and endpoint; over 100 USDT daily routes to World approval.
 - [ ] Run targeted tests, `pnpm test`, `pnpm lint` and web typecheck/build. Run the staging identity flow against Sepolia; resolve business and agent records independently; verify revocation and protected payout behavior. Complete Aside evidence and the shared completion gate.
 
