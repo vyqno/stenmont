@@ -2,18 +2,49 @@
   "name": "@stenmont/sdk",
   "version": "0.1.0",
   "license": "Apache-2.0",
-  "private": true,
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
     "test": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "build": "tsup src/index.ts --format esm --clean --target es2023 && tsc -p tsconfig.build.json && node ../../scripts/fix-dts-imports.mjs dist"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "tsup": "^8.5.1",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"
+  },
+  "description": "Server SDK for Stenmont: invoices, checkout, refunds, subscriptions, CSV export and webhook verification on Whitechain USDT.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stenmont/stenmont.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://stenmont.com",
+  "keywords": [
+    "stablecoin",
+    "payments",
+    "usdt",
+    "whitechain",
+    "invoices"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    }
   }
 }

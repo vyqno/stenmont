@@ -210,3 +210,5 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 - 12:43 Phase 8 started: README (how it works, setup, contract addresses, real USDT payments, why onchain, limitations), demo shot list, and the Whitechain, World and ENS feedback files, written from these notes. The demo video and the clean-clone check of the README are still to do.
 
 - 12:50 Licence chosen: Apache-2.0 (permissive with a patent grant; the code stays owned by Hitesh, so later versions can be licensed differently). LICENSE, NOTICE and the licence field in the package manifests added.
+
+- 12:53 SDK and React button made publishable (not yet published): built to JavaScript with type files, install-tested from packed tarballs in a clean directory, README and licence in each package. The agent and x402 packages depend on the private shared package, so they wait.
