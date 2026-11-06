@@ -12,7 +12,7 @@ export class AuthError extends Error {
   }
 }
 
-async function call<T>(method: "GET" | "POST", path: string, body?: unknown, as: "json" | "text" = "json"): Promise<T> {
+async function call<T>(method: "GET" | "POST" | "DELETE", path: string, body?: unknown, as: "json" | "text" = "json"): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["content-type"] = "application/json";
   if (method === "POST" && path.startsWith("/v1/")) headers["idempotency-key"] = crypto.randomUUID();
@@ -131,6 +131,7 @@ export const signOut = () => call<void>("POST", "/auth/logout");
 export const api = {
   get: <T>(path: string) => call<T>("GET", path),
   post: <T>(path: string, body?: unknown) => call<T>("POST", path, body ?? {}),
+  delete: <T>(path: string) => call<T>("DELETE", path),
   text: (path: string) => call<string>("GET", path, undefined, "text"),
 };
 

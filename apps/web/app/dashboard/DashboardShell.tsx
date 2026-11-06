@@ -13,6 +13,7 @@ const NAV = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/invoices", label: "Invoices" },
   { href: "/dashboard/subscriptions", label: "Subscriptions" },
+  { href: "/dashboard/identity", label: "Identity" },
   { href: "/dashboard/settings", label: "Settings" },
 ];
 
@@ -31,7 +32,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       <header className="border-b border-line bg-surface">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
           <Link href="/dashboard" className="text-xl"><Logo /></Link>
-          <nav className="flex flex-1 gap-4 text-sm" aria-label="Main">
+          <nav className="flex flex-1 flex-wrap gap-4 text-sm" aria-label="Main">
             {NAV.map((n) => (
               <Link key={n.href} href={n.href} aria-current={path === n.href ? "page" : undefined} className={path === n.href ? "font-medium underline underline-offset-8" : "text-muted hover:text-foreground"}>
                 {n.label}
