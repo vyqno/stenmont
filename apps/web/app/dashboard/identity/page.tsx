@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { EnsAuthority } from "../../../components/EnsAuthority";
 import { AgentAllowance } from "../../../components/AgentAllowance";
 import { Badge, Card } from "../../../components/ui";
 import { AuthError, api } from "../../../lib/auth";
@@ -163,6 +164,7 @@ export default function Identity() {
               <button className={`${button} self-start`} disabled={name.payoutLocked || !!pending}>Add finance member</button>
             </form>
           </Card>
+          <EnsAuthority />
           <Card title="Permanent payout lock">
             <p className="font-medium" data-testid="payout-state">{name.payoutLocked ? "Payout permanently locked" : "Payout not locked"}</p>
             {!name.payoutLocked && <>
