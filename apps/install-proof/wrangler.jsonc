@@ -9,6 +9,7 @@
   "env": {
     "staging": {
       "name": "stenmont-install-proof-staging",
+      "triggers": { "crons": ["*/15 * * * *"] },
       "vars": { "SHOP_URL": "https://install-proof-staging.stenmont.com" },
       "routes": [{ "pattern": "install-proof-staging.stenmont.com", "custom_domain": true }],
       "kv_namespaces": [{ "binding": "ORDERS", "id": "435a298adfb3448b8b427df36df97f82" }]

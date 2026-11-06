@@ -1,7 +1,8 @@
 import { Hono } from "hono";
+import { cleanupAuthorized, cleanupInstallInvoices, type InstallEnv } from "./cleanup";
 
-type Env = { Bindings: { ORDERS: KVNamespace; SHOP_URL: string; STENMONT_API_KEY: string; STENMONT_WEBHOOK_SECRET: string } };
-type Order = { id: string; sku: string; name: string; amount: string; status: "pending" | "paid"; checkoutKey: string; invoiceId?: string; payUrl?: string };
+type Env = { Bindings: InstallEnv };
+type Order = { id: string; sku: string; name: string; amount: string; status: "pending" | "paid" | "expired"; checkoutKey: string; invoiceId?: string; payUrl?: string };
 
 export const PRODUCTS = [
   { id: "test", name: "Test payment (nothing ships)", price: "1.00" },
@@ -24,7 +25,8 @@ const load = async (kv: KVNamespace, id: string): Promise<Order | null> => {
   if (!order) return null;
   const binding = await kv.get<{ invoiceId: string; payUrl: string }>(`invoice:${id}`, "json");
   const paid = await kv.get(`paid:${id}`);
-  return { ...order, ...binding, status: paid ? "paid" : "pending" };
+  const retired = await kv.get(`retired:${id}`);
+  return { ...order, ...binding, status: paid ? "paid" : retired ? "expired" : "pending" };
 };
 const save = (kv: KVNamespace, o: Order) => kv.put(`order:${o.id}`, JSON.stringify(o));
 
@@ -58,6 +60,7 @@ app.post("/buy/:sku", async (c) => {
 app.get("/orders/:id/pay", async (c) => {
   const o = await load(c.env.ORDERS, c.req.param("id"));
   if (!o) return c.text("Order not found", 404);
+  if (o.status === "expired") return c.text("This payment expired. Start a new order.", 410);
   if (o.status === "paid") return c.redirect(`/orders/${o.id}`, 303);
   return page("Pay", `<h1>Pay $${o.amount}</h1><form method="post" action="/orders/${o.id}/checkout"><button>Pay with Stenmont</button></form>`);
 });
@@ -65,6 +68,7 @@ app.get("/orders/:id/pay", async (c) => {
 app.post("/orders/:id/checkout", async (c) => {
   const o = await load(c.env.ORDERS, c.req.param("id"));
   if (!o) return c.text("Order not found", 404);
+  if (o.status === "expired") return c.text("This payment expired. Start a new order.", 410);
   if (o.status === "paid") return c.redirect(`/orders/${o.id}`, 303);
   if (o.invoiceId && o.payUrl) return c.redirect(o.payUrl, 303);
   if (!c.env.STENMONT_API_KEY) return c.text("Payments are temporarily unavailable", 503);
@@ -152,9 +156,24 @@ app.post("/webhooks/stenmont", async (c) => {
 app.get("/orders/:id", async (c) => {
   const o = await load(c.env.ORDERS, c.req.param("id"));
   if (!o) return c.text("Order not found", 404);
+  if (o.status === "expired") return c.text("This payment expired. Start a new order.", 410);
   const paid = o.status === "paid";
   const refresh = paid ? "" : `<meta http-equiv="refresh" content="4">`;
   return page("Your order", `<h1 data-testid="status">${paid ? "Paid" : "Waiting for payment"}</h1><p>${o.name} · $${o.amount}</p><p>Order ${o.id}</p>`, refresh);
 });
 
-export default app;
+// Operator-only immediate cleanup; scheduled runs use the identical code path.
+app.post("/maintenance/cleanup", async (c) => {
+  if (!await cleanupAuthorized(c.req.header("authorization"), c.env.STENMONT_API_KEY)) return c.text("Unauthorized", 401);
+  const body = await c.req.json<{ invoiceIds?: string[] }>().catch(() => null);
+  if (!body || (body.invoiceIds !== undefined && (!Array.isArray(body.invoiceIds) || body.invoiceIds.length > 100 || !body.invoiceIds.every((id) => typeof id === "string")))) return c.text("Invalid request", 400);
+  try { return c.json(await cleanupInstallInvoices(c.env, body.invoiceIds)); }
+  catch { return c.text("Cleanup unavailable; retained records are safe to retry.", 502); }
+});
+
+export default {
+  fetch: app.fetch,
+  scheduled(_event: ScheduledController, env: InstallEnv, ctx: ExecutionContext) {
+    ctx.waitUntil(cleanupInstallInvoices(env).then(() => {}));
+  },
+};
