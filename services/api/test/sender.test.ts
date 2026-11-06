@@ -75,6 +75,18 @@ describe("SerialSender", () => {
     expect(attempts).toEqual([3, 7]);
   });
 
+  it("does not send again when the node says it already knows the transaction (that would risk a duplicate payment)", async () => {
+    let sends = 0;
+    const s = new SerialSender({
+      getNonce: async () => 5,
+      send: async () => {
+        sends++;
+        throw new Error("already known");
+      },
+    });
+    await expect(s.submit(call(1))).rejects.toThrow("already known");
+    expect(sends).toBe(1);
+  });
   it("uses the chain's pending nonce when it is ahead of the local counter", async () => {
     let chainNonce = 0;
     const used: number[] = [];

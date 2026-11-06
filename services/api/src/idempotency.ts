@@ -3,6 +3,7 @@ import type { Context } from "hono";
 import type { AppEnv } from "./app";
 import { fail } from "./errors";
 import { idempotencyKeys } from "./db/schema";
+import { sha256Hex } from "./lib/crypto";
 
 export type IdempotentResult = { status: 200 | 201; body: unknown };
 
@@ -20,14 +21,19 @@ export async function runIdempotent(
     return fail(c, 400, "idempotency_key_required", "Send an Idempotency-Key header (up to 255 characters)");
   }
   const db = c.var.db;
+  // A key is for one request: reusing it for a different route or body is a mistake we refuse, not silently answer.
+  const fingerprint = await sha256Hex(`${c.req.method} ${c.req.path}\n${await c.req.text()}`);
   const where = and(eq(idempotencyKeys.key, key), eq(idempotencyKeys.merchantId, merchantId));
   const inserted = await db
     .insert(idempotencyKeys)
-    .values({ key, merchantId, response: "", createdAt: new Date().toISOString() })
+    .values({ key, merchantId, response: "", fingerprint, createdAt: new Date().toISOString() })
     .onConflictDoNothing()
     .returning();
   if (inserted.length === 0) {
     const [row] = await db.select().from(idempotencyKeys).where(where);
+    if (row && row.fingerprint !== "" && row.fingerprint !== fingerprint) {
+      return fail(c, 422, "idempotency_key_reuse", "This Idempotency-Key was already used for a different request");
+    }
     if (!row || row.response === "") {
       return fail(c, 409, "idempotency_in_progress", "A request with this Idempotency-Key is still running");
     }

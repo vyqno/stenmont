@@ -176,7 +176,8 @@ authRoutes.post("/register/verify", async (c) => {
     return fail(c, 400, "invalid_passkey", "The passkey response could not be read.");
   }
 
-  const [existing] = await db.select({ id: passkeys.id }).from(passkeys).where(eq(passkeys.id, b.credentialId));
+  // One passkey, one business: neither the credential id nor the key itself may be registered twice.
+  const [existing] = await db.select({ id: passkeys.id }).from(passkeys).where(or(eq(passkeys.id, b.credentialId), and(eq(passkeys.qx, key.x), eq(passkeys.qy, key.y))));
   if (existing) return fail(c, 409, "already_registered", "This passkey is already registered. Sign in instead.");
   if (!(await claim(db, row.id, now))) return badChallenge(c);
 
@@ -185,7 +186,12 @@ authRoutes.post("/register/verify", async (c) => {
   const merchantId = `m_${randomHex(8)}`;
   const stamp = now.toISOString();
   await db.insert(merchants).values({ id: merchantId, name, address: account, payoutAddress: account, status: "pending", createdAt: stamp });
-  await db.insert(passkeys).values({ id: b.credentialId, merchantId, qx: key.x, qy: key.y, counter: 0, createdAt: stamp });
+  const stored = await db.insert(passkeys).values({ id: b.credentialId, merchantId, qx: key.x, qy: key.y, counter: 0, createdAt: stamp }).onConflictDoNothing().returning({ id: passkeys.id });
+  if (stored.length === 0) {
+    await db.delete(merchants).where(eq(merchants.id, merchantId)); // lost a race with another registration of this passkey
+    await release(db, row.id);
+    return fail(c, 409, "already_registered", "This passkey is already registered. Sign in instead.");
+  }
 
   // The second prompt: the new passkey authorises the relayer to create invoices for the account. The challenge is the
   // exact digest the router will check, so the same signature works onchain.

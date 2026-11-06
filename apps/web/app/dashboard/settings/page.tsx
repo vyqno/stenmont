@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Badge, Card } from "../../../components/ui";
+import { AuthError, api } from "../../../lib/auth";
 import { useApi } from "../../../lib/useApi";
 import { useMerchant } from "../DashboardShell";
 
@@ -13,6 +15,27 @@ export default function Settings() {
   const keys = useApi<Keys>("/v1/api-keys");
   const hooks = useApi<Hooks>("/v1/webhook-endpoints");
   const tank = useApi<Tank>("/v1/gas-tank");
+  const [fresh, setFresh] = useState<string | null>(null);
+  const [keyError, setKeyError] = useState("");
+
+  async function makeKey() {
+    setKeyError("");
+    try {
+      setFresh((await api.post<{ key: string }>("/v1/api-keys")).key);
+      keys.reload();
+    } catch (e) {
+      setKeyError(e instanceof AuthError ? e.message : "The key could not be made. Try again.");
+    }
+  }
+  async function revoke(id: string) {
+    setKeyError("");
+    try {
+      await api.post(`/v1/api-keys/${id}/revoke`);
+      keys.reload();
+    } catch (e) {
+      setKeyError(e instanceof AuthError ? e.message : "The key could not be revoked. Try again.");
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -30,11 +53,20 @@ export default function Settings() {
             <li key={k.id} className="flex items-center justify-between py-2">
               <code className="font-mono text-sm">{k.display}</code>
               <span className="text-sm text-muted">created {k.createdAt.slice(0, 10)}</span>
-              {k.revoked && <Badge tone="off">Revoked</Badge>}
+              {k.revoked ? <Badge tone="off">Revoked</Badge> : <button type="button" onClick={() => revoke(k.id)} className="rounded border border-line px-3 py-1 text-sm hover:border-danger">Revoke</button>}
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-sm text-muted">A key is shown in full only once, when it is made.</p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button type="button" onClick={makeKey} className="rounded border border-line px-3 py-1 text-sm hover:border-brand">Make a new key</button>
+          {keyError && <span role="status" className="text-sm text-danger">{keyError}</span>}
+        </div>
+        {fresh && (
+          <p className="mt-3 text-sm">
+            Copy this key now. It is shown only once: <code data-testid="new-key" className="break-all font-mono">{fresh}</code>
+          </p>
+        )}
+        <p className="mt-2 text-sm text-muted">A key is shown in full only once, when it is made. You cannot revoke your only working key.</p>
       </Card>
 
       <Card title="Webhooks">

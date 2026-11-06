@@ -37,7 +37,8 @@ export class SerialSender {
       return await this.broadcast(call, nonce);
     } catch (e) {
       this.next = null; // unknown state: re-read the chain next time
-      if (!/nonce too low|already known|replacement transaction underpriced/i.test(String(e))) throw e;
+      // Only "nonce too low" is retried. "already known" means the node HAS this transaction: sending it again would risk paying twice.
+      if (!/nonce too low/i.test(String(e))) throw e;
       nonce = await this.nonce(); // exactly one retry with a fresh nonce
       return await this.broadcast(call, nonce).catch((e2) => {
         this.next = null;

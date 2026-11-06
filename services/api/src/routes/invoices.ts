@@ -11,6 +11,7 @@ import { runIdempotent } from "../idempotency";
 import { randomHex } from "../lib/crypto";
 import { amountSchema, idSchema, invalid, returnUrlOk } from "../lib/validation";
 import { invoiceView } from "../lib/views";
+import { hitRateLimit } from "../relayer/caps";
 import { emitEvent } from "../webhooks";
 
 const createSchema = z.strictObject({
@@ -45,6 +46,14 @@ invoiceRoutes.post("/", async (c) => {
   }
 
   return runIdempotent(c, merchant.id, async () => {
+    // Every invoice is a transaction paid by the platform, so creation is limited per business and overall.
+    const at = c.var.now();
+    const within = [
+      await hitRateLimit(db, `invoices:m:${merchant.id}`, 60, 60, at),
+      await hitRateLimit(db, `invoices:day:${merchant.id}`, 2_000, 86_400, at),
+      await hitRateLimit(db, "invoices:global", 20_000, 86_400, at),
+    ];
+    if (within.includes(false)) return fail(c, 429, "rate_limited", "Too many invoices created. Try again in a minute.");
     if (!merchant.address) return fail(c, 409, "merchant_not_ready", "This merchant has no onchain address yet");
     const merchantAddress = merchant.address as Address;
     const number = input.number ?? `INV-${Date.now().toString(36).toUpperCase()}${randomHex(2).toUpperCase()}`;

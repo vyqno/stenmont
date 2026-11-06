@@ -223,7 +223,9 @@ subscriptionRelayRoutes.post("/subscription-cancel", async (c) => {
   const now = c.var.now();
   if (!(await hitRateLimit(db, `subscribe:ip:${clientIp(c) ?? "unknown"}`, 30, 60, now))) return fail(c, 429, "rate_limited", "Too many attempts. Try again in a minute.");
   const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.id, b.id));
-  if (!sub || (sub.status !== "active" && sub.status !== "past_due")) return fail(c, 404, "not_found", "Not found");
+  // The customer can always end it onchain, even if the business stopped charging (its dashboard row says cancelled): only
+  // the contract knows whether it is still running, and it refuses a second cancel.
+  if (!sub || !sub.payer || sub.status === "offered" || sub.status === "subscribing" || sub.status === "completed") return fail(c, 404, "not_found", "Not found");
 
   const data = encodeFunctionData({ abi: subscriptionManagerAbi, functionName: "cancelWithSig", args: [sub.id as Hex, BigInt(b.deadline), b.payerSig as Hex] });
   const sent = await sendFromTank({ db, chain, now }, sub.merchantId, { to: c.env.SUBSCRIPTION_MANAGER_ADDRESS as Address, data });

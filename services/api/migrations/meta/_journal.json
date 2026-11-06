@@ -71,6 +71,13 @@
       "when": 1793936514944,
       "tag": "0009_ens_names",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793938468673,
+      "tag": "0010_hardening",
+      "breakpoints": true
     }
   ]
 }

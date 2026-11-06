@@ -70,6 +70,7 @@ export const idempotencyKeys = sqliteTable(
     key: text("key").notNull(),
     merchantId: text("merchant_id").notNull(),
     response: text("response").notNull(),
+    fingerprint: text("fingerprint").notNull().default(""), // what the key was first used for: method, path and body
     createdAt: text("created_at").notNull(),
   },
   (t) => [primaryKey({ columns: [t.key, t.merchantId] })],

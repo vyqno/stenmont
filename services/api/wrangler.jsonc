@@ -50,7 +50,6 @@
         "FACTORY_ADDRESS": "0x5101c37647581c81b462436af2D7ac8ccD08D33A",
         "SUBSCRIPTION_MANAGER_ADDRESS": "0x3e1C51d461e6adb0b087DC39d41942E084eba2DD",
         "INDEXER_CONFIRMATIONS": "2",
-        "COOKIE_DOMAIN": ".stenmont.com",
         "FAUCET_IP_LIMIT": "40",
         "ACTIVATE_IP_LIMIT": "30",
         "APP_URL": "https://app-staging.stenmont.com",
@@ -84,7 +83,6 @@
         "FACTORY_ADDRESS": "0x0000000000000000000000000000000000000000",
         "SUBSCRIPTION_MANAGER_ADDRESS": "0x0000000000000000000000000000000000000000",
         "INDEXER_CONFIRMATIONS": "2",
-        "COOKIE_DOMAIN": ".stenmont.com",
         "APP_URL": "https://app.stenmont.com",
         "API_URL": "https://api.stenmont.com"
       },

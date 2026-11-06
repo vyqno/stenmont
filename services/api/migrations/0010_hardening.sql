@@ -1,0 +1,1 @@
+ALTER TABLE `idempotency_keys` ADD `fingerprint` text DEFAULT '' NOT NULL;

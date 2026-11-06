@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { hashTypedData, type Address, type Hex } from "viem";
 import { z } from "zod";
@@ -65,7 +65,11 @@ refundRoutes.post("/", async (c) => {
   if (max <= 0n) return fail(c, 422, "nothing_to_refund", "That address has nothing left to refund on this invoice.");
   const value = parsed.data.amount ? toUnits(parsed.data.amount) : max;
   if (value > max) return fail(c, 422, "refund_too_large", `At most ${fromUnits(max)} can be refunded to that address.`);
-  if (value > APPROVAL_THRESHOLD) return fail(c, 409, "approval_required", "Refunds this large need a person's approval first.");
+  // The threshold counts everything refunded on this invoice plus requests still waiting, so a big refund cannot be split to avoid approval.
+  const nowS = Math.floor(c.var.now().getTime() / 1000);
+  const waiting = (await db.select().from(refundRequests).where(and(eq(refundRequests.invoiceId, inv.id), inArray(refundRequests.status, ["pending", "sending"])))).filter((r) => r.validBefore > nowS);
+  const committed = BigInt(inv.amountRefunded) + waiting.reduce((sum, r) => sum + BigInt(r.value), 0n);
+  if (committed + value > APPROVAL_THRESHOLD) return fail(c, 409, "approval_required", "Refunds this large need a person's approval first.");
 
   const salt = `0x${randomHex(32)}` as Hex;
   const validBefore = Math.floor(c.var.now().getTime() / 1000) + VALID_FOR_SECONDS;

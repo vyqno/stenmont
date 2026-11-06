@@ -31,6 +31,13 @@ export async function runRenewals(env: Env, db: Db, chain: ChainClient, now: Dat
   let failed = 0;
 
   for (const sub of due) {
+    // Lease the subscription for 2 minutes so an overlapping run does not charge it too (the lease is cleared by the outcome below).
+    const leased = await db
+      .update(subscriptions)
+      .set({ retryAt: nowS + 120 })
+      .where(and(eq(subscriptions.id, sub.id), eq(subscriptions.status, "active"), or(isNull(subscriptions.retryAt), lte(subscriptions.retryAt, nowS))))
+      .returning({ id: subscriptions.id });
+    if (leased.length === 0) continue;
     const data = encodeFunctionData({ abi: subscriptionManagerAbi, functionName: "charge", args: [sub.id as Hex] });
     const sent = await sendFromTank({ db, chain, now }, sub.merchantId, { to: env.SUBSCRIPTION_MANAGER_ADDRESS as Address, data });
     const stamp = now.toISOString();

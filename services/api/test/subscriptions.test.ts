@@ -116,6 +116,22 @@ describe("customer subscribes (relayed, merchant pays the gas)", () => {
   });
 });
 
+describe("customer cancel still works after the merchant stopped charging", () => {
+  it("lets the customer end it onchain even when the dashboard row says cancelled", async () => {
+    const w = await world();
+    const a = await w.offer();
+    await w.subscribe(a.id);
+    await w.t.req(`/v1/subscriptions/${a.id}/cancel`, { method: "POST", key: w.key });
+    const res = await w.t.req("/relay/subscription-cancel", {
+      method: "POST",
+      headers: { "cf-connecting-ip": "9.9.9.9" },
+      body: JSON.stringify({ id: a.id, deadline: String(NOW_S + 600), payerSig: "0x1234" }),
+    });
+    expect(res.status).toBe(200);
+    expect(w.t.chain.sent.length).toBeGreaterThan(1); // the cancel transaction was sent
+  });
+});
+
 describe("renewals (cron)", () => {
   async function active(chainOver: Parameters<typeof setup>[0] = {}) {
     const w = await world();

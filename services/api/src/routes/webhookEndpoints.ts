@@ -23,6 +23,8 @@ webhookEndpointRoutes.post("/", async (c) => {
   const parsed = createSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return invalid(c, parsed.error);
   const { db, merchantId } = c.var;
+  const existing = await db.select({ id: webhookEndpoints.id }).from(webhookEndpoints).where(eq(webhookEndpoints.merchantId, merchantId));
+  if (existing.length >= 10) return fail(c, 409, "too_many_endpoints", "A business can have at most 10 webhook endpoints.");
   const id = crypto.randomUUID();
   const secret = `whsec_${randomHex(24)}`;
   await db.insert(webhookEndpoints).values({

@@ -28,3 +28,10 @@ Payment and refund nonces are bound to the invoice (no redirection); checks-effe
 
 ## Ours: what to do with it
 Items 1, 2 and 5 are real and worth fixing before the demo. Item 1 needs a contract change (a merchant-by-signature cancel) or at minimum letting the customer cancel regardless of the row, plus an indexer for subscription events. Item 4 and 12 are design/trust notes for the README's limitations. Fixes are tracked in `BUILDER-NOTES.md`.
+
+
+## Fix status (updated 2026-11-06)
+- Fixed in the API (tests added, live on staging): #2 invoice creation limited to 60 a minute and 2,000 a day per business and 20,000 a day overall (gas-tank charging for invoices, activation and refunds is still not done: rate limits only); #5 the 100 USDT approval threshold now counts earlier refunds and requests still waiting (the contract side is with the contracts fixes below); #7 renewals lease each subscription for 2 minutes so overlapping runs cannot double-charge or blame the customer; #8 the session cookie is host-only (no shared parent domain); #9 the sender no longer retries on "already known"; #11 an Idempotency-Key is bound to its route and body (422 on reuse for a different request); #12 API keys can be made and revoked (not the last working one); #13 one passkey can belong to one business only; #15 webhook endpoints capped at 10 per business.
+- #1 (merchant cancel): the customer can now always cancel onchain even when the dashboard says cancelled; the real fix (merchant cancel by signature, onchain) is in the contracts work in progress.
+- With the contracts agent: #1 contract side, #3 (cumulative refund approval in the router), reputation wiring, the cancel-after-sale hole.
+- Not yet: #3 (authorizations that pass simulation then revert), #4 (shared relayer creator power; design note for the README), #6 (reconciling timed-out transactions), #10 (negative tank), #14 (PasskeyAccount limits, documented), the invariant strengthening (with the contracts agent).
