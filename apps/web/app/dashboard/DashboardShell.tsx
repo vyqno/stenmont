@@ -11,6 +11,7 @@ export const useMerchant = () => useContext(MerchantContext)!;
 
 const NAV = [
   { href: "/dashboard", label: "Overview" },
+  { href: "/dashboard/connect", label: "Connect" },
   { href: "/dashboard/invoices", label: "Invoices" },
   { href: "/dashboard/subscriptions", label: "Subscriptions" },
   { href: "/dashboard/identity", label: "Identity" },
