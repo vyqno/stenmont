@@ -15,7 +15,7 @@
 
 ## Policy
 
-Staging is non-indexable regardless of the index flag. Public indexing requires BOTH an approved public origin and explicit STENMONT_INDEX_PUBLIC_SITE=yes. STENMONT_PUBLIC_ORIGIN defaults to app-staging.stenmont.com; arbitrary origins are refused. These are nonsecret future configuration names, not a production deployment instruction. Private, authentication and dynamic merchant records have no canonical or social URL, use no-referrer and stay outside sitemaps. Social previews contain the existing text-only wordmark, never invoice/customer data. Font entitlement remains unresolved; no claim that fallback rendering is licensed brand artwork.
+Staging is non-indexable regardless of the index flag. Public indexing requires BOTH an approved public origin and explicit STENMONT_INDEX_PUBLIC_SITE=yes. STENMONT_PUBLIC_ORIGIN defaults to app-staging.stenmont.com; arbitrary origins are refused. These are nonsecret future configuration names, not a production deployment instruction. Private, authentication and dynamic merchant records have no canonical or social URL, use no-referrer and stay outside sitemaps. Social previews contain route titles and descriptions only. Image and Organization-logo metadata are held: the existing raster is a bold system fallback, and the Adobe project currently exposes400/700 rather than required All Round Gothic Medium500. Actual font loading does not prove licence entitlement. No fallback raster is presented as approved artwork. Invoice/customer data never enters preview metadata.
 
 ## Sources checked
 
@@ -27,3 +27,5 @@ Installed Next documentation in node_modules/next/dist/docs/01-app/03-api-refere
 No third-party reference assets, font files, secrets or new dependencies are included.
 
 - 18:10 IST: All35 pages (34 existing plus FAQ) have explicit distinct metadata. Eight focused tests pass across four files; web typegen/TypeScript passed before final discovery routes. No browser run by this lane.
+
+- 18:13 IST: Removed unapproved fallback social artwork after the explicit Medium-wordmark correction. New assertions failed on old image references, then all32 targeted tests passed; final web typecheck passed.

@@ -7,7 +7,7 @@ export function SiteStructuredData() {
   const graph = {
     "@context": "https://schema.org",
     "@graph": [
-      { "@type": "Organization", "@id": organization, name: "stenmont", url: origin, logo: `${origin}/brand/wordmark-social.png` },
+      { "@type": "Organization", "@id": organization, name: "stenmont", url: origin },
       { "@type": "SoftwareApplication", name: "stenmont", url: origin, applicationCategory: "FinanceApplication", operatingSystem: "Web", description: "The agentic business kit for invoices, USDT payments and connected records. Currently on the test network.", publisher: { "@id": organization } },
     ],
   };

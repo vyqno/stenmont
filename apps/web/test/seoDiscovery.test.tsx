@@ -19,5 +19,5 @@ it("describes the real organization and test-network software without unsupporte
   const data = JSON.parse(html.match(/>([\s\S]*?)<\/script>/)![1]!);
   expect(data["@graph"].map((n: { "@type": string }) => n["@type"])).toEqual(["Organization", "SoftwareApplication"]);
   expect(html).toContain("test network");
-  expect(html).not.toMatch(/aggregateRating|offers|priceCurrency|customer|invoiceId/);
+  expect(html).not.toMatch(/aggregateRating|offers|priceCurrency|customer|invoiceId|wordmark-social/);
 });
