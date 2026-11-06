@@ -1,0 +1,38 @@
+{
+  // Top level = local development only. Never deploy it. Use --env staging, then (only when approved) production.
+  // Secrets are NOT here: FACILITATOR_PRIVATE_KEY lives in Cloudflare via `wrangler secret put FACILITATOR_PRIVATE_KEY --env staging`.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stenmont-facilitator-dev",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "vars": {
+    "ENVIRONMENT": "local",
+    "WHITECHAIN_RPC": "https://rpc.testnet.whitechain.io",
+    "MIN_FACILITATOR_WBT_WEI": "20000000000000000"
+  },
+  "durable_objects": { "bindings": [{ "name": "SENDER", "class_name": "Sender" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sender"] }],
+  "d1_databases": [
+    { "binding": "DB", "database_name": "stenmont-facilitator-db-local", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
+  ],
+  "env": {
+    "staging": {
+      "name": "stenmont-facilitator-staging",
+      "workers_dev": false,
+      "routes": [{ "pattern": "x402-staging.stenmont.com", "custom_domain": true }],
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "WHITECHAIN_RPC": "https://rpc.testnet.whitechain.io",
+        "MIN_FACILITATOR_WBT_WEI": "20000000000000000"
+      },
+      "durable_objects": { "bindings": [{ "name": "SENDER", "class_name": "Sender" }] },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sender"] }],
+      // database_id is a placeholder until `wrangler d1 create stenmont-facilitator-db-staging` is run (lead's call).
+      "d1_databases": [
+        { "binding": "DB", "database_name": "stenmont-facilitator-db-staging", "database_id": "REPLACE_AFTER_D1_CREATE", "migrations_dir": "migrations" }
+      ]
+    }
+  }
+}
