@@ -46,10 +46,11 @@ export async function sendFromTank(ctx: { db: Db; chain: ChainClient; now: Date 
     await hold.release().catch((err) => console.error("gas release failed", err));
     return { ok: false, code: "chain_error" };
   }
+  await hold.sent(txHash);
   try {
     const receipt = await chain.waitForReceipt(txHash);
     // If settling cannot be written the full reservation stays charged: the merchant is over- never under-charged.
-    await hold.settle(receipt.gasUsed * receipt.effectiveGasPrice).catch((err) => console.error("gas settlement failed; reservation stays held", err));
+    await hold.settle(receipt.gasUsed * receipt.effectiveGasPrice, receipt).catch((err) => console.error("gas settlement failed; reservation stays held", err));
     return receipt.status === "success" ? { ok: true, txHash } : { ok: false, code: "tx_reverted", txHash };
   } catch (e) {
     console.error("receipt wait failed", e); // it may still land; the reservation stays until reconciled

@@ -21,12 +21,13 @@ export function scheduler(seed: number, maxTurns = 8) {
   };
 }
 
-type Stmt = { bind(...p: unknown[]): Stmt; all(): Promise<unknown>; first(c?: string): Promise<unknown>; run(): Promise<unknown>; raw(o?: unknown): Promise<unknown> };
+type Stmt = { executeBatch(): unknown; bind(...p: unknown[]): Stmt; all(): Promise<unknown>; first(c?: string): Promise<unknown>; run(): Promise<unknown>; raw(o?: unknown): Promise<unknown> };
 
 /** Wraps a D1 look-alike so each statement yields to the scheduler before it runs. */
 export function jitterD1<T extends { prepare(sql: string): Stmt; batch(s: Stmt[]): Promise<unknown> }>(db: T, tick: () => Promise<void>): T {
   const wrap = (s: Stmt): Stmt => ({
     bind: (...p) => wrap(s.bind(...p)),
+    executeBatch: () => s.executeBatch(),
     all: async () => (await tick(), s.all()),
     first: async (c) => (await tick(), s.first(c)),
     run: async () => (await tick(), s.run()),
