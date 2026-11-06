@@ -15,7 +15,7 @@
 
 ## Policy
 
-Staging is non-indexable regardless of the index flag. Public indexing requires BOTH an approved public origin and explicit STENMONT_INDEX_PUBLIC_SITE=yes. STENMONT_PUBLIC_ORIGIN defaults to app-staging.stenmont.com; arbitrary origins are refused. These are nonsecret future configuration names, not a production deployment instruction. Private, authentication and dynamic merchant records have no canonical or social URL, use no-referrer and stay outside sitemaps. Social previews contain route titles and descriptions only. Image and Organization-logo metadata are held: the existing raster is a bold system fallback, and a real-font, non-bold wordmark raster is still being prepared. The Adobe project exposes weights400/700; a specific500 requirement was an implementation interpretation, not the owner's words. Actual font loading does not prove licence entitlement. No fallback raster is presented as approved artwork. Invoice/customer data never enters preview metadata.
+Staging is non-indexable regardless of the index flag. Public indexing requires BOTH an approved public origin and explicit STENMONT_INDEX_PUBLIC_SITE=yes. STENMONT_PUBLIC_ORIGIN defaults to app-staging.stenmont.com; arbitrary origins are refused. These are nonsecret future configuration names, not a production deployment instruction. Private, authentication and dynamic merchant records have no canonical or social URL, use no-referrer and stay outside sitemaps. Social previews contain route titles and descriptions only. Image and Organization-logo metadata are held: the existing raster is a bold system fallback, and a real-font, non-bold wordmark raster is still being prepared. The Adobe project exposes weights 400/700; a specific 500 requirement was an implementation interpretation, not the owner's words. Actual font loading does not prove licence entitlement. No fallback raster is presented as approved artwork. Invoice/customer data never enters preview metadata.
 
 ## Sources checked
 
@@ -30,10 +30,22 @@ No third-party reference assets, font files, secrets or new dependencies are inc
 
 - 18:13 IST: Removed unapproved fallback social artwork after the explicit Medium-wordmark correction. New assertions failed on old image references, then all 32 targeted tests passed; final web typecheck passed.
 
-- 18:15 IST: Generated both llms files from the route inventory/current API event list and kept all seven MCP tool names covered. Final targeted command:32 tests across seven files passed; changed-file ESLint and web typecheck passed. Next build passed under the shared build lock. A real local Next server returned correct heads for35/35 pages and200 for robots, both sitemaps and both llms files; server stopped. Private evidence remains outside Git.
+- 18:15 IST: Generated both llms files from the route inventory/current API event list and kept all seven MCP tool names covered. Final targeted command: 32 tests across seven files passed; changed-file ESLint and web typecheck passed. Next build passed under the shared build lock. A real local Next server returned correct heads for 35/35 pages and 200 for robots, both sitemaps and both llms files; server stopped. Private evidence remains outside Git.
 
 ## Acceptance boundaries
 
-No deployment, browser screenshot, screen-reader session,200% zoom audit, Lighthouse/Web Vitals score, search-engine submission, provider call, external account or payment ran in this lane. The35-page check fetched actual server HTML, including dummy dynamic parameters; it is metadata evidence, not visual or transaction acceptance. W6b owns the visual review. Public marketing/docs routes prerender in the local build; metadata adds no client component or external data request.
+No deployment, browser screenshot, screen-reader session, 200% zoom audit, Lighthouse/Web Vitals score, search-engine submission, provider call, external account or payment ran in this lane. The 35-page check fetched actual server HTML, including dummy dynamic parameters; it is metadata evidence, not visual or transaction acceptance. W6b owns the visual review. Public marketing/docs routes prerender in the local build; metadata adds no client component or external data request.
 
 Social image acceptance remains pending until a real-font non-bold lowercase wordmark asset is approved and rendered. The old fallback PNG remains in source history but is not advertised in metadata. Root layout deliberately omits the home canonical/og:url so private children do not inherit them.
+
+## Exact final commands
+
+- `pnpm install --offline --frozen-lockfile --ignore-scripts --config.strictDepBuilds=false`: passed, no dependency changes.
+- `pnpm --filter @stenmont/web llms`: generated both references, passed; Node emitted the existing package module-type warning for TypeScript imports.
+- `pnpm --filter @stenmont/web test test/seo.test.ts test/seoRoutes.test.ts test/seoFaq.test.tsx test/seoDiscovery.test.tsx test/seoAgentDocs.test.ts test/docs.test.tsx test/agentAccess.test.tsx --maxWorkers=1`: 32 passed. Existing Vite configuration warnings remain.
+- `pnpm --filter @stenmont/web typecheck`: passed.
+- Changed TypeScript/TSX files through `pnpm --filter @stenmont/web exec eslint …`: passed.
+- `pnpm --filter @stenmont/web build`: passed under the shared lock; no external data requests added.
+- `pnpm --filter @stenmont/web start --port 3007` plus an HTTP head parser over every route: 35/35 passed and five discovery/text resources returned 200. Server stopped afterward. No browser was launched.
+
+The full workspace suite was not repeated; the lead owns the final integrated run.
