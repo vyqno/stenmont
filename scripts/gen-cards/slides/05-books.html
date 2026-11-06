@@ -1,0 +1,58 @@
+<style>
+.s5 .sheet { padding: 18px 14px; font-size: 12px; color: var(--ink-60); }
+.s5 .sheet .row { display: grid; grid-template-columns: .6fr 1.1fr .8fr .8fr; border: 1px solid rgba(5,5,5,.1); border-top: 0; }
+.s5 .sheet .row:first-child { border-top: 1px solid rgba(5,5,5,.1); background: rgba(5,5,5,.06); }
+.s5 .sheet .row span { padding: 10px 6px; border-left: 1px solid rgba(5,5,5,.08); white-space: nowrap; overflow: hidden; } .s5 .sheet .row span:first-child { border-left: 0; }
+.s5 .sheet .x { background: rgba(5,5,5,.1); }
+.s5 .bk { padding: 32px 30px; height: 100%; display: flex; flex-direction: column; }
+.s5 .bt { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 20px; }
+.s5 .chip { font-weight: 400; font-size: 14px; background: var(--grey); border-radius: 999px; padding: 6px 12px; }
+.s5 .mc { font-family: var(--display); font-weight: 700; font-size: 112px; line-height: .92; white-space: nowrap; letter-spacing: -.03em; margin-top: 40px; }
+.s5 .mc .ico { width: 54px; height: 54px; vertical-align: middle; margin-left: 4px; }
+.s5 .nums { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 44px; }
+.s5 .nums span { display: block; font-size: 15px; color: var(--ink-60); }
+.s5 .nums strong { display: block; font-family: var(--display); font-weight: 700; font-size: 36px; letter-spacing: -.02em; margin-top: 2px; }
+.s5 .rt { margin-top: 34px; display: inline-flex; align-self: flex-start; align-items: center; gap: 10px; background: var(--grey); border-radius: 999px; padding: 10px 16px; font-size: 15px; }
+.s5 .rt code { font-family: var(--mono); font-size: 14px; } .s5 .rt .ico { width: 18px; height: 18px; }
+.s5 .xl { margin-top: auto; font-size: 15px; color: var(--ink-60); margin-bottom: 10px; }
+.s5 .bn { margin-top: 0; display: flex; gap: 8px; }
+.s5 .bn span { flex: 1; text-align: center; border-radius: 14px; padding: 15px 0; font-size: 16px; font-weight: 700; background: var(--ink); color: var(--paper); }
+.s5 .bn span.o { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
+</style>
+<section class="slide s5">
+  <div class="top"><span class="eyebrow">04. Books</span><span class="counter">5/10</span></div>
+  <h2 class="h"><span class="a">Close the month</span><span class="b">without a spreadsheet.</span></h2>
+  <p class="sub">Raw payments are not books. People read the total first.</p>
+  <p class="instr">Lead with the <b>answer</b>: big type for the result, small for the proof.</p>
+  <div class="pair">
+    <div class="card before"><div class="sheet">
+      <div class="row"><span>date</span><span>what</span><span>in</span><span>out</span></div>
+      <div class="row"><span>10/2</span><span>pmt order 1031</span><span>66.00</span><span></span></div>
+      <div class="row"><span>10/3</span><span>refund?? mug</span><span></span><span>18.00</span></div>
+      <div class="row x"><span>10/3</span><span>pmt (dup?)</span><span>66.00</span><span></span></div>
+      <div class="row"><span>10/5</span><span>tote x2</span><span>48</span><span></span></div>
+      <div class="row"><span>10/6</span><span>TBD</span><span></span><span>?</span></div>
+      <div class="row"><span>10/10</span><span>pmt order 1036</span><span>130.00</span><span></span></div>
+      <div class="row x"><span>10/10</span><span>fee? check bank</span><span></span><span>2.4</span></div>
+      <div class="row"><span>10/12</span><span>refund order 1033</span><span></span><span>56.00</span></div>
+      <div class="row"><span>10/14</span><span>pmt order 1040</span><span>24</span><span></span></div>
+      <div class="row"><span>10/15</span><span>no match</span><span>900</span><span></span></div>
+      <div class="row x"><span>10/17</span><span>pmt order 1041</span><span>66.00</span><span>66.00</span></div>
+      <div class="row"><span>10/20</span><span>??</span><span></span><span>31.5</span></div>
+      <div class="row"><span>10/21</span><span>pmt order 1044</span><span>112</span><span></span></div>
+      <div class="row"><span>10/23</span><span>copy from export</span><span>18.00</span><span></span></div>
+      <div class="row"><span>10/24</span><span>refund order 1038</span><span></span><span>24.00</span></div>
+      <div class="row"><span>10/28</span><span>pmt order 1047</span><span>56</span><span></span></div>
+      <div class="row x"><span>10/30</span><span>totals wrong</span><span>=SUM(?)</span><span></span></div>
+    </div></div>
+    <div class="card after paper"><div class="bk">
+      <div class="bt"><span>October books</span><span class="chip">Sample data</span></div>
+      <div class="mc">Month<br>closed&nbsp;{{tick}}</div>
+      <div class="nums"><div><span>Received</span><strong>$12,480.00</strong></div><div><span>Refunded</span><strong>$180.00</strong></div></div>
+      <div class="rt">{{ok}}Signed root <code>0x9c1e&hellip;a7f2</code></div>
+      <div class="xl">Export for your accountant</div><div class="bn"><span>CSV</span><span class="o">QuickBooks</span><span class="o">Xero</span></div>
+    </div></div>
+  </div>
+  <div class="caps"><div class="cap"><span class="pill b">Before</span><p>Guesses, duplicates and no total you trust.</p></div><div class="cap"><span class="pill a">After</span><p>Service-signed proof, not an onchain anchor.</p></div></div>
+  <div class="foot"><span class="mark">stenmont</span><span>Sample data · Whitechain test network</span></div>
+</section>

@@ -1,0 +1,48 @@
+<style>
+.s3 .win { position: absolute; width: 330px; background: rgba(255,255,255,.8); border: 1px solid var(--hair); border-radius: 14px; overflow: hidden; font-size: 13px; }
+.s3 .win .tb { background: rgba(5,5,5,.07); padding: 8px 12px; font-size: 12px; display: flex; gap: 5px; align-items: center; } .s3 .win .tb i { width: 8px; height: 8px; border-radius: 50%; background: rgba(5,5,5,.22); } .s3 .win .tb span { margin-left: 8px; }
+.s3 .win .bd { padding: 12px 14px; line-height: 1.5; }
+.s3 .win .g { display: grid; grid-template-columns: 1.4fr 1fr 1fr; border-top: 1px solid rgba(5,5,5,.08); padding: 6px 0; font-size: 12px; }
+.s3 .cat { position: absolute; left: 22px; right: 22px; top: 24px; background: var(--paper); border-radius: 24px; padding: 20px 20px 12px; box-shadow: 0 8px 24px rgba(5,5,5,.06); }
+.s3 .ct { display: flex; justify-content: space-between; align-items: center; }
+.s3 .ct h4 { font-family: var(--display); font-weight: 700; font-size: 30px; letter-spacing: -.02em; }
+.s3 .imp { font-size: 13px; background: var(--corn); border-radius: 999px; padding: 6px 12px; font-weight: 700; }
+.s3 .pr { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-top: 1px solid var(--hair); }
+.s3 .pr:first-of-type { margin-top: 12px; }
+.s3 .th { flex: none; width: 52px; height: 52px; border-radius: 13px; background: var(--grey); padding: 4px; }
+.s3 .pr b { display: block; font-size: 18px; } .s3 .pr small { font-size: 14px; color: var(--ink-60); }
+.s3 .pr strong { margin-left: auto; font-size: 18px; }
+.s3 .shop { position: absolute; left: 22px; right: 22px; top: 372px; bottom: -40px; background: var(--paper); border-radius: 24px 24px 0 0; padding: 16px 18px; box-shadow: 0 -4px 24px rgba(5,5,5,.06); }
+.s3 .sl { font-size: 13px; color: var(--ink-60); display: flex; justify-content: space-between; }
+.s3 .sh { display: flex; align-items: center; gap: 8px; margin: 10px 0 14px; font-family: var(--display); font-weight: 700; font-size: 24px; letter-spacing: -.015em; }
+.s3 .sh .ico { width: 20px; height: 20px; }
+.s3 .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.s3 .tile .im { height: 150px; border-radius: 14px; background: var(--grey); padding: 14px; }
+.s3 .tile b { display: block; margin-top: 8px; font-size: 16px; } .s3 .tile small { font-size: 14px; color: var(--ink-60); }
+</style>
+<section class="slide s3">
+  <div class="top"><span class="eyebrow">02. Store</span><span class="counter">3/10</span></div>
+  <h2 class="h"><span class="a">Sell from one place,</span><span class="b">not five tabs.</span></h2>
+  <p class="sub">Products, variants and a public store page belong together.</p>
+  <p class="instr">Keep related things in <b>one view</b> and let the storefront follow.</p>
+  <div class="pair">
+    <div class="card before">
+      <div class="win" style="left:22px;top:30px"><div class="tb"><i></i><i></i><i></i><span>products_v7.xlsx</span></div><div class="bd"><div class="g"><span>SKU</span><span>Price</span><span>Stock</span></div><div class="g"><span>TOTE-M</span><span>24</span><span>?</span></div><div class="g"><span>MUG-01</span><span>18.0</span><span>12</span></div></div></div>
+      <div class="win" style="left:96px;top:240px"><div class="tb"><i></i><i></i><i></i><span>Payment links tool</span></div><div class="bd">Link 1: tote &middot; $24<br>Link 2: mug &middot; $18<br>Link 3: tote (blue)?</div></div>
+      <div class="win" style="left:22px;top:456px"><div class="tb"><i></i><i></i><i></i><span>Site editor</span></div><div class="bd">Home &middot; Shop &middot; About<br>Paste product text here&hellip;<br>Update prices by hand</div></div>
+    </div>
+    <div class="card after grey">
+      <div class="cat"><div class="ct"><h4>Catalogue</h4><span class="imp">Imported &middot; 42 products</span></div>
+        <div class="pr"><span class="th">{{tote}}</span><div><b>Canvas tote</b><small>3 variants</small></div><strong>from $24.00</strong></div>
+        <div class="pr"><span class="th">{{mug}}</span><div><b>Ceramic mug</b><small>2 variants</small></div><strong>$18.00</strong></div>
+        <div class="pr"><span class="th">{{shirt}}</span><div><b>Linen shirt</b><small>6 variants</small></div><strong>from $56.00</strong></div>
+      </div>
+      <div class="shop"><div class="sl"><span>Public store page</span><span>Sample data</span></div>
+        <div class="sh">Acme Studio {{tick}}</div>
+        <div class="tiles"><div class="tile"><div class="im">{{tote}}</div><b>Canvas tote</b><small>from $24.00</small></div><div class="tile"><div class="im">{{mug}}</div><b>Ceramic mug</b><small>$18.00</small></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="caps"><div class="cap"><span class="pill b">Before</span><p>Products live in a sheet, links in a tool.</p></div><div class="cap"><span class="pill a">After</span><p>One catalogue, one public store page.</p></div></div>
+  <div class="foot"><span class="mark">stenmont</span><span>Sample data · Whitechain test network</span></div>
+</section>

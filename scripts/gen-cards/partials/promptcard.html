@@ -1,0 +1,17 @@
+<style>
+.pcard { position: absolute; background: var(--paper); color: var(--ink); border-radius: 40px; padding: 42px 42px 34px; }
+.pcard .lb { font-size: 21px; color: var(--ink-60); }
+.pcard .pt { font-family: var(--display); font-weight: 700; font-size: 46px; line-height: 1.12; letter-spacing: -.012em; word-spacing: .1em; margin-top: 18px; }
+.pcard .cp { display: inline-block; margin-top: 30px; background: var(--corn); border-radius: 999px; padding: 17px 32px; font-size: 25px; font-weight: 700; }
+.pcard .cks { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; margin-top: 34px; border-top: 1px solid var(--hair); padding-top: 18px; font-size: 22px; }
+.pcard .cks div { display: flex; align-items: center; gap: 12px; padding: 9px 0; }
+.pcard .cks .ico { width: 26px; height: 26px; }
+.pcard .smp { font-size: 16px; color: var(--ink-60); margin-top: 14px; }
+</style>
+<div class="pcard">
+  <div class="lb">Prompt for your AI agent</div>
+  <div class="pt">Install Stenmont on my site: catalogue, checkout and webhooks. Keep the API key on the server. Tell me when it works.</div>
+  <span class="cp">Copy prompt</span>
+  <div class="cks"><div>{{ok}}Site reachable</div><div>{{ok}}Domain ownership</div><div>{{ok}}Signed webhook</div><div>{{ok}}Test payment</div></div>
+  <div class="smp">Installed by your own agent &middot; sample data</div>
+</div>

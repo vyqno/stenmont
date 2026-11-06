@@ -276,5 +276,5 @@ Each section is a set of staging slices, using the same test-first and completio
 - [x] Option(a) API/pay flow and version routing locally verified; receipt-classified legacy provenance, independent browser contract reads and deployment dry-run passed. No broadcast in this checkpoint.
 - [ ] Announced testnet broadcast, source verification and complete v2 live regression; general creation remains held until acceptance.
 - [x] World session run sheet source/public-entry links checked and reported ready; actual human session remains not run.
-- [ ] agent/cards integration and its owned cards folder committed as one task.
+- [x] agent/cards integrated with corrected public-safe claims; owned cards/source folder committed as one task after independent rerender and visual review.
 - [ ] Final staging visual acceptance after the combined release.

@@ -1,0 +1,42 @@
+<style>
+.s6 .em { font-size: 15px; margin: 24px 18px 0; background: rgba(255,255,255,.8); border: 1px solid var(--hair); border-radius: 14px; font-size: 14px; color: var(--ink-60); overflow: hidden; }
+.s6 .em .ln { padding: 12px 14px; border-bottom: 1px solid rgba(5,5,5,.07); } .s6 .em .ln b { font-weight: 400; color: var(--ink-45); margin-right: 8px; }
+.s6 .em p { padding: 18px 16px; line-height: 1.55; font-size: 17px; }
+.s6 .em p i { display: inline-block; width: 2px; height: 16px; background: var(--ink-60); vertical-align: middle; }
+.s6 .btns { display: flex; gap: 8px; margin: 14px 18px; } .s6 .btns span { background: rgba(5,5,5,.14); border-radius: 8px; padding: 11px 18px; font-size: 15px; }
+.s6 .tl { margin: 0 18px; font-size: 13px; color: var(--ink-45); }
+.s6 .hdr { padding: 26px 24px 0; display: flex; justify-content: space-between; align-items: center; }
+.s6 .hdr b { font-family: var(--display); font-size: 27px; letter-spacing: -.015em; }
+.s6 .hdr span { font-size: 14px; background: rgba(255,255,255,.14); border-radius: 999px; padding: 6px 12px; }
+.s6 .od { margin: 20px 24px 0; font-size: 17px; color: rgba(255,255,255,.7); line-height: 1.35; }
+.s6 .od b { color: var(--paper); font-size: 23px; }
+.s6 .dr { margin: 18px 24px 0; background: var(--paper); color: var(--ink); border-radius: 22px; padding: 22px 22px; }
+.s6 .dr small { font-size: 13px; color: var(--ink-60); display: block; margin-bottom: 8px; }
+.s6 .dr p { font-size: 22px; line-height: 1.32; letter-spacing: -.01em; }
+.s6 .pol { margin: 22px 24px 0; }
+.s6 .pol small { display: block; font-size: 13px; color: rgba(255,255,255,.64); margin-bottom: 8px; }
+.s6 .pol span { display: flex; align-items: center; gap: 12px; font-size: 17px; padding: 11px 0; border-top: 1px solid rgba(255,255,255,.14); }
+.s6 .act { position: absolute; left: 24px; right: 24px; bottom: 24px; display: grid; grid-template-columns: 1.3fr 1fr; gap: 10px; }
+.s6 .act span { text-align: center; border-radius: 18px; padding: 22px 0; font-size: 25px; font-weight: 700; }
+.s6 .act .ap { background: var(--corn); color: var(--ink); } .s6 .act .dn { border: 1.5px solid rgba(255,255,255,.5); }
+</style>
+<section class="slide s6">
+  <div class="top"><span class="eyebrow">05. Collections</span><span class="counter">6/10</span></div>
+  <h2 class="h"><span class="a">Let the agent draft.</span><span class="b">You decide.</span></h2>
+  <p class="sub">Overdue emails written by hand take time and set the wrong tone.</p>
+  <p class="instr">Show the draft, the <b>limits</b> it follows, and a clear <b>Approve</b> or <b>Deny</b>.</p>
+  <div class="pair">
+    <div class="card before"><div class="em"><div class="ln"><b>To</b>accounts@northwind.example</div><div class="ln"><b>Subject</b>Re: Re: Re: Overdue??</div>
+      <p>Hi, just following up again on the October order, still showing unpaid on our side. Not sure if you saw my last two emails. Could you let me know when this will be sorted?<br><br>Thanks, and sorry to chase<i></i></p></div>
+      <div class="btns"><span>Send</span><span>Attach</span></div><div class="tl">Written by hand &middot; third reminder &middot; tone checked by nobody</div><div class="em" style="margin-top:18px;opacity:.7"><div class="ln"><b>Sent Oct 21</b>Re: Overdue order 1038</div><p>Hi, a quick reminder about the order. Let me know if there is an issue.</p></div><div class="em" style="margin-top:14px"><div class="ln"><b>Notes</b>Chase list</div><p style="font-size:15.5px;line-height:1.6;padding:10px 16px">&#9744; Northwind: call on Monday<br>&#9744; Harbor &amp; Pine: email again<br>&#9744; Orchard Labs: ask their accounts team</p></div></div>
+    <div class="card after ink">
+      <div class="hdr"><b>Collections agent</b><span>Draft only</span></div>
+      <p class="od"><b>Order 1038 &middot; Northwind Supply</b><br>$1,250.00 &middot; 12 days overdue</p>
+      <div class="dr"><small>Drafted reminder</small><p>Hi Northwind team, a friendly reminder that order 1038 ($1,250.00) was due on Oct 28. Here is the pay link. Thank you!</p></div>
+      <div class="pol"><small>Policy limits</small><span>{{tick}}Discounts up to 2%</span><span>{{tick}}Up to 3 B2B instalments</span><span>{{tick}}Extensions up to 7 days</span></div>
+      <div class="act"><span class="ap">Approve</span><span class="dn">Deny</span></div>
+    </div>
+  </div>
+  <div class="caps"><div class="cap"><span class="pill b">Before</span><p>Chased by hand, again and again.</p></div><div class="cap"><span class="pill a">After</span><p>Drafts for your review. No messages sent.</p></div></div>
+  <div class="foot"><span class="mark">stenmont</span><span>Sample data · Whitechain test network</span></div>
+</section>

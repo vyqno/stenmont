@@ -1,0 +1,42 @@
+<style>
+.s2 pre { padding: 22px 20px; font-family: var(--mono); font-size: 11.5px; line-height: 15.4px; color: var(--ink-60); white-space: pre; overflow: hidden; }
+.s2 .tabs { display: flex; gap: 6px; padding: 18px 20px 0; font-size: 13px; } .s2 .tabs span { background: rgba(255,255,255,.75); border: 1px solid var(--hair); border-radius: 8px 8px 0 0; padding: 7px 10px; }
+.s2 .doc { padding: 26px 24px 0; font-size: 15px; line-height: 1; }
+.s2 .doc h4 { font-weight: 400; font-size: 21px; margin-bottom: 12px; }
+.s2 .doc div { display: flex; gap: 10px; align-items: flex-start; padding: 12px 0; line-height: 1.25; border-bottom: 1px solid rgba(5,5,5,.07); }
+.s2 .doc div i { flex: none; width: 14px; height: 14px; border: 1.5px solid rgba(5,5,5,.3); border-radius: 3px; margin-top: 2px; }
+.s2 .doc div u { color: var(--ink-45); }
+.s2 .pc { position: absolute; left: 24px; right: 24px; top: 28px; background: var(--paper); color: var(--ink); border-radius: 24px; padding: 28px 28px 28px; }
+.s2 .lb { font-size: 14px; color: var(--ink-60); }
+.s2 .pt { margin-top: 14px; font-size: 25px; line-height: 1.28; letter-spacing: -.012em; }
+.s2 .cp { display: inline-block; margin-top: 20px; background: var(--corn); color: var(--ink); border-radius: 999px; padding: 10px 20px; font-size: 16px; font-weight: 700; }
+.s2 .cn { position: absolute; left: 24px; right: 24px; top: 336px; background: var(--paper); color: var(--ink); border-radius: 24px; padding: 24px 26px 16px; }
+.s2 .chd { display: flex; justify-content: space-between; align-items: center; }
+.s2 .chd h4 { font-family: var(--display); font-weight: 700; font-size: 25px; letter-spacing: -.015em; }
+.s2 .tg { font-size: 14px; background: var(--grey); border-radius: 999px; padding: 5px 12px; }
+.s2 .ex { font-size: 14px; color: var(--ink-60); margin: 6px 0 10px; }
+.s2 .ck { display: flex; align-items: center; gap: 14px; padding: 16px 0; border-top: 1px solid var(--hair); font-size: 18px; }
+.s2 .ck .ico { width: 24px; height: 24px; }
+.s2 .smp { position: absolute; left: 26px; bottom: 18px; font-size: 14px; color: rgba(255,255,255,.7); }
+</style>
+<section class="slide s2">
+  <div class="top"><span class="eyebrow">01. Setup</span><span class="counter">2/10</span></div>
+  <h2 class="h"><span class="a">One prompt.</span><span class="b">Not a project.</span></h2>
+  <p class="sub">Long checklists and a docs maze make setup feel like work.</p>
+  <p class="instr">Leave <b>space</b> between the steps, and show when you are <b>done</b>.</p>
+  <div class="pair">
+    <div class="card before"><div class="tabs"><span>Docs</span><span>API reference</span><span>SDK</span><span>Webhooks</span></div>
+      <div class="doc"><h4>Integration checklist</h4>
+        <div><i></i>1. Read the overview (section 1.2) <u>&rarr;</u></div><div><i></i>2. Create an account and an API key</div><div><i></i>3. Install the SDK, see Node and edge notes</div><div><i></i>4. Configure environment variables (7)</div><div><i></i>5. Add the checkout route</div><div><i></i>6. Verify domain ownership (DNS TXT)</div><div><i></i>7. Add the webhook handler and raw body parser</div><div><i></i>8. Verify signatures, check the timestamp</div><div><i></i>9. Map order ids to invoice ids</div><div><i></i>10. Handle refunds, retries, idempotency</div><div><i></i>11. Run the test payment</div><div><i></i>12. See also: troubleshooting, limits, FAQ</div>
+      </div></div>
+    <div class="card after ink">
+      <div class="pc"><div class="lb">Prompt for your AI agent</div><div class="pt">Install Stenmont on my site: catalogue, checkout and webhooks. Keep the API key on the server. Tell me when it works.</div><span class="cp">Copy prompt</span></div>
+      <div class="cn"><div class="chd"><h4>Your site, connected.</h4><span class="tg">4 / 4</span></div><div class="ex">Installed by your own agent</div>
+        <div class="ck">{{ok}}Site reachable</div><div class="ck">{{ok}}Domain ownership</div><div class="ck">{{ok}}Signed webhook</div><div class="ck">{{ok}}Test payment</div>
+      </div>
+      <span class="smp">Sample data</span>
+    </div>
+  </div>
+  <div class="caps"><div class="cap"><span class="pill b">Before</span><p>Twelve steps, and nothing says you are done.</p></div><div class="cap"><span class="pill a">After</span><p>One prompt to start, four checks to finish.</p></div></div>
+  <div class="foot"><span class="mark">stenmont</span><span>Sample data · Whitechain test network</span></div>
+</section>

@@ -314,3 +314,5 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 
 - 23:15 V2 task: integrated API/pay routing, named-buyer discounts, fresh delegation/ack and independent contract reads. Workspace1700 passed; final API1115 passed after four added tests; web282, lint/typechecks and Foundry486 passed. Dry-run simulated8 transactions on1874; no broadcast.
 - 23:15 Migration preflight:29 receipts classify17 retired/12 current v1; failed uncreated row remains unassigned. Unknown obligations abort migration. World run sheet10 source links and6 public routes checked; real World, investor passkey funds and live v2 regression held.
+
+- 23:36 Cards task: reviewed original and corrected contact sheets plus native collections/capital panels; rerendered12 images and10-page PDF with actual selected font-load checks. Draft/B2B/receipt/Books/Capital claims corrected. One cards merge task; application acceptance is separate.
