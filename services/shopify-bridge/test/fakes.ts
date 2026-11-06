@@ -3,10 +3,17 @@ import { deps, type Call } from "./helpers";
 type DraftFixture = { id?: string; name?: string; status?: string; amount?: string; currency?: string; order?: string | null; lines?: number; email?: string | null };
 
 /** A pretend Shopify Admin API and a pretend Stenmont API behind one fetch. Nothing touches the network. */
-export function world(opts: { drafts?: Record<string, DraftFixture>; shopifyErrors?: Record<string, any>; stenmontStatus?: number } = {}) {
+export function world(opts: { drafts?: Record<string, DraftFixture>; shopifyErrors?: Record<string, any>; stenmontStatus?: number; completeAsPaid?: boolean; manualRejected?: boolean } = {}) {
   const calls: Call[] = [];
   const drafts = opts.drafts ?? {};
-  const state = { invoices: new Map<string, any>(), created: 0, sent: [] as any[], createdDrafts: [] as any[] };
+  const state = {
+    invoices: new Map<string, any>(),
+    created: 0,
+    sent: [] as any[],
+    createdDrafts: [] as any[],
+    orders: new Map<string, { name: string; note: string | null; tags: string[]; status: string; amount: string; currency: string; gateway: string | null }>(),
+    ops: [] as string[],
+  };
   const handler = (c: Call): Response => {
     if (c.url.includes("/admin/api/")) {
       const q: string = c.body.query;
@@ -27,6 +34,43 @@ export function world(opts: { drafts?: Record<string, DraftFixture>; shopifyErro
       if (q.includes("draftOrderInvoiceSend")) {
         state.sent.push(v);
         return Response.json({ data: { draftOrderInvoiceSend: { draftOrder: { id: v.id }, userErrors: [] } } });
+      }
+      if (q.includes("draftOrderComplete")) {
+        state.ops.push("complete");
+        const d = drafts[v.id]!;
+        const oid = `gid://shopify/Order/${700 + state.orders.size}`;
+        state.orders.set(oid, { name: "#1001", note: null, tags: [], status: opts.completeAsPaid ? "PAID" : "PENDING", amount: d.amount ?? "10.00", currency: d.currency ?? "USD", gateway: null });
+        d.status = "COMPLETED";
+        d.order = oid;
+        return Response.json({ data: { draftOrderComplete: { draftOrder: { id: v.id, order: { id: oid } }, userErrors: [] } } });
+      }
+      if (q.includes("query Order(")) {
+        const o = state.orders.get(v.id);
+        return Response.json({ data: { order: o ? { id: v.id, name: o.name, note: o.note, tags: o.tags, displayFinancialStatus: o.status, totalPriceSet: { shopMoney: { amount: o.amount, currencyCode: o.currency } } } : null } });
+      }
+      if (q.includes("orderCreateManualPayment")) {
+        state.ops.push("manual");
+        if (opts.manualRejected) return Response.json({ data: { orderCreateManualPayment: { order: null, userErrors: [{ field: null, message: "nope" }] } } });
+        const o = state.orders.get(v.id)!;
+        o.status = "PAID";
+        o.gateway = v.name;
+        return Response.json({ data: { orderCreateManualPayment: { order: { id: v.id }, userErrors: [] } } });
+      }
+      if (q.includes("orderMarkAsPaid")) {
+        state.ops.push("markpaid");
+        state.orders.get(v.input.id)!.status = "PAID";
+        return Response.json({ data: { orderMarkAsPaid: { order: { id: v.input.id }, userErrors: [] } } });
+      }
+      if (q.includes("tagsAdd")) {
+        state.ops.push("tags");
+        const o = state.orders.get(v.id)!;
+        for (const t of v.tags) if (!o.tags.includes(t)) o.tags.push(t);
+        return Response.json({ data: { tagsAdd: { node: { id: v.id }, userErrors: [] } } });
+      }
+      if (q.includes("orderUpdate")) {
+        state.ops.push("note");
+        state.orders.get(v.input.id)!.note = v.input.note;
+        return Response.json({ data: { orderUpdate: { order: { id: v.input.id }, userErrors: [] } } });
       }
       return Response.json({ errors: [{ message: "unexpected query in test" }] });
     }

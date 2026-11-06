@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv, Deps } from "./env";
 import { allowedOrigins, jsonBody, rateLimit } from "./http";
 import { invoiceForDraft, shopifyFor } from "./invoices";
+import { receiveStenmont } from "./stenmontWebhook";
 import { createDraft, parseCartLines, sendDraftInvoice } from "./ops";
 import { numericId, toGid } from "./shopify";
 import { BridgeError, bearerOk } from "./util";
@@ -61,6 +62,12 @@ export function createApp(overrides: Partial<Deps> = {}) {
     const { record } = await invoiceForDraft(c.env, c.var.deps, shopify, toGid("DraftOrder", body.draftOrderId));
     await sendDraftInvoice(shopify, toGid("DraftOrder", body.draftOrderId), `${message.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")}\n${record.payUrl}`);
     return c.json({ sent: true, payUrl: record.payUrl, invoiceId: record.invoiceId });
+  });
+
+  // Stenmont tells us a payment happened. The raw body is verified before anything is parsed.
+  app.post("/webhooks/stenmont", async (c) => {
+    const result = await receiveStenmont(c.env, c.var.deps, await c.req.text(), c.req.header("stenmont-signature"));
+    return c.json(result);
   });
 
   return app;

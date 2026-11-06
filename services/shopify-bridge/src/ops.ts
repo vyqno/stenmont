@@ -40,3 +40,56 @@ export function parseCartLines(v: unknown): CartLine[] {
     return { variantId: toGid("ProductVariant", (l as any)?.variantId), quantity: q };
   });
 }
+
+export const USDT_METHOD = "Pay with USDT (Stenmont)";
+export type Order = { id: string; name: string; note: string; tags: string[]; status: string; total: string; currency: string };
+
+const Q_ORDER = `query Order($id: ID!) { order(id: $id) { id name note tags displayFinancialStatus totalPriceSet { shopMoney { amount currencyCode } } } }`;
+const M_COMPLETE = `mutation Complete($id: ID!) { draftOrderComplete(id: $id, paymentPending: true) { draftOrder { id order { id } } userErrors { field message } } }`;
+const M_MANUAL = `mutation Manual($id: ID!, $name: String) { orderCreateManualPayment(id: $id, paymentMethodName: $name) { order { id } userErrors { field message } } }`;
+const M_MARK_PAID = `mutation Paid($input: OrderMarkAsPaidInput!) { orderMarkAsPaid(input: $input) { order { id } userErrors { field message } } }`;
+const M_TAGS = `mutation Tags($id: ID!, $tags: [String!]!) { tagsAdd(id: $id, tags: $tags) { node { id } userErrors { field message } } }`;
+const M_NOTE = `mutation Note($input: OrderInput!) { orderUpdate(input: $input) { order { id } userErrors { field message } } }`;
+
+export async function getOrder(s: Shopify, id: string): Promise<Order> {
+  const o = (await s.gql<{ order: any }>(Q_ORDER, { id })).order;
+  if (!o) throw new BridgeError(404, "order_not_found", "No order with that id.");
+  const m = o.totalPriceSet?.shopMoney;
+  return { id: o.id, name: String(o.name ?? ""), note: String(o.note ?? ""), tags: Array.isArray(o.tags) ? o.tags : [], status: String(o.displayFinancialStatus ?? ""), total: String(m?.amount ?? ""), currency: String(m?.currencyCode ?? "") };
+}
+
+/** Completes a draft order as an order whose payment is still pending, and returns the new order's id. */
+export async function completeDraft(s: Shopify, id: string): Promise<string> {
+  const p = (await s.gql<any>(M_COMPLETE, { id })).draftOrderComplete;
+  checkUserErrors(p);
+  const order = p.draftOrder?.order?.id;
+  if (typeof order !== "string") throw new BridgeError(502, "shopify_bad_response", "Shopify did not return the order.");
+  return order;
+}
+
+/**
+ * Records the payment against the order under the method name "Pay with USDT (Stenmont)". If Shopify refuses the named manual
+ * payment, it falls back to "mark as paid". Either way the order must end up PAID or this throws, so the webhook is retried.
+ */
+export async function recordPayment(s: Shopify, order: Order): Promise<void> {
+  if (order.status === "PAID") return;
+  try {
+    checkUserErrors((await s.gql<any>(M_MANUAL, { id: order.id, name: USDT_METHOD })).orderCreateManualPayment);
+  } catch (e) {
+    if (!(e instanceof BridgeError) || e.code !== "shopify_rejected") throw e;
+    checkUserErrors((await s.gql<any>(M_MARK_PAID, { input: { id: order.id } })).orderMarkAsPaid);
+  }
+  if ((await getOrder(s, order.id)).status !== "PAID") throw new BridgeError(502, "payment_not_recorded", "Shopify did not mark the order as paid.");
+}
+
+export async function addTags(s: Shopify, id: string, tags: string[]): Promise<void> {
+  checkUserErrors((await s.gql<any>(M_TAGS, { id, tags })).tagsAdd);
+}
+
+/** Appends a line to the order note (orderUpdate replaces the note, so the old text is read and kept). Skips if `marker` is already in it. */
+export async function appendNote(s: Shopify, order: Order, line: string, marker: string): Promise<void> {
+  if (order.note.includes(marker)) return;
+  const note = order.note ? `${order.note}\n${line}` : line;
+  if (note.length > 5000) return; // Shopify's note limit; the tag still tells the story
+  checkUserErrors((await s.gql<any>(M_NOTE, { input: { id: order.id, note } })).orderUpdate);
+}
