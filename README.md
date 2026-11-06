@@ -1,18 +1,23 @@
 # Stenmont
 
-**Cross-border business payments, settled in seconds, with invoices you can finance.**
+**Commerce and finance for businesses that run on stablecoins.**
 
-## The problem
+*The agentic business kit.*
 
-Businesses that bill across borders wait days to get paid and lose a cut along the way. Once the money lands, someone still types it into the books by hand. Then they wait 30 to 90 days on unpaid invoices just to have cash to keep running.
+Stenmont brings selling, USDT payments, books and working capital into one platform. A financial agent can install the checkout through Connect and help operate the business within explicit permissions; people retain control of money actions.
 
-## What Stenmont does
+## The business loop
 
-- **Get paid.** Invoices, checkout and payment links. Clients pay their own USDT with a passkey or an existing wallet; the relayer covers network gas within limits.
-- **Everything after.** Receipts, refunds, renewals, reminders, webhooks and an export your accountant can use.
-- **Plug in.** About 20 lines with the SDK, or one prompt to your AI agent.
-- **Get paid early.** Every payment builds the payer's record. Eligible businesses can offer unpaid invoices to eligible investors; funding and repayment are separate actions, not guaranteed payment.
-- **Agents with limits.** AI agents handle the routine work. A person approves anything risky.
+- **Sell.** Manage products, variants and orders; use a hosted storefront or connect an existing site through a coding-agent prompt, OAuth MCP or the SDK.
+- **Get paid.** Checkout, payment links, invoices and subscriptions settle in USDT. Payers bring their own funds; the merchant's gas tank covers relayed network fees within limits.
+- **Close the books.** Follow receipts, refunds and reconciliation; export accounting records and verify signed period bundles. An onchain ledger anchor is not deployed.
+- **Get funded.** Eligible merchants can offer unpaid receivables to eligible investors. Funding and repayment are separate actions; neither investor liquidity nor buyer payment is guaranteed.
+
+The same account, records and agent permissions connect the loop. The current build runs on staging with test USDT; the evidence below distinguishes live acceptance from implementation.
+
+## Who it's for
+
+Online stores, creators, service businesses, suppliers and SaaS teams that want to sell and operate in stablecoins. Merchants use a passkey and dashboard without managing a seed phrase; customers already hold USDT. Developers and agents get the same commerce foundation through APIs, SDK components and MCP.
 
 ## Built on
 
@@ -21,10 +26,6 @@ Businesses that bill across borders wait days to get paid and lose a cut along t
 | **Whitechain** | USDT settlement, gasless payments, invoice financing with the rules in the contract |
 | **World ID** | One person, one business; buyer and supplier are different people; human approval for risky agent actions |
 | **ENSv2** | Business and expiring agent names, per-record permissions and a payout that can be locked; invoice wildcard resolution is not supported by the deployed resolver |
-
-## Who it's for
-
-Small and mid-size businesses that bill clients in other countries or across platforms: studios, exporters, suppliers and online stores.
 
 ## How it works
 
@@ -122,6 +123,17 @@ A card or bank rail cannot do three things here. It cannot let a payer with no a
 - Collections queue entries are drafts/decisions, not sent messages. B2B replacement plans require cancellation of the original router invoice and signatures for every agreement.
 - Books signs recorded source membership and ledger lines; a Merkle proof does not prove completeness of offchain income. Anchoring is unavailable until a registry is separately approved and configured.
 - The current live-proof status belongs in the dated [combined staging acceptance](docs/COMBINED-STAGING-ACCEPTANCE.md) and later lead reports; do not infer it from this feature list.
+
+## Track evidence and remaining proof
+
+| Track | Evidence recorded | Boundary still open |
+|---|---|---|
+| Whitechain Operate | A separate demo shop completed a 1.00 test-USDT checkout, signed webhook and paid order; Connect reached 4/4. [Payment transaction](https://explorer.testnet.whitechain.io/tx/0xe8c96bc95001abd0aedb148bd869d82fb32db5800496c7a3568ea4120d8c34e3). Books produced a real signed two-line interim bundle verified offline; tampering was rejected. | No deployed ledger anchor; no Razorpay checkout acceptance while test credentials remain unset. |
+| Whitechain Tokenize | The earlier direct invoice lifecycle settled onchain; [financing walkthrough](docs/FINANCING_WALKTHROUGH.md) describes the flow. | Dashboard “Sell this invoice” through claim timeline and public certificate still needs the real World-gated run. Router v2 is not deployed. |
+| Whitechain Scale | Prompt-installed checkout and real OAuth MCP consent, tool discovery and scoped invoice read; [install acceptance](docs/INSTALL-ACCEPTANCE.md). | One isolated store is evidence, not proof for every merchant platform. A successful Cloud-backed Gemini reply is still pending. |
+| World IDKit / Agent Pass | Verification and approval paths are implemented; simulator and fixture results are distinct from a person's proof. | Real World sign-in, investor eligibility and the real approval/denial journey remain owner-assisted acceptance. |
+| ENSv2 | Real Sepolia business name `fieldwork-install-20261106.stenmont.eth`, directory/profile records, a scoped grant and a one-day agent name. [Resolver support boundaries](docs/WAVE2-W15.md). | Expiry lifecycle readback is waiting; invoice wildcard resolution, non-transferable team names and shared-policy aliasing are not established on the deployed resolver. |
+| Continuity | Started from scratch during the hackathon. | Not targeted: there is no pre-hackathon baseline. |
 
 ## More
 
