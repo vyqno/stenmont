@@ -1,6 +1,6 @@
 # Recording runbook
 
-**Target 3:40; hard maximum 4:00 at normal speed.** This is a prepared script. A full browser rehearsal with a stopwatch is **not run**; elapsed time is not measured. Sir records the final video after the gates below pass.
+**Target 3:40; hard maximum 4:00 at normal speed.** This is a prepared script. A full browser rehearsal with a stopwatch is **not run**; elapsed time is not measured. Hitesh records the final video after the gates below pass.
 
 Staging only: `app-staging.stenmont.com`, `api-staging.stenmont.com`, `mcp-staging.stenmont.com` and `demo-shop-staging.stenmont.com`. Payments use official test USDT on Whitechain testnet, chain 1874; ENS uses Ethereum Sepolia. Test money has no value and nothing ships.
 
@@ -13,7 +13,7 @@ Staging only: `app-staging.stenmont.com`, `api-staging.stenmont.com`, `mcp-stagi
 | Order and receipt | Real signed, invoice/amount-bound webhook marks the saved order paid; matching dashboard invoice and private receipt | Fieldwork payment/webhook/order correlation is recorded; Shopify bridge order #1001 has separate test proof |
 | Books | Real signed snapshot, pinned service signer, downloaded proof verifies, changed amount fails | Real two-line interim close and offline proof/tamper rejection recorded; no onchain anchor |
 | ENS / agent | Actual published records resolved; bounded x402 payment and real refusal evidence | Directory/tier/A2A writes and resolution plus agent revocation recorded; natural expiry remains unproven |
-| World | Real approval plus cancelled/denied attempt leaving the action undone; simulator use labelled | Real World sign-in held for sir; input validation is not a World denial |
+| World | Real approval plus cancelled/denied attempt leaving the action undone; simulator use labelled | Real World sign-in held for Hitesh; input validation is not a World denial |
 
 No local fixtures, landing sample cards, mock model replies or hand-edited database rows in the proof path. **Do not repeat the earlier direct-contract 1.00 USDT lifecycle.** The valuable new run is the dashboard flow producing its timeline and certificate.
 
@@ -21,8 +21,8 @@ The full dashboard lifecycle cannot finish before the real World session: mercha
 
 ## Pre-stage once, off camera
 
-- Label merchant, investor, buyer and agent contexts. Preserve the merchant passkey. Create the first investor passkey explicitly through the investor page and have sir fund that actual address; identify the actual proof environment. A World simulator is not an Orb-verified person.
-- Check existing buyer USDT, investor purchase price and merchant/relayer gas balances. **Never fund a wallet or call a faucet.** Stop for sir if existing test funds are insufficient.
+- Label merchant, investor, buyer and agent contexts. Preserve the merchant passkey. Create the first investor passkey explicitly through the investor page and have Hitesh fund that actual address; identify the actual proof environment. A World simulator is not an Orb-verified person.
+- Check existing buyer USDT, investor purchase price and merchant/relayer gas balances. **Never fund a wallet or call a faucet.** Stop for Hitesh if existing test funds are insufficient.
 - Prepare one genuinely unpaid, unsold, eligible invoice with a future due date. Save its actual invoice id, shop order id and terms privately; use the same ids in every subsequent shot.
 - Complete coding, installation, OAuth connection and necessary identity checks before recording. Retain normal-speed before/after captures, clearly captioned. Do not imply installation happened instantly.
 - Retain Fieldwork's INR Razorpay test rail. Its USDT option needs an explicit server-priced test catalogue, not an invented INR conversion. A fresh shop is not proof of Shopify migration.
@@ -59,7 +59,7 @@ Start a real stopwatch on the first frame and stop on the last. Target 3:40, lea
 | Run | Actual IST start/end | Actual elapsed | Result |
 |---|---|---|---|
 | Full live browser rehearsal | Not run | Not measured | Recording not yet ready |
-| Final exported video | Sir records later | Not measured | Must be ≤4:00 at original speed |
+| Final exported video | Hitesh records later | Not measured | Must be ≤4:00 at original speed |
 
 ## Substitutions within the same limit
 
@@ -77,7 +77,7 @@ Use short readable captions: **Merchant**, **Investor**, **Buyer**, **Coding age
 
 Wordmark: full lowercase **stenmont**, actual All Round Gothic **Regular 400**, moderate size. Headings: Neue Haas Grotesk Display; supporting text: Neue Haas Grotesk Text. Reuse `apps/web/public/brand/wordmark-social.png` for a text-only title card/thumbnail; actual custom-font rendering was verified. No symbol, single-letter mark, trial fonts or copied third-party artwork.
 
-Sir records/exports the final video. No video, subtitle file, media render or submission has been produced by this runbook.
+Hitesh records/exports the final video. No video, subtitle file, media render or submission has been produced by this runbook.
 
 ## Existing evidence
 
