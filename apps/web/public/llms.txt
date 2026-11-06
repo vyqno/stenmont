@@ -1,6 +1,6 @@
 # Stenmont
 
-> The agentic business kit for test-network USDT payments, invoices and connected records. Payers bring their own USDT; Stenmont does not fund wallets. Full reference: https://app-staging.stenmont.com/llms-full.txt
+> The agentic business kit for stablecoin commerce and finance: storefronts, USDT checkout, books, Capital and scoped agents. Test network only. Payers bring their own USDT; Stenmont does not fund wallets. Full reference: https://app-staging.stenmont.com/llms-full.txt
 
 Facts an agent needs:
 - API: https://api-staging.stenmont.com. Server-side Authorization: Bearer $STENMONT_API_KEY; never put credentials in a browser, repository or chat.
@@ -11,7 +11,7 @@ Facts an agent needs:
 
 ## Docs
 
-- [Quickstart](https://app-staging.stenmont.com/docs): Connect a server-side checkout and verify signed payment webhooks.
+- [Commerce and finance quickstart](https://app-staging.stenmont.com/docs): Start selling, connect USDT checkout, reconcile books and explore Capital with scoped agent tools.
 - [API reference](https://app-staging.stenmont.com/docs/api): Authentication, invoices, errors and idempotent requests.
 - [MCP and OAuth](https://app-staging.stenmont.com/docs/mcp): Connect scoped agents using OAuth with PKCE and draft-only tools.
 - [SDK and React](https://app-staging.stenmont.com/docs/sdk): Use the server SDK and a checkout link in React.

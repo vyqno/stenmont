@@ -2,8 +2,8 @@ import type { Metadata, MetadataRoute } from "next";
 
 /** No request parameters, customer names or invoice identifiers belong in this inventory. */
 export const ROUTES = {
-  "/": ["Get paid the day you invoice", "The agentic business kit for invoices, USDT payments and connected records. Test network only."],
-  "/docs": ["Quickstart", "Connect a server-side checkout and verify signed payment webhooks."],
+  "/": ["Commerce and finance for stablecoin businesses", "The agentic business kit: storefronts, USDT checkout, books, Capital and scoped agents for stablecoin businesses. Test network only."],
+  "/docs": ["Commerce and finance quickstart", "Start selling, connect USDT checkout, reconcile books and explore Capital with scoped agent tools."],
   "/docs/api": ["API reference", "Authentication, invoices, errors and idempotent requests."],
   "/docs/mcp": ["MCP and OAuth", "Connect scoped agents using OAuth with PKCE and draft-only tools."],
   "/docs/sdk": ["SDK and React", "Use the server SDK and a checkout link in React."],
@@ -12,14 +12,14 @@ export const ROUTES = {
   "/docs/faq": ["Frequently asked questions", "Test-network payments, payer funding, agent permissions and records."],
   "/account": ["Your receipts", "View your private payment receipts, refunds and subscription records."],
   "/claim/[id]": ["Receivable certificate", "Check a receivable's recorded status against onchain facts."],
-  "/dashboard": ["Business overview", "Review your business payment activity."],
+  "/dashboard": ["Business overview", "Review your sales, payments and connected business records."],
   "/dashboard/agent-access": ["Agent access", "Manage discovery skills and connected application access."],
   "/dashboard/agent": ["Finance assistant", "Read business records and review draft proposals under usage limits."],
   "/dashboard/books": ["Books", "Reconcile recorded movements and verify a signed period bundle."],
   "/dashboard/catalog": ["Catalogue", "Manage your business products and variants."],
   "/dashboard/collections": ["Collections", "Review B2B collection drafts and published policy."],
   "/dashboard/connect": ["Connect your site", "Install checkout and review site, domain, webhook and payment checks."],
-  "/dashboard/financing": ["Financing", "Review listed receivables and their recorded lifecycle."],
+  "/dashboard/financing": ["Capital", "Review eligible test-network receivables, funding terms and their recorded lifecycle."],
   "/dashboard/identity": ["Business identity", "Manage your ENS business name, team and agent records."],
   "/dashboard/import": ["Import catalogue", "Preview catalogue migration before confirming an import."],
   "/dashboard/invoices": ["Invoices", "Manage your private business invoices and receipts."],

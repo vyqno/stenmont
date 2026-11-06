@@ -9,7 +9,7 @@ const fence = (name: SampleName) => `\`\`\`${SAMPLES[name].lang}\n${SAMPLES[name
 
 const text = `# Stenmont: full reference for AI agents and developers
 
-> Stenmont lets a business accept USDT payments on Whitechain without touching crypto. A customer brings their own USDT and pays with a passkey account or existing wallet. This file is the whole integration in one page. Short version: ${APP_URL}/llms.txt
+> Stenmont is the commerce and finance platform for businesses using stablecoins. Sell, get paid, close the books and explore Capital; scoped agents help connect and operate that loop. Customers bring their own USDT and pay with a passkey account or existing wallet. This file covers the interfaces and their limits in one place. Short version: ${APP_URL}/llms.txt
 
 Everything below is the TEST NETWORK (Whitechain Sepolia, test USDT). No real money moves. The production API is not live yet.
 
@@ -21,6 +21,14 @@ Everything below is the TEST NETWORK (Whitechain Sepolia, test USDT). No real mo
 - x402 facilitator: ${X402_URL}
 - Human docs: ${APP_URL}/docs
 
+## The business loop
+
+- Sell: manage products and variants in the catalogue, publish a hosted storefront or connect an existing shop, and price checkout on the server.
+- Get paid: USDT checkout, invoices and signed webhooks keep the order, payment and receipt connected.
+- Close the books: reconcile recorded movements and export service-signed period snapshots with line proofs. No onchain anchor is configured.
+- Capital: explore eligible test-network receivables and investor funding terms. The live dashboard financing journey and router v2 activation remain pending; no funding is guaranteed.
+- Agents: a coding agent can install checkout through Connect; scoped MCP/OAuth tools can read records and prepare drafts. Human money approvals stay in place. The finance chat provider backend is implemented, but a successful live reply is not yet verified.
+
 ## Authentication
 
 Server to server: send the business's API key as "Authorization: Bearer $STENMONT_API_KEY". The key looks like sk_test_ followed by 32 hex characters. The business creates it in the dashboard (Settings, API keys) and it is shown once. Keep it in an environment variable or the host's secret settings. Never put it in browser code, theme files, HTML, logs or a repository. Never ask for it in a chat.
@@ -31,7 +39,7 @@ Errors are JSON: {"error": {"code": "...", "message": "..."}}. Codes you will me
 
 ## Take a payment
 
-Create an invoice on your server, then send the customer to its payUrl. They pay with a passkey and are sent back to successUrl. An invoice is the same thing as a checkout session.
+Create an invoice on your server, then send the customer to its payUrl. They pay with a passkey and are sent back to successUrl. Each checkout session uses an invoice as its payment record.
 
 POST ${API_URL}/v1/invoices
 - amount (required): dollars as a decimal string, at most 6 decimals, greater than zero, for example "25.00".
@@ -140,7 +148,7 @@ The agent's limits are checked before anything is signed: per request, per day, 
 
 - Test network only. Test USDT has no value.
 - Customers can use a passkey account or an existing wallet with their own USDT. An x402 agent signs only with its own separately authorized payer credentials; connecting to merchant MCP does not authorize spending customer money.
-- Amounts are USD-style decimals. Convert other currencies yourself before creating the invoice.
+- Amounts are USDT decimals. Set explicit USDT prices; Stenmont does not perform currency conversion, and another currency must never simply be relabelled.
 - On-chain data (sender, receiver, amount, time) is public. Invoice details and customer emails stay off-chain.
 `;
 
@@ -149,7 +157,7 @@ console.log("wrote public/llms-full.txt", text.length, "bytes");
 
 const short = `# Stenmont
 
-> The agentic business kit for test-network USDT payments, invoices and connected records. Payers bring their own USDT; Stenmont does not fund wallets. Full reference: ${APP_URL}/llms-full.txt
+> The agentic business kit for stablecoin commerce and finance: storefronts, USDT checkout, books, Capital and scoped agents. Test network only. Payers bring their own USDT; Stenmont does not fund wallets. Full reference: ${APP_URL}/llms-full.txt
 
 Facts an agent needs:
 - API: ${API_URL}. Server-side Authorization: Bearer $STENMONT_API_KEY; never put credentials in a browser, repository or chat.
