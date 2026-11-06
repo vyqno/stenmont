@@ -74,7 +74,7 @@ export async function walletBalance(p: Eip1193, owner: Address): Promise<bigint>
 /** Plain words. The button names a wallet because that is what the person is looking for; nothing else does. */
 export const WALLET_COPY = {
   button: "Pay with my own wallet",
-  hint: "Already hold USDT? Pay from the app in this browser. You still pay no fees.",
+  hint: "Already have funds in an app in this browser? Pay from there. You still pay no fees.",
   messages: {
     cancelled: "The request was cancelled.",
     wallet_network: "We couldn't switch your app to the right network. Please switch it and try again.",
