@@ -7,6 +7,7 @@ import { fail } from "./errors";
 import { apiKeys, merchants, sessions } from "./db/schema";
 import { randomHex, sha256Hex, timingSafeEqual } from "./lib/crypto";
 import type { Env } from "./env";
+import { isOAuthBearer, requireOAuth } from "./oauth/bearer";
 
 const KEY = /^sk_test_[0-9a-f]{32}$/;
 
@@ -94,9 +95,11 @@ export async function endSession(c: Context<AppEnv>): Promise<void> {
   deleteCookie(c, cookieName(c.env), cookieOptions(c.env));
 }
 
-/** An API key (servers) or a session cookie (our app). A cookie may change things only when the request comes from our own app. */
+/** An API key (servers), an OAuth access token (connected apps and agents) or a session cookie (our app). A cookie may change things only when the request comes from our own app. */
 export const requireAuth = createMiddleware<AppEnv>(async (c, next) => {
-  if (c.req.header("authorization")) return requireApiKey(c, next);
+  const authorization = c.req.header("authorization");
+  if (isOAuthBearer(authorization)) return requireOAuth(c, next);
+  if (authorization) return requireApiKey(c, next);
   const merchant = await sessionMerchant(c);
   if (!merchant) return fail(c, 401, "unauthorized", "Missing or invalid API key");
   if (!SAFE_METHODS.has(c.req.method) && !isAppOrigin(c.req.header("origin"), c.env)) {
