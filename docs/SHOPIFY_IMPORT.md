@@ -32,4 +32,4 @@ apps and metafields, and customer passwords (Shopify never exports them).
 - **Limits:** 50,000 rows per CSV, 25 MB per file, 20,000 database writes per import, 20 imports an hour per business.
   The API route is slow on big stores because Shopify meters queries by cost; use the CSV route for large catalogues.
 
-Command line: `pnpm --filter @stenmont/scripts shopify-import --help` is the file header of `scripts/shopify-import-demo.ts`.
+Command line: `pnpm --filter @stenmont/scripts shopify-import --api-url <staging api> [--csv-dir <folder>] [--confirm] [--include-customers]`. Usage is in the header of `scripts/shopify-import-demo.ts`.
