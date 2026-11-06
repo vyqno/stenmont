@@ -166,9 +166,50 @@ export const subscriptions = sqliteTable("subscriptions", {
   failedAttempts: integer("failed_attempts").notNull().default(0),
   retryAt: integer("retry_at"),
   subscribeTx: text("subscribe_tx"),
+  /** subscription | instalment. An instalment plan is a subscription that stops after `maxCharges` and belongs to one invoice. */
+  kind: text("kind").notNull().default("subscription"),
+  invoiceId: text("invoice_id"),
+  /** Who is buying, as a business. Required for instalments, which are for business-to-business sales only. */
+  payerBusinessName: text("payer_business_name"),
+  /** The invoice amount the plan covers (base units). The contract charges `amount` each time; the difference is rounding. */
+  total: text("total"),
+  /** Set one day ahead of a charge the payer cannot cover (balance | allowance); cleared when the charge goes through. */
+  atRiskReason: text("at_risk_reason"),
+  atRiskAt: text("at_risk_at"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+/** What the collections agent may offer a customer without asking a person. Anything beyond it needs a World approval. */
+export const collectionsPolicy = sqliteTable("collections_policy", {
+  merchantId: text("merchant_id").primaryKey(),
+  maxDiscountBps: integer("max_discount_bps").notNull().default(0),
+  maxInstalments: integer("max_instalments").notNull().default(0),
+  maxExtensionDays: integer("max_extension_days").notNull().default(0),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Messages and offers the agent drafted. Nothing reaches a customer until the business approves it in the dashboard. */
+export const collectionsActions = sqliteTable(
+  "collections_actions",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id").notNull(),
+    invoiceId: text("invoice_id").notNull(),
+    kind: text("kind").notNull(), // reminder | instalments | early_pay
+    status: text("status").notNull(), // pending | sent | denied | failed
+    toEmail: text("to_email"),
+    subject: text("subject").notNull(),
+    message: text("message").notNull(),
+    terms: text("terms").notNull().default("{}"),
+    link: text("link"),
+    exception: integer("exception").notNull().default(0), // 1 = outside the policy, a World approval was used
+    subscriptionId: text("subscription_id"),
+    createdAt: text("created_at").notNull(),
+    decidedAt: text("decided_at"),
+  },
+  (t) => [index("collections_actions_merchant").on(t.merchantId, t.status, t.createdAt), index("collections_actions_invoice").on(t.invoiceId, t.kind, t.status)],
+);
 
 export const ensNames = sqliteTable(
   "ens_names",
