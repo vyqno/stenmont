@@ -417,12 +417,43 @@ contract InvoiceClaimTest is ClaimBase {
         claim.fund(id, a);
     }
 
+    /// behaviour change: a merchant can no longer cancel on the router once the claim is listed (hook set); the
+    /// only path is InvoiceClaim.cancelListing, after which the claim is Cancelled and cannot be funded.
     function test_fund_invoiceCancelledAfterListing_reverts() public {
         bytes32 id = _listed(REF);
-        router.cancel(id, T0 + 1 days, _cancelSig(merchantPk, id, T0 + 1 days));
+        claim.cancelListing(id, T0 + 1 days, _cancelSig(merchantPk, id, T0 + 1 days));
+        assertEq(uint8(router.invoices(id).status), uint8(IPaymentRouter.Status.Cancelled));
+        assertEq(uint8(_status(id)), uint8(InvoiceClaim.ClaimStatus.Cancelled));
         IPaymentRouter.Auth memory a = _fundAuth(investorPk, id, PRICE, keccak256("fund"));
-        vm.expectRevert(InvoiceClaim.InvoiceNotSellable.selector);
+        vm.expectRevert(InvoiceClaim.NotListed.selector);
         claim.fund(id, a);
+    }
+
+    function test_routerCancel_onListedInvoice_revertsInvoiceSold() public {
+        bytes32 id = _listed(REF);
+        bytes memory sig = _cancelSig(merchantPk, id, T0 + 1 days);
+        vm.expectRevert(IPaymentRouter.InvoiceSold.selector);
+        router.cancel(id, T0 + 1 days, sig);
+    }
+
+    function test_cancelListing_afterFunding_reverts_investorProtected() public {
+        bytes32 id = _funded(REF);
+        bytes memory sig = _cancelSig(merchantPk, id, T0 + 1 days);
+        vm.expectRevert(InvoiceClaim.NotListed.selector);
+        claim.cancelListing(id, T0 + 1 days, sig);
+        vm.expectRevert(IPaymentRouter.InvoiceSold.selector);
+        router.cancel(id, T0 + 1 days, sig);
+        assertEq(uint8(router.invoices(id).status), uint8(IPaymentRouter.Status.Open));
+    }
+
+    function test_cancelListing_needsMerchantSignature_andAListedClaim() public {
+        bytes32 id = _listed(REF);
+        bytes memory wrong = _cancelSig(payerPk, id, T0 + 1 days);
+        vm.expectRevert(IPaymentRouter.BadSignature.selector);
+        claim.cancelListing(id, T0 + 1 days, wrong);
+        assertEq(uint8(_status(id)), uint8(InvoiceClaim.ClaimStatus.Listed)); // the revert rolled everything back
+        vm.expectRevert(InvoiceClaim.NotListed.selector);
+        claim.cancelListing(keccak256("unknown"), T0 + 1 days, "");
     }
 
     function test_fund_wrongSigner_reverts() public {

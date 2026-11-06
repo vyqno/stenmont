@@ -181,6 +181,17 @@ contract InvoiceClaim is IClaimPayout, ERC721, EIP712, Ownable2Step, Pausable, R
         router.setHook(invoiceId, address(this), deadline, hookSig);
     }
 
+    /// @notice Withdraws a listing that nobody has funded yet and cancels the invoice on the router. Needs the
+    ///         merchant's router CancelInvoice signature (the router lets only this contract cancel a hooked invoice).
+    ///         A funded claim cannot be cancelled: the investor owns it.
+    function cancelListing(bytes32 invoiceId, uint256 deadline, bytes calldata cancelSig) external nonReentrant {
+        Claim storage c = _claims[invoiceId];
+        if (c.status != ClaimStatus.Listed) revert NotListed();
+        c.status = ClaimStatus.Cancelled;
+        emit ClaimCancelled(invoiceId);
+        router.cancel(invoiceId, deadline, cancelSig);
+    }
+
     // ------------------------------------------------------------------ fund
 
     /// @notice An allowlisted investor buys the claim. `a.payer` is the investor; the USDT authorization is bound to

@@ -62,6 +62,7 @@ interface IPaymentRouter {
     event GuardianSet(address indexed guardian);
     event AttesterSet(address indexed attester);
     event RefundApprovalThresholdSet(uint128 threshold);
+    event ReputationSet(address indexed reputation);
 
     error ZeroAddress();
     error ZeroAmount();
@@ -82,6 +83,7 @@ interface IPaymentRouter {
     error HookLocked();
     error NotAContract();
     error NotGuardianOrOwner();
+    error InvoiceSold();
 
     function invoiceIdOf(address merchant, bytes32 ref) external pure returns (bytes32);
     function payNonce(bytes32 id, bytes32 salt) external pure returns (bytes32);

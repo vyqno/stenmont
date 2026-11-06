@@ -27,6 +27,9 @@ contract SubscriptionManager is ISubscriptionManager, EIP712, Ownable2Step, Paus
     );
     bytes32 public constant CANCEL_TYPEHASH = keccak256("CancelSubscription(bytes32 id,uint256 deadline)");
 
+    bytes32 public constant MERCHANT_CANCEL_TYPEHASH =
+        keccak256("MerchantCancelSubscription(bytes32 id,uint256 deadline)");
+
     /// @notice Shortest allowed period (kept low so demos can run in minutes).
     uint32 public constant MIN_PERIOD = 60;
     /// @notice The most charges one signature can commit a customer to.
@@ -172,6 +175,20 @@ contract SubscriptionManager is ISubscriptionManager, EIP712, Ownable2Step, Paus
         if (!SignatureChecker.isValidSignatureNow(payer, digest, payerSig)) revert BadSignature();
         st.status = Status.Cancelled;
         emit SubscriptionCancelled(id, payer);
+    }
+
+    /// @notice The merchant ends it with a signature (a passkey merchant account cannot send a transaction). A separate
+    ///         typehash keeps a payer's cancel signature from being replayed as the merchant's. Single use: the
+    ///         subscription is no longer Active afterwards, so the signature cannot be replayed.
+    function cancelWithMerchantSig(bytes32 id, uint256 deadline, bytes calldata merchantSig) external {
+        if (block.timestamp > deadline) revert Expired();
+        State storage st = _state[id];
+        if (st.status != Status.Active) revert NotActive();
+        address merchant = _subs[id].merchant;
+        bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(MERCHANT_CANCEL_TYPEHASH, id, deadline)));
+        if (!SignatureChecker.isValidSignatureNow(merchant, digest, merchantSig)) revert BadSignature();
+        st.status = Status.Cancelled;
+        emit SubscriptionCancelled(id, merchant);
     }
 
     // ------------------------------------------------------------------ admin

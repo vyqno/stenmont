@@ -28,11 +28,18 @@ contract RouterHandler is Test {
     uint256 public calls_pay;
     uint256 public calls_refund;
     uint256 public calls_cancel;
+    uint256 public calls_approvedRefund;
+    uint256 public calls_creator;
+    uint256 public calls_attack;
+    uint256 public attackSuccesses;
+    uint256 internal attesterPk;
+    uint256 internal constant THRESHOLD = 50_000;
 
     uint256 public constant START_BALANCE = 1e15;
 
-    constructor(PaymentRouter router_, MockUSDT usdt_) {
+    constructor(PaymentRouter router_, MockUSDT usdt_, uint256 attesterPk_) {
         router = router_;
+        attesterPk = attesterPk_;
         usdt = usdt_;
         for (uint256 i; i < 3; i++) {
             merchants[i] = vm.addr(merchantPks[i]);
@@ -124,9 +131,15 @@ contract RouterHandler is Test {
 
     function refund(uint256 idSeed, uint256 payerSeed, uint128 value) external {
         if (ids.length == 0) return;
-        bytes32 id = ids[idSeed % ids.length];
-        uint256 p = payerSeed % 4;
-        uint128 refundable = router.paidBy(id, payers[p]) - router.refundedTo(id, payers[p]);
+        // start at a random invoice and take the first one with something refundable, so refunds actually happen
+        bytes32 id;
+        uint256 p;
+        uint128 refundable;
+        for (uint256 k; k < ids.length && refundable == 0; k++) {
+            id = ids[((idSeed % ids.length) + k) % ids.length];
+            p = payerSeed % 4;
+            refundable = router.paidBy(id, payers[p]) - router.refundedTo(id, payers[p]);
+        }
         if (refundable == 0) return;
         value = uint128(bound(value, 1, refundable));
         uint256 m = merchantOf[id];
@@ -136,18 +149,36 @@ contract RouterHandler is Test {
         uint256 validBefore = block.timestamp + 1 days;
         bytes32 digest = _tokenDigest(merchants[m], value, validBefore, nonce);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(merchantPks[m], digest);
-        router.refund(
-            id,
-            value,
-            payers[p],
-            IPaymentRouter.Auth({
-                payer: merchants[m],
-                validAfter: 0,
-                validBefore: validBefore,
-                salt: salt,
-                signature: abi.encodePacked(r, s, v)
-            })
-        );
+        IPaymentRouter.Auth memory auth = IPaymentRouter.Auth({
+            payer: merchants[m],
+            validAfter: 0,
+            validBefore: validBefore,
+            salt: salt,
+            signature: abi.encodePacked(r, s, v)
+        });
+        if (uint256(router.invoices(id).refunded) + value > THRESHOLD) {
+            // a human approval signed by the attester, bound to exactly this operation
+            uint256 apDeadline = block.timestamp + 1 days;
+            bytes32 opHash = keccak256(abi.encode(id, value, payers[p], salt));
+            bytes32 apDigest = keccak256(
+                abi.encodePacked(
+                    "\x19\x01",
+                    router.domainSeparator(),
+                    keccak256(abi.encode(router.REFUND_APPROVAL_TYPEHASH(), opHash, apDeadline))
+                )
+            );
+            (uint8 av, bytes32 ar, bytes32 as_) = vm.sign(attesterPk, apDigest);
+            router.refundWithApproval(
+                id,
+                value,
+                payers[p],
+                auth,
+                IPaymentRouter.Approval({deadline: apDeadline, signature: abi.encodePacked(ar, as_, av)})
+            );
+            calls_approvedRefund++;
+        } else {
+            router.refund(id, value, payers[p], auth);
+        }
         ghostRefunded += value;
         calls_refund++;
     }
@@ -165,6 +196,127 @@ contract RouterHandler is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(merchantPks[merchantOf[id]], digest);
         router.cancel(id, deadline, abi.encodePacked(r, s, v));
         calls_cancel++;
+    }
+
+    /// the merchant delegates to this handler once, then the handler creates an invoice as the delegate
+    function createAsCreator(uint256 mSeed, uint128 amount) external {
+        uint256 m = mSeed % 3;
+        amount = uint128(bound(amount, 1, 1e9));
+        if (!router.creators(merchants[m], address(this))) {
+            uint256 deadline = block.timestamp + 1 days;
+            bytes32 digest = keccak256(
+                abi.encodePacked(
+                    "\x19\x01",
+                    router.domainSeparator(),
+                    keccak256(
+                        abi.encode(
+                            router.SET_CREATOR_TYPEHASH(),
+                            merchants[m],
+                            address(this),
+                            true,
+                            deadline,
+                            router.creatorNonce(merchants[m])
+                        )
+                    )
+                )
+            );
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(merchantPks[m], digest);
+            router.setCreator(merchants[m], address(this), true, deadline, abi.encodePacked(r, s, v));
+        }
+        IPaymentRouter.CreateInvoice memory req = IPaymentRouter.CreateInvoice({
+            merchant: merchants[m],
+            ref: keccak256(abi.encode(++counter)),
+            payout: sinks[m],
+            payerLock: address(0),
+            amount: amount,
+            minPayment: 0,
+            dueDate: 0,
+            metaHash: bytes32(counter),
+            deadline: block.timestamp + 1 days
+        });
+        router.createInvoiceAsCreator(req);
+        bytes32 id = router.invoiceIdOf(req.merchant, req.ref);
+        ids.push(id);
+        merchantOf[id] = m;
+        calls_creator++;
+    }
+
+    /// An attacker (no role, no merchant key) tries every forbidden entry point. Each must revert; any success is
+    /// recorded and fails `invariant_attackerNeverSucceeds`.
+    function attack(uint256 idSeed, uint256 kind, uint128 value) external {
+        calls_attack++;
+        address attacker = address(0xBAD);
+        uint256 attackerPk = 0xBAD1;
+        vm.startPrank(attacker);
+        bytes32 id = ids.length == 0 ? bytes32(0) : ids[idSeed % ids.length];
+        IPaymentRouter.Invoice memory inv = router.invoices(id);
+        uint256 deadline = block.timestamp + 1 days;
+        bytes memory junk = abi.encodePacked(bytes32(uint256(1)), bytes32(uint256(2)), uint8(27));
+        kind = kind % 8;
+        bool ok;
+        if (kind == 0) {
+            // cancel with the attacker's own signature
+            bytes32 d = keccak256(
+                abi.encodePacked(
+                    "\x19\x01", router.domainSeparator(), keccak256(abi.encode(router.CANCEL_TYPEHASH(), id, deadline))
+                )
+            );
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(attackerPk, d);
+            try router.cancel(id, deadline, abi.encodePacked(r, s, v)) {
+                ok = true;
+            } catch {}
+        } else if (kind == 1) {
+            // refund funded by the attacker instead of the merchant (also: to a non-payer)
+            IPaymentRouter.Auth memory a = IPaymentRouter.Auth(attacker, 0, deadline, bytes32(uint256(7)), junk);
+            try router.refund(id, value, attacker, a) {
+                ok = true;
+            } catch {}
+        } else if (kind == 2) {
+            // refund with a forged approval
+            IPaymentRouter.Auth memory a = IPaymentRouter.Auth(inv.merchant, 0, deadline, bytes32(uint256(8)), junk);
+            try router.refundWithApproval(id, value, attacker, a, IPaymentRouter.Approval(deadline, junk)) {
+                ok = true;
+            } catch {}
+        } else if (kind == 3) {
+            // create an invoice in a merchant's name without a signature or delegation
+            IPaymentRouter.CreateInvoice memory req = IPaymentRouter.CreateInvoice(
+                merchants[0], bytes32(uint256(0xAA)), attacker, address(0), 1, 0, 0, bytes32(0), deadline
+            );
+            try router.createInvoice(req, junk) {
+                ok = true;
+            } catch {}
+            try router.createInvoiceAsCreator(req) {
+                ok = true;
+            } catch {}
+        } else if (kind == 4) {
+            try router.setReputation(attacker) {
+                ok = true;
+            } catch {}
+            try router.setAttester(attacker) {
+                ok = true;
+            } catch {}
+            try router.setRefundApprovalThreshold(type(uint128).max) {
+                ok = true;
+            } catch {}
+        } else if (kind == 5) {
+            // hook an invoice to the attacker's own contract without the merchant's signature
+            try router.setHook(id, address(this), deadline, junk) {
+                ok = true;
+            } catch {}
+        } else if (kind == 6) {
+            // delegate themselves as creator of a merchant
+            try router.setCreator(merchants[0], attacker, true, deadline, junk) {
+                ok = true;
+            } catch {}
+        } else {
+            // pay with someone else's money: a payer authorization they never signed
+            IPaymentRouter.Auth memory a = IPaymentRouter.Auth(payers[0], 0, deadline, bytes32(uint256(9)), junk);
+            try router.pay(id, value == 0 ? 1 : value, a) {
+                ok = true;
+            } catch {}
+        }
+        vm.stopPrank();
+        if (ok) attackSuccesses++;
     }
 
     function warp(uint256 secondsForward) external {
@@ -207,26 +359,37 @@ contract PaymentRouterInvariantTest is Test {
     PaymentRouter internal router;
     MockUSDT internal usdt;
     RouterHandler internal handler;
+    uint256 internal constant ATTESTER_PK = 0xA77E57;
 
     function setUp() public {
         vm.warp(1_700_000_000);
         usdt = new MockUSDT();
-        // threshold at the max: this suite checks accounting; approvals are covered by unit and fuzz tests
-        router = new PaymentRouter(address(usdt), address(this), address(this), address(this), type(uint128).max);
-        handler = new RouterHandler(router, usdt);
+        // a low threshold so refunds past it exercise the attester-approval path; the handler holds the attester key
+        router = new PaymentRouter(address(usdt), address(this), address(this), vm.addr(ATTESTER_PK), 50_000);
+        handler = new RouterHandler(router, usdt, ATTESTER_PK);
         targetContract(address(handler));
-        bytes4[] memory selectors = new bytes4[](5);
+        bytes4[] memory selectors = new bytes4[](7);
         selectors[0] = RouterHandler.createInvoice.selector;
         selectors[1] = RouterHandler.pay.selector;
         selectors[2] = RouterHandler.refund.selector;
         selectors[3] = RouterHandler.cancel.selector;
         selectors[4] = RouterHandler.warp.selector;
+        selectors[5] = RouterHandler.createAsCreator.selector;
+        selectors[6] = RouterHandler.attack.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
     /// custody: the router never keeps a cent
     function invariant_routerHoldsNoUSDT() public view {
         assertEq(usdt.balanceOf(address(router)), 0);
+    }
+
+    /// no role-less caller ever changes anything
+    function invariant_attackerNeverSucceeds() public view {
+        assertEq(handler.attackSuccesses(), 0);
+        assertEq(router.attester(), vm.addr(ATTESTER_PK));
+        assertEq(router.reputation(), address(0));
+        assertEq(router.refundApprovalThreshold(), 50_000);
     }
 
     /// conservation, both directions: what was paid sits at payouts, what left payers/merchants matches exactly
@@ -282,6 +445,9 @@ contract PaymentRouterInvariantTest is Test {
         console2.log("paid calls", handler.calls_pay());
         console2.log("refund calls", handler.calls_refund());
         console2.log("cancel calls", handler.calls_cancel());
+        console2.log("approved refunds", handler.calls_approvedRefund());
+        console2.log("creator-path invoices", handler.calls_creator());
+        console2.log("attack calls", handler.calls_attack());
         console2.log("total paid (units)", handler.ghostPaid());
         console2.log("total refunded (units)", handler.ghostRefunded());
     }

@@ -33,3 +33,35 @@ describe("createRpContext", () => {
     expect((await createRpContext(rest)).nonce).not.toBe((await createRpContext(rest)).nonce);
   });
 });
+
+// Written from World's published idkit-server 1.2.0 source (read, not executed): an independent rebuild of the signed
+// message with plain BigInt/DataView code, so a mistake in rp.ts cannot be mirrored here.
+import { keccak256 as k256, toBytes } from "viem";
+import { generatePrivateKey, privateKeyToAccount as account } from "viem/accounts";
+import { createRpContext as make } from "../../src/world/rp";
+import { expect as ex, it as t } from "vitest";
+
+const hashToFieldRef = (input: Uint8Array): Uint8Array => {
+  const v = BigInt(k256(input)) >> 8n;
+  return Uint8Array.from(Buffer.from(v.toString(16).padStart(64, "0"), "hex"));
+};
+const layoutRef = (nonce: Uint8Array, created: number, expires: number, action: string): Uint8Array => {
+  const a = hashToFieldRef(toBytes(action));
+  const m = new Uint8Array(49 + a.length);
+  m[0] = 1;
+  m.set(nonce, 1);
+  const view = new DataView(m.buffer);
+  view.setBigUint64(33, BigInt(created), false);
+  view.setBigUint64(41, BigInt(expires), false);
+  m.set(a, 49);
+  return m;
+};
+
+t("the signature verifies against World's message layout, and only for the action it was made for", async () => {
+  const key = generatePrivateKey();
+  const ctx = await make({ rpId: "rp_test", action: "enrol-business", signingKey: key });
+  const nonce = Uint8Array.from(Buffer.from(ctx.nonce.slice(2), "hex"));
+  const signer = account(key).address;
+  ex(await recoverMessageAddress({ message: { raw: layoutRef(nonce, ctx.created_at, ctx.expires_at, "enrol-business") }, signature: ctx.signature })).toBe(signer);
+  ex(await recoverMessageAddress({ message: { raw: layoutRef(nonce, ctx.created_at, ctx.expires_at, "other-action") }, signature: ctx.signature })).not.toBe(signer);
+});

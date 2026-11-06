@@ -11,6 +11,7 @@ import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/Signa
 
 import {IClaimPayout} from "./interfaces/IClaimPayout.sol";
 import {IPaymentRouter} from "./interfaces/IPaymentRouter.sol";
+import {IReputationRecorder} from "./interfaces/IReputationRecorder.sol";
 import {IUSDT} from "./interfaces/IUSDT.sol";
 
 /// @title PaymentRouter
@@ -35,6 +36,10 @@ contract PaymentRouter is IPaymentRouter, EIP712, Ownable2Step, Pausable, Reentr
     address public attester;
     /// @notice Refunds above this need a human approval signed by `attester`.
     uint128 public refundApprovalThreshold;
+    /// @notice Optional ReputationRegistry told about every fully paid invoice. Zero = off.
+    address public reputation;
+    /// @dev Gas given to the reputation call, so a broken registry can neither block nor drain a payment.
+    uint256 private constant REPUTATION_GAS = 100_000;
 
     // slither-disable-next-line uninitialized-state -- written through storage pointers in _create; slither cannot parse OZ's transient guard
     mapping(bytes32 id => Invoice) private _invoices;
@@ -169,8 +174,11 @@ contract PaymentRouter is IPaymentRouter, EIP712, Ownable2Step, Pausable, Reentr
         emit HookSet(id, hook);
     }
 
+    /// @dev Once an invoice has a payout hook (sold to an investor) only the hook may cancel it, so the merchant
+    ///      cannot strand the investor. InvoiceClaim.cancelListing uses this for listed-but-unfunded invoices.
     function cancel(bytes32 id, uint256 deadline, bytes calldata merchantSig) external whenNotPaused {
         Invoice storage inv = _open(id);
+        if (inv.hook != address(0) && msg.sender != inv.hook) revert InvoiceSold();
         if (block.timestamp > deadline) revert Expired();
         bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(CANCEL_TYPEHASH, id, deadline)));
         if (!SignatureChecker.isValidSignatureNow(inv.merchant, digest, merchantSig)) revert BadSignature();
@@ -203,6 +211,17 @@ contract PaymentRouter is IPaymentRouter, EIP712, Ownable2Step, Pausable, Reentr
         address hook = inv.hook;
         IERC20(address(usdt)).safeTransfer(hook != address(0) ? hook : inv.payout, value);
         if (hook != address(0)) IClaimPayout(hook).onPaid(id, value);
+        if (full) _recordReputation(a.payer, inv, id);
+    }
+
+    /// @dev Fail-safe: a missing, reverting or gas-hungry reputation contract never blocks a payment.
+    function _recordReputation(address payer, Invoice storage inv, bytes32 id) private {
+        address rep = reputation;
+        if (rep == address(0)) return;
+        bool onTime = inv.dueDate == 0 || block.timestamp <= inv.dueDate;
+        // low-level on purpose: a high-level call reverts on an address without code, outside any try/catch
+        // slither-disable-next-line low-level-calls,unchecked-lowlevel -- result deliberately ignored, see above
+        rep.call{gas: REPUTATION_GAS}(abi.encodeCall(IReputationRecorder.record, (payer, paidBy[id][payer], onTime)));
     }
 
     // ------------------------------------------------------------------ refund
@@ -212,7 +231,8 @@ contract PaymentRouter is IPaymentRouter, EIP712, Ownable2Step, Pausable, Reentr
         whenNotPaused
         nonReentrant
     {
-        if (value > refundApprovalThreshold) revert ApprovalRequired();
+        // cumulative per invoice, so splitting a big refund into small ones cannot dodge the human approval
+        if (uint256(_invoices[id].refunded) + value > refundApprovalThreshold) revert ApprovalRequired();
         _refund(id, value, to, merchantAuth);
     }
 
@@ -276,6 +296,12 @@ contract PaymentRouter is IPaymentRouter, EIP712, Ownable2Step, Pausable, Reentr
     function setRefundApprovalThreshold(uint128 threshold) external onlyOwner {
         refundApprovalThreshold = threshold;
         emit RefundApprovalThresholdSet(threshold);
+    }
+
+    /// @param reputation_ A ReputationRegistry with this router approved as recorder, or zero to turn it off.
+    function setReputation(address reputation_) external onlyOwner {
+        reputation = reputation_;
+        emit ReputationSet(reputation_);
     }
 
     // ------------------------------------------------------------------ internal

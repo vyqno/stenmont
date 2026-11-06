@@ -101,6 +101,10 @@ abstract contract SubBase is Test {
         return _sig(pk, _mgrDigest(keccak256(abi.encode(mgr.CANCEL_TYPEHASH(), id, deadline))));
     }
 
+    function _merchantCancelSig(uint256 pk, bytes32 id, uint256 deadline) internal view returns (bytes memory) {
+        return _sig(pk, _mgrDigest(keccak256(abi.encode(mgr.MERCHANT_CANCEL_TYPEHASH(), id, deadline))));
+    }
+
     function _subscribe(bytes32 id, ISubscriptionManager.Sub memory s) internal {
         uint256 deadline = T0 + 1 days;
         bytes memory subSig = _subscribeSig(payerPk, id, s, deadline);
@@ -557,6 +561,80 @@ contract SubscriptionManagerTest is SubBase {
         bytes memory sig = _cancelSig(0xBEEF, ID, T0 + 1 days); // some key that is not the payer's
         vm.expectRevert(ISubscriptionManager.BadSignature.selector);
         mgr.cancelWithSig(ID, T0 + 1 days, sig);
+    }
+
+    // ================================================================ merchant cancel by signature
+
+    function test_cancelWithMerchantSig_eoaMerchant_relayerSubmits_singleUse() public {
+        uint256 mPk = 0xBEEF02;
+        ISubscriptionManager.Sub memory s = _sub();
+        s.merchant = vm.addr(mPk);
+        _subscribe(ID, s);
+        bytes memory sig = _merchantCancelSig(mPk, ID, T0 + 1 days);
+        vm.expectEmit(true, true, false, false, address(mgr));
+        emit ISubscriptionManager.SubscriptionCancelled(ID, s.merchant);
+        vm.prank(relayer);
+        mgr.cancelWithMerchantSig(ID, T0 + 1 days, sig);
+        assertEq(uint8(_status(ID).status), uint8(ISubscriptionManager.Status.Cancelled));
+        vm.expectRevert(ISubscriptionManager.NotActive.selector); // replay
+        mgr.cancelWithMerchantSig(ID, T0 + 1 days, sig);
+    }
+
+    function test_cancelWithMerchantSig_passkeyStyleErc1271Merchant() public {
+        uint256 ownerPk = 0xBEEF03;
+        MockWallet wallet = new MockWallet(vm.addr(ownerPk)); // has no execute function: cancel() is impossible
+        ISubscriptionManager.Sub memory s = _sub();
+        s.merchant = address(wallet);
+        _subscribe(ID, s);
+        // the plain cancel needs msg.sender == wallet, which a contract without an execute function can never be
+        bytes memory sig = _merchantCancelSig(ownerPk, ID, T0 + 1 days);
+        vm.prank(relayer);
+        mgr.cancelWithMerchantSig(ID, T0 + 1 days, sig);
+        assertEq(uint8(_status(ID).status), uint8(ISubscriptionManager.Status.Cancelled));
+    }
+
+    function test_cancelWithMerchantSig_rejectsWrongSignerExpiredOtherIdAndPayerCancelSig() public {
+        uint256 mPk = 0xBEEF02;
+        ISubscriptionManager.Sub memory s = _sub();
+        s.merchant = vm.addr(mPk);
+        _subscribe(ID, s);
+        bytes memory stranger = _merchantCancelSig(0xBAD, ID, T0 + 1 days);
+        vm.expectRevert(ISubscriptionManager.BadSignature.selector);
+        mgr.cancelWithMerchantSig(ID, T0 + 1 days, stranger);
+
+        bytes memory expired = _merchantCancelSig(mPk, ID, T0 - 1);
+        vm.expectRevert(ISubscriptionManager.Expired.selector);
+        mgr.cancelWithMerchantSig(ID, T0 - 1, expired);
+
+        bytes32 id2 = keccak256("sub-2");
+        _subscribe(id2, s);
+        bytes memory forId1 = _merchantCancelSig(mPk, ID, T0 + 1 days);
+        vm.expectRevert(ISubscriptionManager.BadSignature.selector);
+        mgr.cancelWithMerchantSig(id2, T0 + 1 days, forId1);
+
+        // the merchant cannot reuse the typed message of the payer's cancel, nor the payer sign the merchant's
+        bytes memory merchantSignedPayerType = _cancelSig(mPk, ID, T0 + 1 days);
+        vm.expectRevert(ISubscriptionManager.BadSignature.selector);
+        mgr.cancelWithMerchantSig(ID, T0 + 1 days, merchantSignedPayerType);
+        bytes memory payerSignedMerchantType = _merchantCancelSig(payerPk, ID, T0 + 1 days);
+        vm.expectRevert(ISubscriptionManager.BadSignature.selector);
+        mgr.cancelWithMerchantSig(ID, T0 + 1 days, payerSignedMerchantType);
+        vm.expectRevert(ISubscriptionManager.BadSignature.selector);
+        mgr.cancelWithSig(ID, T0 + 1 days, payerSignedMerchantType);
+        assertEq(uint8(_status(ID).status), uint8(ISubscriptionManager.Status.Active));
+    }
+
+    function test_cancelWithMerchantSig_unknownId_reverts_andWorksWhilePaused() public {
+        vm.expectRevert(ISubscriptionManager.NotActive.selector);
+        mgr.cancelWithMerchantSig(keccak256("nope"), T0 + 1 days, "");
+        uint256 mPk = 0xBEEF02;
+        ISubscriptionManager.Sub memory s = _sub();
+        s.merchant = vm.addr(mPk);
+        _subscribe(ID, s);
+        vm.prank(guardian);
+        mgr.pause();
+        mgr.cancelWithMerchantSig(ID, T0 + 1 days, _merchantCancelSig(mPk, ID, T0 + 1 days));
+        assertEq(uint8(_status(ID).status), uint8(ISubscriptionManager.Status.Cancelled));
     }
 
     // ================================================================ admin

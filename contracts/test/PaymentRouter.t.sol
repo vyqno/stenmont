@@ -2,6 +2,7 @@
 pragma solidity 0.8.38;
 
 import {PaymentRouter} from "../src/PaymentRouter.sol";
+import {ReputationRegistry} from "../src/ReputationRegistry.sol";
 import {IPaymentRouter} from "../src/interfaces/IPaymentRouter.sol";
 import {Base} from "./Base.t.sol";
 import {MockHook, ReentrantHook} from "./mocks/MockHook.sol";
@@ -9,6 +10,18 @@ import {MockWallet} from "./mocks/MockWallet.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+
+contract RevertingReputation {
+    function record(address, uint128, bool) external pure {
+        revert("nope");
+    }
+}
+
+contract GasBurnerReputation {
+    function record(address, uint128, bool) external pure {
+        while (true) {}
+    }
+}
 
 contract PaymentRouterTest is Base {
     bytes32 internal constant REF1 = keccak256("INV-1");
@@ -675,6 +688,182 @@ contract PaymentRouterTest is Base {
         router.pause();
         vm.expectRevert(Pausable.EnforcedPause.selector);
         router.refund(id, 10e6, payer, a);
+    }
+
+    // ================================================================ cancel vs sold invoices
+
+    function test_cancel_whenHookSet_revertsInvoiceSold() public {
+        MockHook hook = new MockHook();
+        bytes32 id = _newInvoice(REF1, AMOUNT);
+        router.setHook(id, address(hook), T0 + 1 days, _hookSig(merchantPk, id, address(hook), T0 + 1 days));
+        bytes memory sig = _cancelSig(merchantPk, id, T0 + 1 days);
+        vm.expectRevert(IPaymentRouter.InvoiceSold.selector);
+        router.cancel(id, T0 + 1 days, sig);
+        vm.prank(relayer);
+        vm.expectRevert(IPaymentRouter.InvoiceSold.selector);
+        router.cancel(id, T0 + 1 days, sig);
+        assertEq(uint8(router.invoices(id).status), uint8(IPaymentRouter.Status.Open));
+    }
+
+    function test_cancel_byTheHookItself_works() public {
+        MockHook hook = new MockHook();
+        bytes32 id = _newInvoice(REF1, AMOUNT);
+        router.setHook(id, address(hook), T0 + 1 days, _hookSig(merchantPk, id, address(hook), T0 + 1 days));
+        bytes memory sig = _cancelSig(merchantPk, id, T0 + 1 days);
+        vm.prank(address(hook));
+        router.cancel(id, T0 + 1 days, sig);
+        assertEq(uint8(router.invoices(id).status), uint8(IPaymentRouter.Status.Cancelled));
+    }
+
+    // ================================================================ cumulative refund approval
+
+    function test_refund_splitIntoSmallOnes_cannotDodgeApproval() public {
+        vm.prank(owner);
+        router.setRefundApprovalThreshold(100e6);
+        bytes32 id = _newInvoice(REF1, 500e6);
+        _pay(id, 500e6, payerPk, S1);
+        for (uint256 i; i < 1; i++) {
+            _refund(id, 100e6, payer, bytes32(i)); // first 100 is exactly at the threshold
+        }
+        IPaymentRouter.Auth memory a = _refundAuth(merchantPk, id, payer, 1, keccak256("more"));
+        vm.expectRevert(IPaymentRouter.ApprovalRequired.selector);
+        router.refund(id, 1, payer, a); // one more unit already needs a human
+        // the same, as five 100s: the second one is refused
+        bytes32 id2 = _newInvoice(REF2, 500e6);
+        _pay(id2, 500e6, payerPk, S2);
+        _refund(id2, 60e6, payer, bytes32(uint256(1)));
+        a = _refundAuth(merchantPk, id2, payer, 41e6, bytes32(uint256(2)));
+        vm.expectRevert(IPaymentRouter.ApprovalRequired.selector);
+        router.refund(id2, 41e6, payer, a);
+        _refund(id2, 40e6, payer, bytes32(uint256(3))); // exactly 100 cumulative is fine
+    }
+
+    function test_refundWithApproval_pastCumulativeThreshold_works() public {
+        vm.prank(owner);
+        router.setRefundApprovalThreshold(100e6);
+        bytes32 id = _newInvoice(REF1, 500e6);
+        _pay(id, 500e6, payerPk, S1);
+        _refund(id, 100e6, payer, S1);
+        IPaymentRouter.Auth memory a = _refundAuth(merchantPk, id, payer, 100e6, S2);
+        IPaymentRouter.Approval memory ap = _approval(id, 100e6, payer, S2, T0 + 1 hours, attesterPk);
+        router.refundWithApproval(id, 100e6, payer, a, ap);
+        assertEq(router.invoices(id).refunded, 200e6);
+        // the cumulative total stays above the threshold, so plain refunds stay blocked afterwards
+        a = _refundAuth(merchantPk, id, payer, 1, keccak256("x"));
+        vm.expectRevert(IPaymentRouter.ApprovalRequired.selector);
+        router.refund(id, 1, payer, a);
+    }
+
+    function testFuzz_refund_cumulativeNeverPassesThresholdWithoutApproval(uint8 n, uint128 seed) public {
+        uint128 threshold = 100e6;
+        vm.prank(owner);
+        router.setRefundApprovalThreshold(threshold);
+        bytes32 id = _newInvoice(REF1, 10_000e6);
+        _pay(id, 10_000e6, payerPk, S1);
+        for (uint256 i; i < uint256(n) % 12; i++) {
+            uint128 v = uint128(bound(uint256(keccak256(abi.encode(seed, i))), 1, 60e6));
+            IPaymentRouter.Auth memory a = _refundAuth(merchantPk, id, payer, v, bytes32(i));
+            if (router.invoices(id).refunded + v > threshold) {
+                vm.expectRevert(IPaymentRouter.ApprovalRequired.selector);
+                router.refund(id, v, payer, a);
+            } else {
+                router.refund(id, v, payer, a);
+            }
+            assertLe(router.invoices(id).refunded, threshold);
+        }
+    }
+
+    // ================================================================ reputation
+
+    function _wireReputation() internal returns (ReputationRegistry rep) {
+        rep = new ReputationRegistry(owner);
+        vm.startPrank(owner);
+        rep.setRecorder(address(router), true);
+        router.setReputation(address(rep));
+        vm.stopPrank();
+    }
+
+    function test_setReputation_onlyOwner_emits() public {
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, payer));
+        router.setReputation(address(1));
+        vm.expectEmit(true, false, false, false, address(router));
+        emit IPaymentRouter.ReputationSet(address(1));
+        vm.prank(owner);
+        router.setReputation(address(1));
+        assertEq(router.reputation(), address(1));
+    }
+
+    function test_reputation_recordedOnFullPayment_onTime() public {
+        ReputationRegistry rep = _wireReputation();
+        bytes32 id = _newInvoice(REF1, AMOUNT);
+        _pay(id, 40e6, payerPk, S1); // partial: nothing recorded yet
+        assertEq(rep.paidCount(payer), 0);
+        _pay(id, 60e6, payerPk, S2);
+        ReputationRegistry.Record memory r = rep.recordOf(payer);
+        assertEq(r.onTime, 1);
+        assertEq(r.late, 0);
+        assertEq(r.volume, AMOUNT);
+    }
+
+    function test_reputation_late_andNoDueDate() public {
+        ReputationRegistry rep = _wireReputation();
+        IPaymentRouter.CreateInvoice memory r = _req(REF1, AMOUNT);
+        r.dueDate = uint64(T0 + 1 hours);
+        bytes32 late = _create(r);
+        r = _req(REF2, AMOUNT);
+        r.dueDate = 0;
+        bytes32 open = _create(r);
+        vm.warp(T0 + 2 hours);
+        _pay(late, AMOUNT, payerPk, S1);
+        assertEq(rep.recordOf(payer).late, 1);
+        _pay(open, AMOUNT, payerPk, S2);
+        assertEq(rep.recordOf(payer).onTime, 1);
+    }
+
+    function test_reputation_unset_paymentStillWorks() public {
+        bytes32 id = _newInvoice(REF1, AMOUNT);
+        _pay(id, AMOUNT, payerPk, S1);
+        assertEq(router.reputation(), address(0));
+        assertEq(uint8(router.invoices(id).status), uint8(IPaymentRouter.Status.Paid));
+    }
+
+    function test_reputation_routerNotARecorder_paymentStillWorks() public {
+        ReputationRegistry rep = new ReputationRegistry(owner);
+        vm.prank(owner);
+        router.setReputation(address(rep));
+        bytes32 id = _newInvoice(REF1, AMOUNT);
+        _pay(id, AMOUNT, payerPk, S1);
+        assertEq(uint8(router.invoices(id).status), uint8(IPaymentRouter.Status.Paid));
+        assertEq(rep.paidCount(payer), 0);
+    }
+
+    function test_reputation_revertingContract_neverBlocksPayment() public {
+        address bad = address(new RevertingReputation());
+        vm.prank(owner);
+        router.setReputation(bad);
+        bytes32 id = _newInvoice(REF1, AMOUNT);
+        _pay(id, AMOUNT, payerPk, S1);
+        assertEq(uint8(router.invoices(id).status), uint8(IPaymentRouter.Status.Paid));
+        assertEq(usdt.balanceOf(payout), AMOUNT);
+        assertEq(usdt.balanceOf(address(router)), 0);
+    }
+
+    function test_reputation_gasBurner_neverBlocksPayment() public {
+        address bad = address(new GasBurnerReputation());
+        vm.prank(owner);
+        router.setReputation(bad);
+        bytes32 id = _newInvoice(REF1, AMOUNT);
+        _pay(id, AMOUNT, payerPk, S1);
+        assertEq(uint8(router.invoices(id).status), uint8(IPaymentRouter.Status.Paid));
+    }
+
+    function test_reputation_eoaOrEmptyAddress_neverBlocksPayment() public {
+        vm.prank(owner);
+        router.setReputation(makeAddr("noCode"));
+        bytes32 id = _newInvoice(REF1, AMOUNT);
+        _pay(id, AMOUNT, payerPk, S1);
+        assertEq(uint8(router.invoices(id).status), uint8(IPaymentRouter.Status.Paid));
     }
 
     // ================================================================ refund approval (human in the loop)
