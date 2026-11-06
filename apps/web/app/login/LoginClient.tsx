@@ -26,7 +26,7 @@ export default function LoginClient() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-12">
+    <main className="auth-sheet">
       <Link href="/" aria-label="Stenmont home" className="mb-6 text-3xl"><Logo /></Link>
       <h1 className="text-2xl font-semibold">Sign in</h1>
       <p>Use the fingerprint, face or PIN you set up for your business.</p>

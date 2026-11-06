@@ -162,8 +162,8 @@ export default function PayClient({ id }: { id: string }) {
   }, [returnTo]);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-12" data-testid="pay-page">
-      <p className="mb-4 text-xl"><Logo /></p>
+    <main className="payment-sheet" data-testid="pay-page">
+      <header className="payment-header"><Logo /><span>Test network</span></header>
       {view.kind === "loading" && <p role="status">Loading…</p>}
 
       {view.kind === "missing" && (

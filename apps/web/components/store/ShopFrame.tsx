@@ -14,7 +14,7 @@ export function ShopFrame({ slug, shop, children }: { slug: string; shop: ShopIn
     return () => removeEventListener("stenmont-cart", read);
   }, [slug]);
   return (
-    <div className="mx-auto min-h-screen max-w-5xl px-6 py-8" data-testid="shop">
+    <div className="customer-store" data-testid="shop">
       <header className="mb-8 flex items-center justify-between border-b border-line pb-4">
         <Link href={`/store/${slug}`} className="text-xl font-semibold tracking-tight" data-testid="shop-name">
           {shop?.name ?? "Shop"}

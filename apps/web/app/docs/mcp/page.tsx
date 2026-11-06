@@ -12,7 +12,7 @@ export default function Mcp() {
       <p>The Stenmont MCP server lets an AI agent work with a business&apos;s invoices. It is at <code>{MCP_URL}</code> and speaks JSON-RPC 2.0 over HTTP POST.</p>
 
       <h2>Sign in</h2>
-      <p>Send the business&apos;s API key as <code>Authorization: Bearer $STENMONT_API_KEY</code>. The server passes it through to the API and stores nothing. Sign-in with OAuth is planned and is not available yet.</p>
+      <p>Send the business&apos;s API key as <code>Authorization: Bearer $STENMONT_API_KEY</code>. The server passes it through to the API and stores nothing. Scoped OAuth with PKCE is also available. Review the requested permissions before connecting an app, and revoke access from Connected apps in Settings.</p>
 
       <h2>Tools</h2>
       <ul>

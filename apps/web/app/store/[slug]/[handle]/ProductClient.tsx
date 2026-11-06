@@ -50,7 +50,7 @@ export default function ProductClient({ slug, handle }: { slug: string; handle: 
       {state.kind === "ready" && product && (
         <div className="grid gap-8 md:grid-cols-2">
           <div className="space-y-2">
-            {product.images.length === 0 && <div className="aspect-square rounded bg-surface" />}
+            {product.images.length === 0 && <div className="grid aspect-square place-items-center rounded-2xl bg-grey p-6 text-sm text-muted">No image supplied</div>}
             {product.images.map((i) => (
               // eslint-disable-next-line @next/next/no-img-element -- merchant-supplied https image; no loader for arbitrary hosts
               <img key={i.url} src={i.url} alt={i.alt || product.title} loading="lazy" referrerPolicy="no-referrer" className="w-full rounded" />

@@ -29,7 +29,7 @@ export default function SignupClient() {
 
   if (apiKey) {
     return (
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-12">
+      <main className="auth-sheet">
         <Link href="/" aria-label="Stenmont home" className="mb-6 text-3xl"><Logo /></Link>
       <h1 className="text-2xl font-semibold">You&apos;re in</h1>
         <p>This is your API key. It is shown once, so copy it somewhere safe before you continue.</p>
@@ -44,7 +44,7 @@ export default function SignupClient() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-12">
+    <main className="auth-sheet">
       <Link href="/" aria-label="Stenmont home" className="mb-6 text-3xl"><Logo /></Link>
       <h1 className="text-2xl font-semibold">Create your business</h1>
       <p>No password and no code to type. Your device asks for your fingerprint, face or PIN, twice.</p>

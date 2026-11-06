@@ -36,8 +36,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   if (!merchant) return <main role="status" aria-busy="true" className="flex flex-1 items-center justify-center text-muted">Loading your business…</main>;
   return (
     <MerchantContext.Provider value={merchant}>
-      <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+      <header className="workspace-header">
+        <div className="workspace-navigation">
           <Link href="/dashboard" className="shrink-0 text-xl"><Logo /></Link>
           <nav className="order-3 flex w-full flex-wrap gap-x-5 gap-y-1 text-sm lg:order-none lg:w-auto lg:flex-1" aria-label="Main">
             {NAV.map((n) => (
@@ -52,7 +52,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           </button>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
+      <main data-workspace="true" className="workspace-canvas">{children}</main>
     </MerchantContext.Provider>
   );
 }

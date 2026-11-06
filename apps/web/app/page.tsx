@@ -1,71 +1,33 @@
 import { pageMetadata } from "../lib/seo";
 import Link from "next/link";
 import { Logo } from "../components/Logo";
-import { BrandScene } from "../components/BrandScene";
+import { SceneChip } from "../components/brand/SceneChip";
+import { RecordDiagram } from "../components/brand/RecordDiagram";
+import { ConnectPreview } from "../components/brand/ProductCards";
+import { GreyPanel } from "../components/brand/Surface";
+import { FeatureExplorer } from "../components/brand/FeatureExplorer";
+import { DeveloperConsole } from "../components/brand/DeveloperConsole";
 import "./marketing.css";
 
 export const metadata = pageMetadata("/");
 
 export default function Home() {
-  return (
-    <div className="marketing">
-      <a href="#content" className="skip-link">Skip to content</a>
-      <header className="marketing-header">
-        <Link href="/" aria-label="Stenmont home" className="text-2xl"><Logo /></Link>
-        <nav aria-label="Main navigation">
-          <a href="#how-it-works">How it works</a><Link href="/docs">Docs</Link><Link href="/login">Sign in</Link>
-          <Link href="/signup" className="action ink">Start building <span aria-hidden="true">↗</span></Link>
-        </nav>
-      </header>
-      <main id="content">
-        <section className="hero marketing-container">
-          <p className="eyebrow">The agentic business kit.</p>
-          <h1 aria-label="Get paid the day you invoice.">
-            <span>Get paid <BrandScene scene="dispatch" className="hero-chip" /> the day</span>{" "}
-            <span>you <BrandScene scene="invoice" className="hero-chip" /> invoice.</span>
-          </h1>
-          <div className="hero-bottom">
-            <div>
-              <p className="lede">For suppliers, agencies and exporters who bill other businesses.</p>
-              <p className="text-muted mt-4 max-w-xl">Turn an unpaid invoice into a receivable investors can fund. Bring payments, records and your agent into one working kit.</p>
-              <div className="actions"><Link href="/signup" className="action accent">Create your business <span aria-hidden="true">↗</span></Link><Link href="/docs" className="action secondary">Read the docs</Link></div>
-            </div>
-            <div className="hero-note">
-              <p className="eyebrow">Built on a payment record</p>
-              <p>Financing depends on investor funding and eligibility; same-day payment is not guaranteed.</p>
-              <p className="text-muted">Currently on the test network. Test USDT only, no real money.</p>
-            </div>
-          </div>
-        </section>
-        <div className="cloud-band" aria-hidden="true"><div className="record-strip"><span>Invoice issued</span><span>Investor funds</span><span>Buyer pays</span><span>Record settles</span></div></div>
-        <section className="marketing-container editorial">
-          <p className="eyebrow">Work delivered. Capital still waiting.</p>
-          <h2>Your invoice is a record.<br />Make it work for you.</h2>
-          <div className="editorial-foot"><BrandScene scene="records" /><p>A payment link handles the last step. Your business needs the whole record: who owes what, where the money goes, and what happened next.</p></div>
-          <p className="scene-caption">Concept illustrations — not product screenshots.</p>
-        </section>
-        <section id="how-it-works" className="marketing-container journey">
-          <div className="section-head"><p className="eyebrow">One invoice. A clear path.</p><h2>From work done<br />to money received.</h2></div>
-          <ol className="steps">
-            <li><span className="step-number">01</span><h3>Send your invoice</h3><p>Create an invoice and share its payment link. Your customer sees the amount and the business they are paying.</p></li>
-            <li><span className="step-number">02</span><h3>Explore financing</h3><p>Eligible businesses can list an invoice for verified investors. Review the quote and terms before you approve.</p></li>
-            <li><span className="step-number">03</span><h3>Keep the record</h3><p>Payments, refunds and renewals stay connected. A confirmed receipt links back to the transaction.</p></li>
-          </ol>
-        </section>
-        <section className="kit-section">
-          <div className="marketing-container kit-grid">
-            <div><p className="eyebrow">For the people building it</p><h2>Your business.<br />Your site.<br />Your agent.</h2><p className="mt-6 max-w-md">Connect using a prompt, an API or an SDK. Let an agent read and draft; keep consequential approvals with a person.</p><Link href="/docs" className="action paper mt-8">Open the developer docs <span aria-hidden="true">↗</span></Link></div>
-            <div className="kit-links">{[
-              ["API + webhooks", "Create invoices. Receive signed events.", "/docs/api"],
-              ["MCP + OAuth", "Connect an agent with explicit permissions.", "/docs/mcp"],
-              ["SDK + React", "Build checkout into your existing site.", "/docs/sdk"],
-              ["Agent reference", "The full reference, in plain text.", "/llms-full.txt"],
-            ].map(([title, description, href]) => <Link href={href!} key={title}><span>{title}<span aria-hidden="true">↗</span></span><p>{description}</p></Link>)}</div>
-          </div>
-        </section>
-        <section className="marketing-container closing"><p className="eyebrow">Start with one invoice.</p><h2>Less waiting.<br />A better record.</h2><Link href="/signup" className="action accent">Try the test network <span aria-hidden="true">↗</span></Link><p className="text-muted mt-4">No payment guarantee. No custody. Payers bring their own USDT.</p></section>
-      </main>
-      <footer className="marketing-container marketing-footer"><Link href="/" className="text-3xl"><Logo /></Link><p>Stenmont · Business payments, settled in seconds onchain after confirmation.</p><nav aria-label="Footer"><Link href="/docs">Documentation</Link><Link href="/login">Sign in</Link><a href="/llms.txt">llms.txt</a></nav><p className="text-muted">Whitechain test network. Public transactions. Financing is a testnet demonstration.</p></footer>
-    </div>
-  );
+  return <div className="marketing">
+    <a href="#content" className="skip-link">Skip to content</a>
+    <header className="marketing-header"><Link href="/" aria-label="Stenmont home" className="text-2xl"><Logo /></Link><details className="mobile-menu"><summary>Menu</summary><nav aria-label="Mobile navigation"><a href="#business-kit">Product</a><a href="#how-it-works">How it works</a><Link href="/docs">Developers</Link><Link href="/login">Sign in</Link></nav></details><nav aria-label="Main navigation"><a href="#business-kit">Product</a><a href="#how-it-works">How it works</a><Link href="/docs">Developers</Link><Link href="/login">Sign in</Link><Link href="/signup" className="action ink">Get started <span aria-hidden="true">↗</span></Link></nav></header>
+    <main id="content">
+      <section className="hero marketing-container"><p className="eyebrow">The agentic business kit.</p><h1 aria-label="Get paid the day you invoice."><span>Get paid <SceneChip kind="receipt" /> the day</span>{" "}<span>you <SceneChip kind="invoice" /> invoice.</span></h1><div className="hero-bottom"><div><p className="lede">For suppliers, agencies and exporters who bill other businesses.</p><div className="actions"><Link href="/signup" className="action ink">Create your business <span aria-hidden="true">↗</span></Link><Link href="/docs" className="text-link">Explore the docs <span aria-hidden="true">↗</span></Link></div></div><p className="hero-note">Turn an unpaid invoice into a receivable investors can fund. Financing depends on investor funding and eligibility; same-day payment is not guaranteed. Currently on the test network.</p></div></section>
+      <section id="business-kit" className="marketing-container product-section"><div className="section-head"><p className="eyebrow">01 / The business kit</p><h2>One place for the work<br />after the work.</h2></div><FeatureExplorer /></section>
+      <section id="how-it-works" className="solution-band"><div className="marketing-container"><p className="eyebrow">02 / Built around your business</p><h2>Invoices become possibilities.</h2><div className="solution-grid">{[
+        { title:"Get paid across borders", body:"A named business, a clear amount and a USDT payment record. Payers bring their own funds.", kind:"globe" as const },
+        { title:"Put receivables to work", body:"Keep the invoice, the financing claim and the settlement connected. Funding and terms are explicit.", kind:"layers" as const },
+        { title:"Give every party a record", body:"Business, buyer, investor and agent. Different permissions, one traceable financial workflow.", kind:"network" as const },
+      ].map(card=><article key={card.title} className="solution-card"><h3>{card.title}<span aria-hidden="true">↗</span></h3><p>{card.body}</p><RecordDiagram kind={card.kind} /><small>Concept diagram · not a live transaction</small></article>)}</div></div></section>
+      <section className="marketing-container connect-section"><div className="connect-copy"><p className="eyebrow">03 / Bring your own business</p><h2>Your site.<br />Already in the picture.</h2><p>Connect the site you have. A prompt, API or SDK gets the integration started; four checks show what still needs attention.</p><div className="scene-pair"><SceneChip kind="store" /><SceneChip kind="passkey" /></div><Link href="/dashboard/connect" className="text-link">Connect your site <span aria-hidden="true">↗</span></Link></div><GreyPanel><ConnectPreview /></GreyPanel></section>
+      <section className="editorial marketing-container"><p className="eyebrow">A record worth keeping.</p><h2>Work delivered.<br />Invoice sent.<br /><span>Next chapter, open.</span> <SceneChip kind="certificate" /></h2><p>Payments are the start. Build a business with connected records, clear terms and people in control.</p></section>
+      <section className="developer-band"><div className="marketing-container"><div className="developer-head"><div><p className="eyebrow">04 / For developers and agents</p><h2>A small integration.<br />A working business kit.</h2></div><Link href="/docs" className="action paper">Read the documentation <span aria-hidden="true">↗</span></Link></div><DeveloperConsole /><div className="developer-links">{[["API", "/docs/api", "Create invoices and receive signed events."],["SDK + React", "/docs/sdk", "Connect checkout to your existing site."],["MCP + OAuth", "/docs/mcp", "Give agents explicit, scoped access."],["Agent reference", "/llms-full.txt", "The complete reference in plain text."]].map(([title,href,body])=><Link href={href!} key={title}><span>{title}<b aria-hidden="true">↗</b></span><p>{body}</p></Link>)}</div></div></section>
+      <section className="closing marketing-container"><p className="eyebrow">Start with one invoice.</p><h2>Make your next<br />move a little clearer.</h2><Link href="/signup" className="action ink">Try the test network <span aria-hidden="true">↗</span></Link></section>
+    </main>
+    <footer className="marketing-container marketing-footer"><div><Link href="/" className="text-3xl"><Logo /></Link><p>The agentic business kit.</p></div><nav aria-label="Footer"><Link href="/docs">Documentation</Link><Link href="/login">Sign in</Link><a href="/llms.txt">llms.txt</a></nav><p className="footer-note">Whitechain test network · Test USDT only · No real money.<br />No custody or payment guarantee. Payers bring their own USDT. Transactions are public; financing is a testnet demonstration. Business payments are settled in seconds onchain after confirmation.</p></footer>
+  </div>;
 }
