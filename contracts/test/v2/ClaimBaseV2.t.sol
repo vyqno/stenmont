@@ -4,9 +4,9 @@ pragma solidity 0.8.38;
 import {InvestorRegistry} from "../../src/InvestorRegistry.sol";
 import {InvoiceClaimV2} from "../../src/InvoiceClaimV2.sol";
 import {IPaymentRouterV2} from "../../src/interfaces/IPaymentRouterV2.sol";
-import {BaseV2} from "./BaseV2.t.sol";
 import {MockHook} from "../mocks/MockHook.sol";
 import {MockWallet} from "../mocks/MockWallet.sol";
+import {BaseV2} from "./BaseV2.t.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
@@ -111,5 +111,4 @@ abstract contract ClaimBaseV2 is BaseV2 {
         id = _listed(ref);
         _fund(id, investorPk, PRICE);
     }
-
 }
