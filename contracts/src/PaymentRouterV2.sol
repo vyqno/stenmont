@@ -139,10 +139,11 @@ contract PaymentRouterV2 is IPaymentRouterV2, EIP712, Ownable2Step, Pausable, Re
         _create(req);
     }
 
+    /// @dev Revoking works while paused, so a merchant can cut off a leaked creator key before the router reopens.
     function setCreator(address merchant, address creator, bool allowed, uint256 deadline, bytes calldata merchantSig)
         external
-        whenNotPaused
     {
+        if (allowed) _requireNotPaused();
         if (creator == address(0)) revert ZeroAddress();
         if (block.timestamp > deadline) revert Expired();
         bytes32 digest = _hashTypedDataV4(
