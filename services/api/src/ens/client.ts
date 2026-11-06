@@ -60,7 +60,7 @@ export interface EnsClient {
   /** Permanently takes the registrar's rights over the payout record (it keeps the profile record). */
   lockPayout(a: { name: string; resolver: Address }): Promise<Hex>;
   /** The address a name points to, or null when it does not resolve. */
-  resolveAddress(name: string): Promise<Address | null>;
+  resolveAddress(name: string, options?: { strict: boolean }): Promise<Address | null>;
 }
 
 export class EnsRejected extends Error {}
@@ -180,8 +180,11 @@ export function viemEns(env: Env): EnsClient {
       return hashes;
     },
 
-    async resolveAddress(name) {
-      const a = await reader.getEnsAddress({ name }).catch(() => null);
+    async resolveAddress(name, options) {
+      const a = await reader.getEnsAddress({ name }).catch((e: unknown) => {
+        if (options?.strict) throw e;
+        return null;
+      });
       return a && a !== zeroAddress ? a : null;
     },
   };

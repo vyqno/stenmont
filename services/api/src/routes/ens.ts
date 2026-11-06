@@ -25,6 +25,29 @@ type Row = typeof ensNames.$inferSelect;
 const view = (r: Row) => ({ name: r.name, resolver: r.resolver, payoutLocked: r.payoutLocked === 1, status: r.status });
 const load = async (c: { var: AppEnv["Variables"] }) => (await c.var.db.select().from(ensNames).where(eq(ensNames.merchantId, c.var.merchantId)))[0] ?? null;
 
+/** Availability is advisory: claim-name still checks the chain and holds the database label lock. */
+ensRoutes.get("/availability", async (c) => {
+  const parsed = label.safeParse(c.req.query("label"));
+  if (!parsed.success) return invalid(c, parsed.error);
+  if (!(await hitRateLimit(c.var.db, `ens:read:${c.var.merchantId}`, 60, 60, c.var.now()))) return fail(c, 429, "rate_limited", "Too many checks. Try again in a minute.");
+  try {
+    return c.json({ label: parsed.data, available: await c.var.ens.labelAvailable(parsed.data) });
+  } catch {
+    return fail(c, 502, "chain_error", "Availability could not be checked right now. Try again.");
+  }
+});
+
+/** Resolve only the signed-in business's own registered name. Provider errors are not a missing record. */
+ensRoutes.get("/resolution", async (c) => {
+  const row = await load(c);
+  if (!row || row.status !== "active") return fail(c, 404, "not_found", "This business has no name yet.");
+  try {
+    return c.json({ name: row.name, address: await c.var.ens.resolveAddress(row.name, { strict: true }) });
+  } catch {
+    return fail(c, 502, "chain_error", "Your name could not be resolved right now. Try again.");
+  }
+});
+
 ensRoutes.post("/claim-name", async (c) => {
   const parsed = z.strictObject({ label }).safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return invalid(c, parsed.error);

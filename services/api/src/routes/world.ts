@@ -116,7 +116,8 @@ worldAuthRoutes.get("/callback", async (c) => {
   if (!me) return fail(c, 401, "unauthorized", "Sign in first");
   if (me.id !== approval.merchantId) return fail(c, 403, "forbidden", "This approval belongs to another business");
 
-  const back = (result: "approved" | "denied") => c.redirect(`${c.env.APP_URL}/dashboard/invoices?approval=${approval.id}&result=${result}`, 302);
+  const destination = approval.operation === "agent_limit" ? "identity" : "invoices";
+  const back = (result: "approved" | "denied") => c.redirect(`${c.env.APP_URL}/dashboard/${destination}?approval=${approval.id}&result=${result}`, 302);
   const deny = async (reason: string) => {
     await markDenied(repo, approval.id, reason);
     await audit(c.var.db, { merchantId: approval.merchantId, actor: "world", action: "approval.denied", payload: { id: approval.id, reason } });
