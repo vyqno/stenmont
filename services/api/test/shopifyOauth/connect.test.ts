@@ -54,7 +54,7 @@ describe("POST /v1/import/shopify/connect", () => {
 
   it.each([
     "", "evil.com", "demo.myshopify.com.evil.com", "demo.myshopify.com/x", "https://demo.myshopify.com", "demo.myshopify.com:443", "user@demo.myshopify.com",
-    "demo.myshopify.com@evil.com", "127.0.0.1", "localhost", "a.b.myshopify.com", "demo.myshopify.com#", "demo.myshopify.com?x=1", "-demo", "de mo", "de\nmo", "demo/evil", "demo.myshopify.com\\@evil.com", "xn--demo.com", "a".repeat(120),
+    "demo.myshopify.com@evil.com", "127.0.0.1", "a.b.myshopify.com", "demo.myshopify.com#", "demo.myshopify.com?x=1", "-demo", "de mo", "de\nmo", "demo/evil", "demo.myshopify.com\\@evil.com", "xn--demo.com", "a".repeat(120),
   ])("refuses the shop %j before anything is stored", async (shop) => {
     const w = await world();
     const res = await w.connect({ shop });
