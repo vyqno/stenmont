@@ -13,14 +13,14 @@ const post = (t: T, path: string, body: unknown, headers: Record<string, string>
   t.req(path, { method: "POST", body: JSON.stringify(body), headers: { "cf-connecting-ip": "1.1.1.1", ...headers } });
 
 async function register(t: T, auth: Auth, name = "Acme Studio") {
-  const opts = await json(await post(t, "/auth/register/options", { businessName: name }));
+  const opts = await json(await post(t, "/auth/register/options", { businessName: name, turnstileToken: t.env.TURNSTILE_SECRET_KEY ? "fixture-signup" : undefined }));
   const att = auth.attestation(opts.options.challenge);
   const res = await post(t, "/auth/register/verify", { challengeId: opts.challengeId, ...att });
   return { opts, res, body: await json(res) };
 }
 async function activate(t: T, auth: Auth, reg: Record<string, any>) {
   const a = auth.assertion(b64urlDecode(reg.activation.challenge));
-  return post(t, "/auth/activate", { challengeId: reg.activation.challengeId, ...a });
+  return post(t, "/auth/activate", { challengeId: reg.activation.challengeId, ...a, turnstileToken: t.env.TURNSTILE_SECRET_KEY ? "fixture-activate" : undefined });
 }
 async function signup(t: T, auth: Auth = fakeAuthenticator()) {
   const { body } = await register(t, auth);
@@ -120,7 +120,10 @@ describe("activation (the second prompt)", () => {
     for (const part of ["HttpOnly", "Secure", "SameSite=Lax", "Path=/", "Domain=.stenmont.com"]) expect(cookie).toContain(part);
     const tank = (await t.db.prepare("select wbt_balance from gas_tanks").first()) as { wbt_balance: string };
     expect(BigInt(tank.wbt_balance)).toBeGreaterThan(0n);
-    const prod = setup({}, { ENVIRONMENT: "production" });
+    const prod = setup({}, { ENVIRONMENT: "production", TURNSTILE_SECRET_KEY: "fixture-production-secret" }, {fetch: (async (_input, init) => {
+      const token = new URLSearchParams(init?.body as URLSearchParams).get("response");
+      return Response.json({ success: true, hostname: "app.test", action: token === "fixture-signup" ? "signup" : "activate" });
+    }) as typeof fetch});
     await signup(prod);
     expect(await prod.db.prepare("select count(*) as n from gas_tanks").first()).toMatchObject({ n: 0 });
   });

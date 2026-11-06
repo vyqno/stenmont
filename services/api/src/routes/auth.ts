@@ -23,7 +23,23 @@ import { clientIp } from "../lib/request";
 import { invalid } from "../lib/validation";
 import { DEFAULT_DAILY_GAS_CAP_WEI, DEFAULT_PER_PAYER_DAILY_CAP_USDT, dayOf, hitRateLimit } from "../relayer/caps";
 
+import { verifyTurnstile } from "../identity/turnstile";
+
 export const authRoutes = new Hono<AppEnv>();
+
+authRoutes.get("/config", (c) => {
+  if (!c.env.TURNSTILE_SITE_KEY && !["test", "local"].includes(c.env.ENVIRONMENT)) return fail(c, 503, "unavailable", "Sign-up protection is not configured.");
+  return c.json({ turnstileSiteKey: c.env.TURNSTILE_SITE_KEY ?? null });
+});
+authRoutes.use("*", async (c, next) => {
+  const action = c.req.path.endsWith("/register/options") ? "signup" : c.req.path.endsWith("/activate") ? "activate" : null;
+  if (c.req.method !== "POST" || !action) return next();
+  // Unit-test/local fixtures may omit protection configuration; staging and production fail closed.
+  if (["test", "local"].includes(c.env.ENVIRONMENT) && !c.env.TURNSTILE_SECRET_KEY) return next();
+  const body = await c.req.raw.clone().json().catch(() => ({})) as { turnstileToken?: string };
+  if (!await verifyTurnstile(c.env, body.turnstileToken ?? "", action, c.var.fetch)) return fail(c, 403, "bot_check_failed", "Complete the security check and try again.");
+  return next();
+});
 
 type Ctx = Context<AppEnv>;
 type Kind = "register" | "activate" | "login";
@@ -43,7 +59,7 @@ const businessName = z
   .string()
   .trim()
   .regex(/^[\p{L}\p{N} .,'&()-]{2,80}$/u, "2 to 80 letters, numbers or . , ' & ( ) -");
-const assertionBody = z.strictObject({ challengeId: b64, credentialId: b64, authenticatorData: b64, clientDataJSON: b64, signature: b64 });
+const assertionBody = z.strictObject({ turnstileToken: z.string().optional(), challengeId: b64, credentialId: b64, authenticatorData: b64, clientDataJSON: b64, signature: b64 });
 type AssertionBody = z.infer<typeof assertionBody>;
 
 // ---- challenges -----------------------------------------------------------------------------------------------------
@@ -135,7 +151,7 @@ export async function checkAssertion(c: Ctx, challenge: string, b: Omit<Assertio
 authRoutes.post("/register/options", async (c) => {
   const now = c.var.now();
   if (!(await hitRateLimit(c.var.db, `register:ip:${clientIp(c) ?? "unknown"}`, activateLimit(c.env) * 2, 3_600, now))) return limited(c);
-  const parsed = z.strictObject({ businessName }).safeParse(await c.req.json().catch(() => null));
+  const parsed = z.strictObject({ businessName, turnstileToken: z.string().optional() }).safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return invalid(c, parsed.error);
   const name = parsed.data.businessName;
   const ch = await newChallenge(c.var.db, "register", now, { data: { businessName: name } });
