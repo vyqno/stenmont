@@ -1,6 +1,6 @@
 import { BaseError, createPublicClient, decodeErrorResult, encodeFunctionData, http, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { MULTICALL3_ADDRESS, USDT_ADDRESS, multicall3Abi, passkeyAccountFactoryAbi, paymentRouterAbi, usdtAbi, whitechainSepolia } from "@stenmont/shared";
+import { MULTICALL3_ADDRESS, USDT_ADDRESS, multicall3Abi, passkeyAccountFactoryAbi, paymentRouterAbi, subscriptionManagerAbi, usdtAbi, whitechainSepolia } from "@stenmont/shared";
 import type { Env } from "./env";
 import type { Call } from "./relayer/sender";
 
@@ -40,6 +40,8 @@ export type RefundRequest = {
   signature: Hex;
 };
 
+export type SubscriptionState = { nextCharge: bigint; charges: number; status: "none" | "active" | "cancelled" | "completed" };
+
 type Base = { transactionHash: Hex; logIndex: number; blockNumber: bigint };
 export type RouterLog =
   | (Base & { eventName: "InvoicePaid"; args: { id: Hex; payer: Address; value: bigint; paidTotal: bigint; fullyPaid: boolean } })
@@ -62,6 +64,8 @@ export interface ChainClient {
   activateMerchant(req: ActivateRequest): Promise<{ txHash: Hex }>;
   /** Sends PaymentRouter.refund with the merchant's signed authorisation. Throws Rejected if the contract would revert. Resolves after the receipt. */
   refund(req: RefundRequest): Promise<{ txHash: Hex }>;
+  /** The subscription as the contract sees it (the source of truth for schedule and status). */
+  subscriptionState(id: Hex): Promise<SubscriptionState>;
   /** The relayer wallet: the address merchants authorise to create invoices for them. */
   relayerAddress(): Address;
   getBlockNumber(): Promise<bigint>;
@@ -134,6 +138,15 @@ export function viemChain(env: Env): ChainClient {
       return { txHash };
     },
     relayerAddress: () => relayer,
+    async subscriptionState(id) {
+      const [, st] = await publicClient.readContract({
+        address: env.SUBSCRIPTION_MANAGER_ADDRESS as Address,
+        abi: subscriptionManagerAbi,
+        functionName: "subscription",
+        args: [id],
+      });
+      return { nextCharge: st.nextCharge, charges: st.charges, status: (["none", "active", "cancelled", "completed"] as const)[st.status]! };
+    },
     async refund(req) {
       const call = {
         to: router,

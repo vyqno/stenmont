@@ -20,6 +20,7 @@ export const baseEnv = (db: D1Database): Env =>
     APP_URL: "https://app.test",
     API_URL: "https://api.test",
     FACTORY_ADDRESS: "0x5101c37647581c81b462436af2D7ac8ccD08D33A",
+    SUBSCRIPTION_MANAGER_ADDRESS: "0x3e1C51d461e6adb0b087DC39d41942E084eba2DD",
     FAUCET_PRIVATE_KEY: `0x${"ab".repeat(32)}`,
     WEBHOOKS: { send: async () => {} },
   }) as unknown as Env;

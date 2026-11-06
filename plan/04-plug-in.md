@@ -59,7 +59,7 @@
 - [ ] Run → FAIL; implement; run → PASS
 - [ ] Commit line: `feat: add refunds, subscriptions, reminders and CSV export`
 
-**Progress on 4.4:** done so far: refund ledger (the indexer records every refund once) and the accountant export (`GET /v1/exports/payments.csv`, generic and QuickBooks layouts, quoted and formula-safe, filtered by date). Refunds through the merchant passkey are done (request, sign, submit; large ones wait for Phase 5 approval). Reminders are done (hourly signed webhook, one per stage). Still to do: subscriptions API and the renewals cron.
+**Progress on 4.4:** done so far: refund ledger (the indexer records every refund once) and the accountant export (`GET /v1/exports/payments.csv`, generic and QuickBooks layouts, quoted and formula-safe, filtered by date). Refunds through the merchant passkey are done (request, sign, submit; large ones wait for Phase 5 approval). Reminders are done (hourly signed webhook, one per stage). Subscriptions API and the renewals cron are done (offer, customer sign-up relayed, customer cancel, minute cron with retries and past_due). Still to do for 4.4: the customer subscribe page (needs the USDT permit signature) and a live subscription on staging. Then 4.5.
 
 ### Task 4.5: SDK and React button
 

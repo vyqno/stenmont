@@ -25,6 +25,9 @@ export function fakeChain(overrides: Partial<ChainClient> = {}) {
       activations.push(req);
       return { txHash: hash(5000 + activations.length) };
     },
+    async subscriptionState() {
+      return { nextCharge: 0n, charges: 0, status: "active" as const };
+    },
     async refund(req) {
       refundsSent.push(req);
       return { txHash: hash(7000 + refundsSent.length) };

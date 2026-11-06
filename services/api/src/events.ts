@@ -5,5 +5,9 @@ export const EVENT_TYPES = [
   "refund.created",
   "invoice.cancelled",
   "invoice.reminder",
+  "subscription.created",
+  "subscription.charged",
+  "subscription.past_due",
+  "subscription.cancelled",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];

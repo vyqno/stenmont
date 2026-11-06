@@ -50,6 +50,13 @@
       "when": 1793919180526,
       "tag": "0006_refund_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793930667471,
+      "tag": "0007_subscriptions",
+      "breakpoints": true
     }
   ]
 }

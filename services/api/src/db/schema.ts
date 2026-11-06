@@ -145,6 +145,25 @@ export const refundRequests = sqliteTable("refund_requests", {
   createdAt: text("created_at").notNull(),
 });
 
+export const subscriptions = sqliteTable("subscriptions", {
+  id: text("id").primaryKey(), // bytes32 hex, the id used onchain
+  merchantId: text("merchant_id").notNull(),
+  amount: text("amount").notNull(), // USDT base units per period
+  periodSeconds: integer("period_seconds").notNull(),
+  maxCharges: integer("max_charges").notNull(),
+  startAt: integer("start_at").notNull(), // unix seconds, when the first charge is due
+  customerEmail: text("customer_email"),
+  payer: text("payer"),
+  status: text("status").notNull(), // offered | subscribing | active | past_due | cancelled | completed
+  charges: integer("charges").notNull().default(0),
+  nextChargeAt: integer("next_charge_at").notNull(), // mirror of the contract's schedule, refreshed after every charge
+  failedAttempts: integer("failed_attempts").notNull().default(0),
+  retryAt: integer("retry_at"),
+  subscribeTx: text("subscribe_tx"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const paymentLinks = sqliteTable(
   "payment_links",
   {

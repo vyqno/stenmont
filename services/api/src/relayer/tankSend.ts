@@ -1,0 +1,57 @@
+import type { Hex } from "viem";
+import type { Db } from "../app";
+import { Rejected, type ChainClient } from "../chain";
+import { RELAYER_MIN_BALANCE_WEI, loadTank, reserveGas, settleGas } from "./caps";
+import type { Call } from "./sender";
+
+export type TankSend =
+  | { ok: true; txHash: Hex }
+  | { ok: false; code: "gas_tank_empty" | "gas_cap_reached" | "busy" | "relayer_low" | "chain_error" | "tx_reverted" | "timeout"; txHash?: Hex }
+  | { ok: false; code: "rejected"; reason: string };
+
+/**
+ * Sends one transaction paid from a merchant's gas tank: free pre-check, simulate (nothing is sent if the contracts
+ * would reject it), reserve the worst-case gas atomically, send through the single sender, then charge the real cost.
+ */
+export async function sendFromTank(ctx: { db: Db; chain: ChainClient; now: Date }, merchantId: string, call: Call): Promise<TankSend> {
+  const { db, chain, now } = ctx;
+  const tank = await loadTank(db, merchantId, now);
+  if (!tank || tank.balance === 0n) return { ok: false, code: "gas_tank_empty" };
+
+  let gas: bigint;
+  try {
+    gas = await chain.estimateGas(call);
+  } catch (e) {
+    if (e instanceof Rejected) return { ok: false, code: "rejected", reason: e.reason };
+    console.error("estimateGas failed", e);
+    return { ok: false, code: "chain_error" };
+  }
+  const gasLimit = (gas * 125n) / 100n;
+  let maxCost: bigint;
+  try {
+    maxCost = gasLimit * (await chain.gasPrice());
+    if ((await chain.relayerBalance()) < maxCost + RELAYER_MIN_BALANCE_WEI) return { ok: false, code: "relayer_low" };
+  } catch (e) {
+    console.error("price lookup failed", e);
+    return { ok: false, code: "chain_error" };
+  }
+  const hold = await reserveGas(db, merchantId, maxCost, now);
+  if (hold !== "ok") return { ok: false, code: hold === "payer_cap" ? "busy" : hold };
+
+  let txHash: Hex;
+  try {
+    txHash = await chain.sendTransaction({ ...call, gas: gasLimit });
+  } catch (e) {
+    console.error("send failed", e);
+    await settleGas(db, merchantId, maxCost, 0n, now);
+    return { ok: false, code: "chain_error" };
+  }
+  try {
+    const receipt = await chain.waitForReceipt(txHash);
+    await settleGas(db, merchantId, maxCost, receipt.gasUsed * receipt.effectiveGasPrice, now);
+    return receipt.status === "success" ? { ok: true, txHash } : { ok: false, code: "tx_reverted", txHash };
+  } catch (e) {
+    console.error("receipt wait failed", e); // it may still land; the reservation stays until reconciled
+    return { ok: false, code: "timeout", txHash };
+  }
+}

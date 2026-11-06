@@ -14,6 +14,7 @@ import { linkRoutes } from "./routes/links";
 import { publicRoutes } from "./routes/public";
 import { refundRoutes } from "./routes/refunds";
 import { relayRoutes } from "./routes/relay";
+import { subscriptionPublicRoutes, subscriptionRelayRoutes, subscriptionRoutes } from "./routes/subscriptions";
 import { webhookEndpointRoutes } from "./routes/webhookEndpoints";
 
 export type Db = DrizzleD1Database;
@@ -62,9 +63,12 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/gas-tank", gasTankRoutes);
   v1.route("/exports", exportRoutes);
   v1.route("/refunds", refundRoutes);
+  v1.route("/subscriptions", subscriptionRoutes);
   app.route("/v1", v1);
   app.route("/auth", authRoutes);
   app.route("/relay", relayRoutes);
+  app.route("/relay", subscriptionRelayRoutes);
+  app.route("/", subscriptionPublicRoutes);
   app.route("/", publicRoutes);
 
   app.notFound((c) => fail(c, 404, "not_found", "Not found"));
