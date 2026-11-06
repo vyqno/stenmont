@@ -1,0 +1,27 @@
+# Whitechain feedback
+
+From building Stenmont on Whitechain Sepolia (chain 1874) with the official USDT.
+
+## What worked
+
+- **Public RPC and explorer** were reliable all through the build; contract verification on the explorer worked from Foundry every time.
+- **The official USDT supports both EIP-3009 forms and permit**, and ERC-1271 for smart-account payers. That is what made a gasless, wallet-free payer possible: the payer signs, the relayer pays the gas.
+- **The P-256 precompile at `0x100` is live.** Passkey accounts verify WebAuthn signatures onchain at a sensible cost.
+- **Safe contracts exist on the chain**, which makes the multisig step straightforward.
+- The faucet and test tokens arrived quickly.
+
+## Where we got stuck
+
+- **P-256 precompile**: it was not clear from the docs that it is live. We proved it with a Foundry-made test vector that passes on chain and fails when tampered (our first vector was wrong because Node hashed the input twice).
+- **Archive history**: the public RPC works, but one hosted Sepolia endpoint we tried had pruned history, so we kept a second provider for log reads.
+- **Reading the USDT implementation** was the only way to learn it accepts both signature forms; this should be documented.
+
+## What the docs were missing
+
+- A page listing the live precompiles and system contracts (P-256, Multicall3, Safe) with addresses.
+- The USDT token's supported authorisation methods (EIP-3009 `bytes` and `v,r,s` forms, permit, ERC-1271) and its EIP-712 domain.
+- The recommended way to give builders testnet USDT in volume. Repeated end-to-end tests drained our faucet wallet.
+
+## The improvement with the greatest impact
+
+Document the live precompiles and the USDT's authorisation methods in one "building gasless payments" page. It is the difference between a day of probing and ten minutes of reading.
