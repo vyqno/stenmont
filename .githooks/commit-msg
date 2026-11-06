@@ -1,0 +1,9 @@
+#!/bin/sh
+# One short conventional line: type(scope): subject. Enable with: git config core.hooksPath .githooks
+msg=$(head -n1 "$1")
+case "$msg" in Merge*|Revert*) exit 0 ;; esac
+if ! printf '%s' "$msg" | grep -Eq '^(feat|fix|docs|chore|build|ci|test|refactor|perf|style)(\([a-z0-9._-]+\))?!?: .{3,}$'; then
+  echo "Commit message must look like: feat(api): add refunds   (type(scope): subject)" >&2
+  exit 1
+fi
+if [ "${#msg}" -gt 100 ]; then echo "Keep the first line under 100 characters." >&2; exit 1; fi
