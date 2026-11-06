@@ -232,118 +232,45 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 - 15:43 Integration branch built and deployed to staging: MCP OAuth (connect agents with a consent page and scoped tokens), install-by-prompt docs and a Connect page with site status and a live/paused switch, catalogue with a safe cart checkout, Shopify import (CSV, token, and one-click connect), financing timeline and public receivable certificate, and verification tiers with a sandbox KYC provider, wallet sign-in and an ENS tier record. Six migrations (0017 to 0022) applied to staging; API, MCP and web deployed. 795 API, 155 web, 16 MCP and 28 script tests pass; none of it has been run through a browser yet.
 - 15:43 Web fonts (Onest, Geist Mono) are now self-hosted from npm: the build no longer needs to reach Google Fonts.
 - 15:43 Investor allowlisting needs tier 4 only when `INVESTOR_REQUIRES_KYC=yes` (production); test environments allow a World-verified person.
-- 15:18 Brand manual: brand strategy documented in brand-guidelines/BRAND-STRATEGY.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: logo documented in brand-guidelines/LOGO.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: typography documented in brand-guidelines/TYPOGRAPHY.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: colors documented in brand-guidelines/COLORS.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: visual language documented in brand-guidelines/VISUAL-LANGUAGE.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: iconography documented in brand-guidelines/ICONOGRAPHY.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: voice and tone documented in brand-guidelines/VOICE-AND-TONE.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: messaging documented in brand-guidelines/MESSAGING.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: spacing and layout documented in brand-guidelines/SPACING-AND-LAYOUT.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: accessibility documented in brand-guidelines/ACCESSIBILITY.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: ui design system documented in brand-guidelines/UI-DESIGN-SYSTEM.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: motion documented in brand-guidelines/MOTION.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: brand applications documented in brand-guidelines/BRAND-APPLICATIONS.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: prompt documented in brand-guidelines/PROMPT.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: readme documented in brand-guidelines/README.md; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: functional documented in brand-guidelines/assets/icons/functional.svg; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: payment record flow documented in brand-guidelines/assets/illustrations/payment-record-flow.svg; documentation/vector specification only; current app unchanged.
-
-- 15:18 Brand manual: brand book documented in brand-guidelines/BRAND-BOOK.md; documentation/vector specification only; current app unchanged.
-
-- 15:30 Local checkpoint: feat(email): add branded transactional templates and sink transport. Staging/live evidence is recorded separately; no push.
-
-- 15:30 Local checkpoint: feat(auth): support Google issuer and freshness requirements. Staging/live evidence is recorded separately; no push.
-
-- 15:30 Local checkpoint: feat(auth): verify Turnstile before signup and activation. Staging/live evidence is recorded separately; no push.
-
-- 15:30 Local checkpoint: feat(auth): add linked read-only recovery sessions. Staging/live evidence is recorded separately; no push.
-
-- 15:30 Local checkpoint: feat(auth): add email codes and Google PKCE sign-in. Staging/live evidence is recorded separately; no push.
-
-- 15:30 Local checkpoint: feat(web): add verified identity and recovery controls. Staging/live evidence is recorded separately; no push.
-
-- 15:33 Local checkpoint: docs(financing): design buyer acceptance without escrow. Staging/live evidence is recorded separately; no push.
-
-- 15:33 Local checkpoint: docs(auth): document recovery limits and email authentication. Staging/live evidence is recorded separately; no push.
-
-- 15:33 Local checkpoint: fix(auth): recover dashboard access past stale passkey sessions. Staging/live evidence is recorded separately; no push.
-
-- 15:33 Local checkpoint: chore(staging): configure protected signup and email sink. Staging/live evidence is recorded separately; no push.
-
-- 15:38 Brand asset inventory: brand-guidelines/assets/logo/README.md records required future assets without adding a replacement logo or font files.
-
-- 15:38 Brand asset inventory: brand-guidelines/assets/typography/README.md records required future assets without adding a replacement logo or font files.
-
-- 15:52 Local checkpoint: fix(auth): identify the verified email before business linking. Staging/live evidence is recorded separately; no push.
-
-- 15:52 Local checkpoint: test(auth): reject production dummy Turnstile site keys. Staging/live evidence is recorded separately; no push.
-
-- 15:52 Local checkpoint: test(auth): add isolated signup deployment diagnostics. Staging/live evidence is recorded separately; no push.
-
-- 15:53 Pre-realignment checkpoint: integration/agents was fast-forwarded locally; its full baseline passed 850 tests. Added email/Google/Turnstile fixtures and read-only recovery; the resulting full local suite passed 868 tests, lint exited 0 with one existing warning, and the web build/typecheck passed. Two staging signup attempts produced one active test business; live browser acceptance failed while API/web deployments changed. No payer funding, real email delivery or third-party accounts. Further staging deploys are stopped under Part V until the clean-line realignment is reported.
-
-- 15:56 Local checkpoint: fix(migrations): reconcile identity schema with clean integration. Staging/live evidence is recorded separately; no push.
-
-- 15:56 Local checkpoint: feat(auth): publish linked email and Workspace verification facts. Staging/live evidence is recorded separately; no push.
-
-- 15:58 Clean-line realignment complete on chatgpt-work-2, descended from integration/clean: 16 own commits replayed with original dates; protected local files retained; reachable-history vendor-token scan passed. Resolved additive auth-route/env-example conflicts without removing Shopify/SIWE routes. Identity migration moved to 0023 with idempotent creation for staging compatibility. Linked email and Google Workspace proofs now feed the integrated verification store. Combined full suite: 1137 passed; lint exits 0 with one existing warning; web typecheck passes. No deployment performed during realignment.
-
-- 15:58 Local checkpoint: docs(auth): define payout recovery boundaries and design gates. Staging/live evidence is recorded separately; no push.
-
-- 16:01 Local checkpoint: fix(auth): confine recovery sessions to read-only auth paths. Staging/live evidence is recorded separately; no push.
-
-- 16:12 Local checkpoint: fix(mcp): preserve the Workers fetch invocation context. Staging/live evidence is recorded separately; no push.
-
-- 16:16 Local checkpoint: fix(connect): require retry-safe and invoice-bound agent installation. Staging/live evidence is recorded separately; no push.
-
-- 16:23 Local checkpoint: test(install): cover prompt-built checkout and webhook reconciliation. Staging/live evidence is recorded separately; no push.
-
-- 16:23 Local checkpoint: feat(install): add isolated prompt-built staging checkout. Staging/live evidence is recorded separately; no push.
-
-- 16:23 Local checkpoint: chore(install): configure isolated staging storage and setup scripts. Staging/live evidence is recorded separately; no push.
-
-- 16:26 Local checkpoint: fix(install): allow checkout to wait for chain confirmation. Staging/live evidence is recorded separately; no push.
-
-- 16:29 Local checkpoint: docs(install): record isolated storefront setup and live proof. Staging/live evidence is recorded separately; no push.
-
-- 16:30 Local checkpoint: docs(install): record browser Inspector and settlement acceptance. Staging/live evidence is recorded separately; no push.
-
-- 16:30 Part V F2 staging checkpoint: API 2ad911e5, web 7f0a9015, MCP bbe35b64 and isolated install proof Worker 652c5212 deployed only from chatgpt-work-2 after notice; every post-deploy smoke passed 22/22. Migration 0023 applied to staging. One clean-run virtual-passkey business, one site, one additional server API key, one webhook endpoint, one separate KV/Worker, and one Inspector client/grant (revoked). The isolated store made two orders and three invoice records including one diagnostic request: one invoice paid 1.00 test USDT from the existing payer, two unpaid; the first abandoned request retains creating/in-progress state. No wallet funding, real email, Google/World login or production action. Real browser shows Paid order and Connect 3/4; only DNS TXT is pending sir because the Cloudflare login has no DNS-write permission. Inspector tools/list and list_invoices passed; wrong PKCE/unregistered redirect refused; revoked connection failed. Full suite 1176 passed, lint exit 0 with one existing warning, web typecheck/build passed; 37 install tests. Small commits bef594a, 02b8c98, 038ee15, 43b434e, f75e7eb, 40afaaf; no push. Detailed evidence and known abandoned-invoice limitation: docs/INSTALL-ACCEPTANCE.md. F3 not started before the F2 gate.
-
-- 16:32 Local checkpoint: fix(webhooks): replay saved endpoint registrations safely. Staging/live evidence is recorded separately; no push.
-
-- 16:33 Local checkpoint: docs(install): record verified webhook registration retries. Staging/live evidence is recorded separately; no push.
-
-- 16:34 Local checkpoint: docs(install): clarify replayed creation secret handling. Staging/live evidence is recorded separately; no push.
-
-- 16:34 Review correction: ff52a79 makes saved webhook registrations idempotent, with legacy clients preserved. Three regression tests added (two failed before the fix); API 816 tests and typecheck passed, final full suite 1179 passed, final lint exit 0 with the existing warning. API staging version 2cfffab9 deployed after notice; 22/22 smoke probes passed. Live identical registrations returned the same endpoint/secret (201 twice), changed destination 422; one temporary second endpoint was then deactivated (204), leaving the original active. Independent review verified the fix. Evidence commits 55053b8 and e61ed5c. F2 remains 3/4 pending DNS, no push.
-
-- 16:37 Sir added DNS; authoritative lookup matched and Connect now shows Ready with all four checks Passed. F2 complete. The lifecycle dry-run passed. A previously authorized live command completed before the revised stop-before-real-run instruction could interrupt it: six testnet transactions, Settled, investor +0.05/payout +0.95/buyer -1.00 USDT, router/claim zero. No funding or real World; certificate 404 expected for direct-contract run. Evidence: docs/TOKENIZATION-STAGING-RUN.md. No repeat without approval. integration/next is missing six latest commits; preserving them by normal merge on chatgpt-work-3.
-
-- 16:37 Local checkpoint: docs(install): record all four staging checks passed. Staging/live evidence is recorded separately; no push.
-
-- 16:37 Local checkpoint: docs(install): mark the operator proof complete. Staging/live evidence is recorded separately; no push.
-
-- 16:37 Local checkpoint: docs(financing): record completed testnet lifecycle honestly. Staging/live evidence is recorded separately; no push.
-
-- 16:37 Local checkpoint: chore(integration): merge latest install fixes into combined line. Staging/live evidence is recorded separately; no push.
-
-- 16:38 Combined branch: chatgpt-work-3 created from integration/next; 355512b preserves missing commits with a normal merge. Local .gitignore preserved in a named stash; protected reference folders untouched. Full suite 1359 passed (API 908, web 215, MCP 17, agent 26, shared 46, scripts 22+15 node tests); lint/typecheck passed with the existing warning.
+- 15:18 Brand manual documented in `brand-guidelines/`: strategy, logo, typography, colors, visual language, iconography, voice/tone, messaging, spacing/layout, accessibility, UI system, motion and applications.
+- 15:18 Added manual README, prompt, brand book, functional SVG icons and payment-record-flow SVG. Documentation/vector specifications only; current app unchanged.
+- 15:30 Local auth/email work: branded transactional templates and sink transport; Google issuer/freshness checks; Turnstile before signup/activation; linked read-only recovery; email codes and Google PKCE; verified-identity/recovery controls.
+- 15:33 Documented buyer acceptance without escrow and recovery/email-auth limits; fixed stale-passkey dashboard recovery; configured protected staging signup and email sink.
+- 15:38 Brand asset inventories added at `brand-guidelines/assets/{logo,typography}/README.md`; no replacement logo or font files.
+- 15:52 Auth follow-up: identify verified email before business linking; reject production dummy Turnstile keys; add isolated signup deployment diagnostics.
+- 15:53 Before realignment, locally fast-forwarded `integration/agents`: baseline 850 tests; email/Google/Turnstile fixtures and read-only recovery brought the suite to 868. Lint exited 0 with one existing warning; web build/typecheck passed.
+- 15:53 Two staging signup attempts created one active test business. Browser acceptance failed during changing API/web deployments. No payer funding, real email delivery or third-party accounts; Part V stopped further staging deploys pending clean-line report.
+- 15:56 Reconciled identity schema with clean integration; published linked-email and Workspace verification facts.
+- 15:58 Realigned onto `chatgpt-work-2` from `integration/clean`: replayed 16 own commits with original dates, retained protected local files, and passed reachable-history vendor-token scan.
+- 15:58 Resolved additive auth-route/env-example conflicts while retaining Shopify/SIWE routes. Identity migration moved to idempotent 0023; linked email/Workspace proofs feed the integrated verification store.
+- 15:58 Combined suite 1137 passed; lint exited 0 with one existing warning; web typecheck passed. No deployment during realignment. Documented payout-recovery boundaries/design gates.
+- 16:01 Confined recovery sessions to read-only auth paths.
+- 16:12 Fixed MCP Workers fetch invocation context.
+- 16:16 Made agent installation retry-safe and invoice-bound.
+- 16:23 Added prompt-built checkout/webhook-reconciliation tests, isolated staging checkout, storage and setup scripts.
+- 16:26 Checkout now waits for chain confirmation.
+- 16:29 Recorded isolated storefront setup and live proof.
+- 16:30 Recorded browser Inspector/settlement acceptance in `docs/INSTALL-ACCEPTANCE.md`.
+- 16:30 F2 staging release from `chatgpt-work-2`, after notice: API `2ad911e5`, web `7f0a9015`, MCP `bbe35b64`, isolated proof Worker `652c5212`; migration 0023 applied. Each post-deploy smoke passed 22/22.
+- 16:30 Isolated resources: one virtual-passkey business, site, additional server API key, webhook endpoint, separate KV/Worker and Inspector client/grant (revoked).
+- 16:30 Store evidence: two orders, three invoice records including one diagnostic request; one paid 1.00 test USDT from the existing payer, two unpaid. First abandoned request remains creating/in-progress.
+- 16:30 Browser showed Paid order and Connect 3/4; DNS TXT pending because the Cloudflare login lacked DNS-write permission. Inspector `tools/list`/`list_invoices` passed; wrong PKCE/unregistered redirect and revoked connection refused.
+- 16:30 Full suite 1176 passed, including 37 install tests; lint exited 0 with one existing warning; web typecheck/build passed. Commits: `bef594a`, `02b8c98`, `038ee15`, `43b434e`, `f75e7eb`, `40afaaf`.
+- 16:30 No wallet funding, real email, Google/World login, production action or push. F3 had not started before the F2 gate; abandoned-invoice limitation recorded in `docs/INSTALL-ACCEPTANCE.md`.
+- 16:32 Made saved webhook registrations replay-safe.
+- 16:33 Recorded verified webhook-registration retries.
+- 16:34 Clarified replayed creation-secret handling; `ff52a79` makes registrations idempotent while preserving legacy clients. Three regression tests added (two failed before the fix); independent review verified it.
+- 16:34 API 816 tests/typecheck passed; full suite 1179 passed; lint exited 0 with the existing warning. Staging API `2cfffab9` deployed after notice; smoke 22/22.
+- 16:34 Live identical registrations returned the same endpoint/secret (201 twice); changed destination returned 422. Temporary second endpoint deactivated (204), original left active. Evidence: `55053b8`, `e61ed5c`; F2 still 3/4 pending DNS; no push.
+- 16:37 Sir added DNS; authoritative lookup matched. Connect Ready, all four checks Passed; F2/operator proof complete and documented.
+- 16:37 Lifecycle dry-run passed. A previously authorized real command completed before the revised stop-before-real-run instruction could interrupt it: six testnet transactions, Settled; investor +0.05, payout +0.95, buyer -1.00 USDT; router/claim zero.
+- 16:37 No funding or real World; certificate 404 expected for this direct-contract run. Evidence: `docs/TOKENIZATION-STAGING-RUN.md`. No repeat without approval.
+- 16:37 `integration/next` was missing six latest commits; prepared normal merge onto `chatgpt-work-3` to preserve install fixes and their evidence.
+- 16:38 Created `chatgpt-work-3` from `integration/next`; normal merge `355512b` preserved missing commits. Local `.gitignore` retained in a named stash; protected reference folders untouched.
+- 16:38 Full suite 1359 passed: API 908, web 215, MCP 17, agent 26, shared 46, scripts 22 plus 15 node tests. Lint/typecheck passed with the existing warning.
+- 16:39 Fixed funding-help SSR/browser-global access (`d9db305`) and copy requiring existing test USDT (`cb4c762`); subsequent full suite 1360 passed.
+- 16:45 Fixed public product store/page-model mismatch (`aaad772`). Both SSR and store fixes had failing regressions before passing tests.
+- 16:45 Coordinated staging release: migrations 0031/0032 applied; `ACCOUNT_LINK_SECRET` generated locally and stored privately. API `4ffde501`, initial web `be0a14b7`, MCP `96fa6931`.
+- 16:45 API-stage probes 24/26 (old web lacked store/account routes); web/MCP stages 26/26. Added one synthetic store and one $1 product under the existing proof business.
+- 16:45 Build exposed SSR location access; browser exposed store/shop mismatch. Final suite 1362 passed and corrected web build passed; web-only correction deploying before browser continuation.
+- Local work above was not pushed; staging/live evidence is recorded separately from local implementation. Production remains subject to sir's explicit instruction.
