@@ -23,18 +23,21 @@ an approval, a completed verification or transaction evidence.
 - Preserve the merchant's existing browser/passkey session. Use the current
   isolated merchant; do not repeatedly create accounts or spend abuse allowances.
   Fresh v2 creator delegation must have been signed through the normal UI.
-- Recheck balances immediately before spending. The earlier snapshot showed the
-  existing payer holding **2.392 test USDT** after the0.098 v2 payment; that is not a promise of today's
-  balance. The investor UI uses an existing **checkout/investor passkey account**
-  (`loadPasskey` / `ensureAccount`), not an EOA wallet. A deployer EOA balance
-  cannot fund that account automatically, and the merchant's1.00 balance cannot
-  be relabelled as investor funds. Reuse an already-funded retained investor
-  passkey if one exists; otherwise stop for sir to supply at least0.95 test USDT
-  to the actual selected investor account himself. No platform funding or new
-  account without its required existing funds. The investor needs those funds,
-  and
-  the merchant needs the returned payment available for its refund. Gas tanks and
-  relayer need sufficient WBT. No platform USDT funding, faucet or new bridge run.
+- No existing funded investor passkey account is available for this session. On
+  `/invest/<invoiceId>`, the explicit **Create your investor account** action calls
+  `ensureAccount`: it reuses a checkout passkey only if one exists in that browser,
+  otherwise it creates a passkey after the device prompt and looks up its account.
+  Merely opening a page creates no passkey. `/claim/<invoiceId>` is the public
+  certificate view, not investor setup. Sir controls device authentication.
+- Read the actual newly selected investor address and stop for sir to supply at
+  least0.95 test USDT himself before purchase. A deployer EOA or merchant balance
+  is not that investor's balance. No platform transfer, faucet or automatic funding.
+  Recheck payer, investor, merchant gas tank and relayer balances immediately before
+  spending; old balance snapshots are not a promise of current funds. The buyer
+  must already own2.01 for the refund proof and1.00 for the financing payment.
+- Real merchant verification and investor World eligibility gate the dashboard
+  lifecycle. Preparation can precede the human session; listing/funding/settlement
+  cannot be called complete before those gates pass. Do not use an attester shortcut.
 - Resolve the UI retry gate before the denial/approval sequence: after
   `approval_denied` or `approval_expired`, the Refund action must offer a fresh
   World approval for the same exact refund params through `POST /v1/approvals`.
@@ -79,7 +82,7 @@ no live access-bearing link.
 
 Use a dedicated **2.01 test-USDT** v2 invoice, without early-payment discount,
 financing hook or instalment plan. Confirm its payer owns at least2.01. This
-leaves0.382 from the latest2.392 snapshot until the refund is completed.
+requires an actual current balance check; earlier snapshots are historical only.
 
 1. From Invoices, create that invoice through the dashboard, then open its public
    pay page. The existing payer signs the2.01 payment with its own funded account.
@@ -108,7 +111,7 @@ leaves0.382 from the latest2.392 snapshot until the refund is completed.
    extend timestamps or retry a consumed approval as authority.
 
 The denied and allowed attempts must refer to the same operation, invoice,
-amount and recipient. The2.01 refund restores the payer's funds for the later
+amount and recipient. The2.01 refund must restore the payer's funds before the later
 1.00 invoice; verify that return before the next spend. If the balance has
 changed or the refund cannot complete, stop for sir rather than fund a wallet.
 
@@ -130,12 +133,12 @@ lifecycle or use the script's investor-allowlist shortcut.
    reserve, checks the quoted price0.95 / reserve0.10 / cash today0.85, then
    confirms the two genuine passkey challenges: terms and payout hook. Require
    the listed transaction and correct v2 router/claim provenance.
-4. Open the corresponding public investor page. Reuse an existing investor
-   **passkey** account with its own at least0.95 test USDT. An unrelated funded
-   EOA or the merchant's balance does not satisfy this UI prerequisite. If there
-   is no funded retained passkey, stop for sir to fund the selected investor
-   account himself; do not transfer platform funds. If it is not already allowed on
-   the actual v2 registry, **Buy** stays unavailable; record this refused gate.
+4. Open `/invest/<invoiceId>` for the listed offer and press **Create your
+   investor account**. Sir completes the genuine passkey prompt. Record the public
+   account address and stop for sir to fund it with his own at least0.95 test USDT;
+   then read back its actual balance. No existing funded passkey is assumed and no
+   platform transfer is permitted. If the selected account is not allowed on the
+   actual v2 registry, **Buy** stays unavailable; record this refused gate.
 5. Press **Verify with World ID**. Lead hands control to sir for the real
    `allow-investor` Proof of Human action. After normal verification, require the
    registry allow transaction and actual `isAllowed` readback. A displayed widget

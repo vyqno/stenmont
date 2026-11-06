@@ -22,10 +22,10 @@ Demo: https://app-staging.stenmont.com. Separate realistic merchant store: https
 
 | Business loop | Recorded evidence | Acceptance still open |
 |---|---|---|
-| Sell | Catalogue, public storefront and cart implemented. Separate demo shop integrated from the Connect prompt through the normal merchant route. | Shopify login/app credentials and migration acceptance; Razorpay credentials and payment proof. |
+| Sell | Catalogue, public storefront and cart implemented. Separate demo shop integrated from the Connect prompt through the normal merchant route. | A Shopify bridge test order now has a payment/webhook record; its admin install flow, refunds and broad migration acceptance remain open. The new order-price guard is local-tested, not deployed to the live bridge. Razorpay credentials and payment proof are held. |
 | Get paid | Demo-shop order paid after a signed webhook; Connect 4/4; [1.00 test-USDT payment](https://explorer.testnet.whitechain.io/tx/0xe8c96bc95001abd0aedb148bd869d82fb32db5800496c7a3568ea4120d8c34e3). Existing refunds and subscriptions have separate staging evidence. | No production payments or external merchant traction. |
 | Close the books | Real signed two-line interim bundle verified offline, with tamper rejection; reconciliation, tax lines and export code implemented. | Onchain anchor is not deployed; no claim of complete books or tax compliance. |
-| Get funded | Earlier direct financing lifecycle settled on the deployed contracts; see README and financing walkthrough. | Dashboard “Sell this invoice”, timeline and public certificate with a real World sign-in; router v2 remains undeployed. |
+| Get funded | Earlier direct financing lifecycle settled on the deployed contracts; see README and financing walkthrough. | Dashboard “Sell this invoice”, timeline and public certificate with a real World sign-in; router v2 is deployed and partially accepted, with named-buyer discount and acknowledgement receipts. |
 | Install and operate | Real OAuth MCP consent, discovery and scoped invoice read; prompt-installed checkout. ENS directory records and a profile-only role grant read on Sepolia; one-day agent name created. | Cloud-backed Gemini reply and the ENS expiry lifecycle are not yet proven. Collections remain drafts/decisions, not sent messages. |
 
 Tests and versions belong in the dated staging reports, not a timeless feature count. Local fixtures, probes and source inspection do not establish live third-party integration. This draft does not claim that all waves are complete.
@@ -47,7 +47,7 @@ Each business that adopts the kit brings its customers' USDT flows to Whitechain
 ## Distribution plan (plans, not results)
 
 1. Developers and agents: publish the SDK and React packages (built and install-tested, not yet published; that is the founder's decision), keep `llms.txt` and the docs current, list the MCP server.
-2. Stores that already exist: the Shopify import (CSV, token and one-click connect) lowers the cost of moving a catalogue; plugins for Shopify and WooCommerce are a later milestone, not built.
+2. Stores that already exist: the Shopify import (CSV, token and one-click connect) lowers the cost of moving a catalogue; a separate Shopify bridge exists with a test order paid through a signed webhook, while full browser install/refund acceptance and a WooCommerce connector remain open.
 3. Freelancers, studios and exporters billing across borders: payment links and invoices with no code; start with a small closed pilot.
 4. Partners: Whitechain's builder network, and accounting firms through the export formats.
 

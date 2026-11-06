@@ -8,18 +8,20 @@ Staging only: `app-staging.stenmont.com`, `api-staging.stenmont.com`, `mcp-stagi
 
 | Gate | Required proof | Current boundary |
 |---|---|---|
-| Merchant install | Actual Connect prompt delivered to a coding agent, before/after commits, scoped OAuth read/revoke, this shop's Connect 4/4 | Earlier isolated install proof exists; Fieldwork's new installation remains to run |
+| Merchant install | Actual Connect prompt delivered to a coding agent, before/after commits, scoped OAuth read/revoke, this shop's Connect 4/4 | Fieldwork checkout and Connect 4/4 have recorded live proof; broad platform acceptance remains separate |
 | Dashboard financing | **Sell this invoice** in a merchant session, investor funds, buyer pays, same invoice's timeline and public certificate | Earlier direct-contract lifecycle settled; it does not prove the dashboard journey |
-| Order and receipt | Real signed, invoice/amount-bound webhook marks the saved order paid; matching dashboard invoice and private receipt | Earlier wallet/store proof exists; Fieldwork correlation remains to run |
-| Books | Real signed snapshot, pinned service signer, downloaded proof verifies, changed amount fails | Local tests; live close/proof remains to run |
-| ENS / agent | Actual published records resolved; bounded x402 payment and real refusal evidence | New directory/A2A live proof remains to run |
+| Order and receipt | Real signed, invoice/amount-bound webhook marks the saved order paid; matching dashboard invoice and private receipt | Fieldwork payment/webhook/order correlation is recorded; Shopify bridge order #1001 has separate test proof |
+| Books | Real signed snapshot, pinned service signer, downloaded proof verifies, changed amount fails | Real two-line interim close and offline proof/tamper rejection recorded; no onchain anchor |
+| ENS / agent | Actual published records resolved; bounded x402 payment and real refusal evidence | Directory/tier/A2A writes and resolution plus agent revocation recorded; natural expiry remains unproven |
 | World | Real approval plus cancelled/denied attempt leaving the action undone; simulator use labelled | Real World sign-in held for sir; input validation is not a World denial |
 
 No local fixtures, landing sample cards, mock model replies or hand-edited database rows in the proof path. **Do not repeat the earlier direct-contract 1.00 USDT lifecycle.** The valuable new run is the dashboard flow producing its timeline and certificate.
 
+The full dashboard lifecycle cannot finish before the real World session: merchant tier and investor eligibility are gates. Opening `/claim/<id>` only views a certificate; it does not automatically create or fund an investor. On `/invest/<invoiceId>`, the **Create your investor account** action creates the first passkey after consent.
+
 ## Pre-stage once, off camera
 
-- Label merchant, investor, buyer and agent contexts. Keep the merchant passkey and investor allowlist usable; identify the actual proof environment. A World simulator is not an Orb-verified person.
+- Label merchant, investor, buyer and agent contexts. Preserve the merchant passkey. Create the first investor passkey explicitly through the investor page and have sir fund that actual address; identify the actual proof environment. A World simulator is not an Orb-verified person.
 - Check existing buyer USDT, investor purchase price and merchant/relayer gas balances. **Never fund a wallet or call a faucet.** Stop for sir if existing test funds are insufficient.
 - Prepare one genuinely unpaid, unsold, eligible invoice with a future due date. Save its actual invoice id, shop order id and terms privately; use the same ids in every subsequent shot.
 - Complete coding, installation, OAuth connection and necessary identity checks before recording. Retain normal-speed before/after captures, clearly captioned. Do not imply installation happened instantly.
@@ -67,7 +69,7 @@ Start a real stopwatch on the first frame and stop on the last. Target 3:40, lea
 - Gemini unconfigured: show the real MCP read/draft path; never call a sample chat a live model response.
 - Anchor unconfigured: show only the genuine service-signed bundle and offline proof, not an undeployed registry transaction.
 - B2B instalments may replace the agent segment only after real first/cron charge receipts exist. Paired agreements may be required; the original router invoice remains cancelled, and manager charges are not router payments.
-- Router v2, buyer acknowledgement, record-priced quotes, early-payment discounts, Dutch auctions, fractional funding and wildcard invoice-name resolution stay out until implemented, approved where required and verified live.
+- Router v2, named-buyer early-payment discount and buyer acknowledgement have partial testnet live proof in docs/V2-STAGING-ACCEPTANCE.md. Their receipts do not substitute for the pending full financing flow. Dutch auctions, fractional funding and wildcard invoice-name resolution stay out until implemented, approved where required and verified live.
 
 ## Captions and assets
 
@@ -80,7 +82,7 @@ Sir records/exports the final video. No video, subtitle file, media render or su
 ## Existing evidence
 
 - [Combined staging acceptance](docs/COMBINED-STAGING-ACCEPTANCE.md): catalogue/cart/pay/private-receipt proof with the existing-wallet harness and exact cleanup results.
-- [Earlier current-router wallet payment](https://explorer.testnet.whitechain.io/tx/0x918025b8e3038718d216ea2228636c5883c18749f4f5619e1084d53b9878164c): 1.00 test USDT, not a new Fieldwork payment.
+- [Earlier legacy-v1 wallet payment](https://explorer.testnet.whitechain.io/tx/0x918025b8e3038718d216ea2228636c5883c18749f4f5619e1084d53b9878164c): 1.00 test USDT, not a new Fieldwork payment.
 - [Earlier direct-contract lifecycle](docs/TOKENIZATION-STAGING-RUN.md): settled with an attester shortcut; no dashboard timeline/certificate. Do not repeat.
 - [Financing rules](docs/FINANCING_WALKTHROUGH.md), [Books limits](docs/WAVE1-W3.md), [collections limits](docs/WAVE1-W2.md), [runtime limits](docs/AGENT-RUNTIME.md), [A2A limits](docs/A2A.md).
 

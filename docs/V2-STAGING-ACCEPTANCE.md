@@ -38,4 +38,4 @@ Migration0071 classified17 retired-router and14 current-v1 invoices from success
 - No default-path live wait, production deployment, multisig change, new-manager activation, LedgerAnchor or main-repository push.
 - Natural ENS expiry is not a v2 acceptance claim.
 
-See [the World session run sheet](WORLD-SESSION-RUN-SHEET.md) for the exact human handoff and funded investor passkey requirement.
+See [the World session run sheet](WORLD-SESSION-RUN-SHEET.md) for the exact human handoff, first-use investor passkey creation and sir-funded account requirement.
