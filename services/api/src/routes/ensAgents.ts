@@ -110,6 +110,17 @@ ensAgentRoutes.get("/", async (c) => {
   return c.json({ data: rows.filter((r) => r.status !== "creating").map((r) => view(r, c.var.now())) });
 });
 
+/**
+ * What each live agent's address sent in USDT in about the last 24 hours, read from the token's own Transfer events (the agent
+ * signs its payments, so they leave its address whichever service sends the transaction). `spent` is null when it could not be
+ * read, which is different from zero. Approximate window: see `windowStartBlock`.
+ */
+ensAgentRoutes.get("/spend", async (c) => {
+  const rows = (await c.var.db.select().from(ensAgents).where(eq(ensAgents.merchantId, c.var.merchantId))).filter((r) => r.status === "active");
+  const read = await Promise.allSettled(rows.map((r) => c.var.chain.usdtSentSince(r.agentAddress as Address, 86_400)));
+  return c.json({ windowHours: 24, data: rows.map((r, i) => ({ label: r.label, spent: read[i]!.status === "fulfilled" ? fromUnits((read[i] as PromiseFulfilledResult<bigint>).value) : null })) });
+});
+
 /** Revokes an agent: it loses the right to edit its record and its name stops existing. */
 ensAgentRoutes.delete("/:label", async (c) => {
   const { db, ens, merchantId } = c.var;
