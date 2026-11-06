@@ -2,7 +2,7 @@ import type { Hex } from "viem";
 import { toUnits } from "@stenmont/shared";
 import { b64urlToHex, type Reputation } from "./financing";
 import { createPasskey, loadPasskey, signDigest, type StoredPasskey } from "./passkey";
-import { ZERO_SALT, apiBase, isTestEnvironment } from "./pay";
+import { ZERO_SALT, apiBase } from "./pay";
 
 export type Claim = {
   invoiceId: string;
@@ -50,21 +50,9 @@ export async function ensureAccount(): Promise<{ key: StoredPasskey; info: Accou
   return { key, info: await lookupAccount(key) };
 }
 
-/** Test environments only: adds test money until the balance covers `need`. */
-export async function topUp(key: StoredPasskey, info: AccountInfo, need: bigint, onStep: (s: string) => void): Promise<AccountInfo> {
-  if (toUnits(info.balance) >= need) return info;
-  if (!isTestEnvironment(location.hostname)) throw new InvestError("insufficient");
-  onStep("Adding test funds…");
-  try {
-    await call("POST", "/relay/faucet", { address: info.address });
-  } catch (e) {
-    if (toUnits(info.balance) < need) throw e;
-  }
-  for (let i = 0; i < 25 && toUnits(info.balance) < need; i++) {
-    await sleep(2_000);
-    info = await lookupAccount(key);
-  }
-  if (toUnits(info.balance) < need) throw new InvestError("busy");
+/** Funding always comes from the investor's own USDT; no environment may request platform funds. */
+export function ensureFunded(info: AccountInfo, need: bigint): AccountInfo {
+  if (toUnits(info.balance) < need) throw new InvestError("insufficient");
   return info;
 }
 
@@ -84,7 +72,7 @@ export async function isAllowed(invoiceId: string, account: Hex): Promise<boolea
 /** Sign the purchase with the investor passkey and send it. Returns the transaction hash. */
 export async function fund(invoiceId: string, key: StoredPasskey, info: AccountInfo, onStep: (s: string) => void): Promise<string> {
   const req = await call<FundRequest>("POST", `/invest/claims/${invoiceId}/fund-request`, { account: info.address });
-  info = await topUp(key, info, toUnits(req.price), onStep);
+  info = ensureFunded(info, toUnits(req.price));
   onStep("Confirm on your device…");
   let signature: Hex;
   try {
