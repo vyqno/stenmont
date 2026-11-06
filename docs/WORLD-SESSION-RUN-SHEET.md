@@ -23,18 +23,22 @@ an approval, a completed verification or transaction evidence.
 - Preserve the merchant's existing browser/passkey session. Use the current
   isolated merchant; do not repeatedly create accounts or spend abuse allowances.
   Fresh v2 creator delegation must have been signed through the normal UI.
-- No existing funded investor passkey account is available for this session. On
-  `/invest/<invoiceId>`, the explicit **Create your investor account** action calls
-  `ensureAccount`: it reuses a checkout passkey only if one exists in that browser,
-  otherwise it creates a passkey after the device prompt and looks up its account.
-  Merely opening a page creates no passkey. `/claim/<invoiceId>` is the public
-  certificate view, not investor setup. Sir controls device authentication.
-- Read the actual newly selected investor address and stop for sir to supply at
-  least0.95 test USDT himself before purchase. A deployer EOA or merchant balance
-  is not that investor's balance. No platform transfer, faucet or automatic funding.
-  Recheck payer, investor, merchant gas tank and relayer balances immediately before
-  spending; old balance snapshots are not a promise of current funds. The buyer
-  must already own2.01 for the refund proof and1.00 for the financing payment.
+- Sir created investor passkey account `0x5317a0812B18dFF5F5103095cEa617f2D952B9CE`
+  in his own Brave profile. Preserve that profile and its site data; do not create
+  a replacement or clear the saved passkey. `/invest/<invoiceId>` is the purchase
+  page; `/claim/<invoiceId>` is the public certificate.
+- On 2026-11-07, sir explicitly authorized exactly **2.00 test USDT** from the
+  deployer to this empty investor account. The [successful transfer](https://explorer.testnet.whitechain.io/tx/0x84563250903f1d18f952e52cbbd436b0f6868ab705f4daf6eac967fcd95b0994)
+  changed its USDT balance from0 to2; WBT stayed0. This is a one-off test setup,
+  not a product funding service or permission for further transfers. The relayer
+  pays transaction gas. Recheck actual balance before the purchase.
+- The retained merchant's1.00 v2 invoice is still open, but the normal dashboard
+  listing attempt returned403 `tier_limit`: the merchant is tier2 and needs its
+  own real World verification first. No listing, investor allowlisting or
+  certificate was fabricated. The later investor World proof remains separate.
+- Recheck payer, investor, merchant gas tank and relayer balances immediately before
+  spending. The buyer must own2.01 for the refund proof and1.00 for financing;
+  verify the refund return before reusing those funds. No additional wallet funding.
 - Real merchant verification and investor World eligibility gate the dashboard
   lifecycle. Preparation can precede the human session; listing/funding/settlement
   cannot be called complete before those gates pass. Do not use an attester shortcut.
@@ -133,12 +137,12 @@ lifecycle or use the script's investor-allowlist shortcut.
    reserve, checks the quoted price0.95 / reserve0.10 / cash today0.85, then
    confirms the two genuine passkey challenges: terms and payout hook. Require
    the listed transaction and correct v2 router/claim provenance.
-4. Open `/invest/<invoiceId>` for the listed offer and press **Create your
-   investor account**. Sir completes the genuine passkey prompt. Record the public
-   account address and stop for sir to fund it with his own at least0.95 test USDT;
-   then read back its actual balance. No existing funded passkey is assumed and no
-   platform transfer is permitted. If the selected account is not allowed on the
-   actual v2 registry, **Buy** stays unavailable; record this refused gate.
+4. Sir opens `/invest/<invoiceId>` in the same Brave profile that created
+   `0x5317a0812B18dFF5F5103095cEa617f2D952B9CE`. Confirm the page selects that
+   account and read its actual balance (2.00 immediately after the authorized
+   setup transfer). Do not clear site data or create another passkey. If the
+   account differs or funds are insufficient, stop for sir. If it is not allowed
+   on the actual v2 registry, **Buy** stays unavailable; record this refused gate.
 5. Press **Verify with World ID**. Lead hands control to sir for the real
    `allow-investor` Proof of Human action. After normal verification, require the
    registry allow transaction and actual `isAllowed` readback. A displayed widget

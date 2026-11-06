@@ -280,3 +280,10 @@ Each section is a set of staging slices, using the same test-first and completio
 - [x] World session run sheet source/public-entry links checked and reported ready; actual human session remains not run.
 - [x] agent/cards integrated with corrected public-safe claims; owned cards/source folder committed as one task after independent rerender and visual review.
 - [x] Staging visual inspection:35 page templates plus retained v1 pay at1440/390;72 captures,26 affected-route rechecks and final Settings retakes. Mobile money/badge/button wraps corrected; functional World/investor acceptance remains separate.
+
+- [x] Combined agent fixes and Shopify bridge source reviewed/merged;1938 tests, lint/typecheck/build and coordinated staging API/web/MCP release passed. Strict creation exceptions retain only the two test merchants.
+- [ ] Real World session, first-use investor passkey and sir-supplied test USDT, followed by full v2 dashboard lifecycle; no attester shortcut.
+
+- [x] Sir authorized exact2.00 test-USDT investor setup; successful receipt and balance verified, no WBT transfer. Preserve sir’s Brave profile.
+- [ ] Merchant tier3 World prerequisite blocks the normal1.00 invoice listing (actual403); then investor proof/funding and full certificate journey.
+- [x] Pay-page null/zero buyer-lock label fixed with rendered regression;389 web tests and typecheck passed.
