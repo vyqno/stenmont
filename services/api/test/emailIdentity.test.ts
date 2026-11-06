@@ -20,8 +20,9 @@ it("stores a keyed hash; refuses wrong, expired and replayed codes", async () =>
   expect((await t.post("/auth/email/verify", { id, code })).status).toBe(401);
   const next = await t.post("/auth/email/start", { email: "person@example.invalid" });
   const nextId = (await next.json() as { id: string }).id;
+  const expiringCode = t.messages[1]!.text.match(/Your code is (\d{8})/)![1]!;
   t.clock.now = new Date(t.clock.now.getTime() + 600_001);
-  expect((await t.post("/auth/email/verify", { id: nextId, code })).status).toBe(401);
+  expect((await t.post("/auth/email/verify", { id: nextId, code: expiringCode })).status).toBe(401);
 });
 it("limits guesses and issue requests and requires our own origin", async () => {
   const t = fixture(); const begin = await t.post("/auth/email/start", { email: "person@example.invalid" });
@@ -48,5 +49,7 @@ it("links only with an existing passkey session; recovered dashboard access cann
   await t.db.prepare("INSERT INTO sessions(token_hash,merchant_id,passkey_id,expires_at,created_at) VALUES(?,?,?,?,?)").bind(await sha256Hex(session),"m_1","fixture-passkey","2027-01-01T00:00:00Z",t.clock.now.toISOString()).run();
   expect((await t.req("/auth/identity/link", { method:"POST", headers:{origin:t.env.APP_URL,cookie:`${identityCookie}; __Secure-stenmont_test=${session}`} })).status).toBe(200);
   expect((await t.req("/v1/me", {headers:{cookie:identityCookie}})).status).toBe(200);
+  // A revoked/expired passkey cookie must not shadow a freshly verified recovery identity.
+  expect((await t.req("/v1/me", {headers:{cookie:`${identityCookie}; __Secure-stenmont_test=${"b".repeat(64)}`}})).status).toBe(200);
   expect((await t.req("/v1/invoices", {method:"POST",headers:{origin:t.env.APP_URL,cookie:identityCookie},body:"{}"})).status).toBe(403);
 });
