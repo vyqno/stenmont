@@ -373,6 +373,10 @@ export const claims = sqliteTable(
     fundTxHash: text("fund_tx_hash"),
     closeTxHash: text("close_tx_hash"), // settle or default
     leaseUntil: integer("lease_until"), // default job: unix seconds until which one run owns this claim
+    showInvoiceNumber: integer("show_invoice_number").notNull().default(0), // 1 = the public certificate may show the invoice number (merchant's choice)
+    listedAt: text("listed_at"), // when each step happened, for the merchant's timeline and the public certificate
+    fundedAt: text("funded_at"),
+    closedAt: text("closed_at"), // settle or default
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

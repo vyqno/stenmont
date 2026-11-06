@@ -555,3 +555,28 @@ describe("defaults", () => {
     expect(markDefaultSends(settled)).toHaveLength(0);
   });
 });
+
+describe("step times (for the merchant's financing timeline)", () => {
+  const NOW_ISO = new Date(NOW_S * 1000).toISOString();
+  it("records when the listing, the purchase and the close happened", async () => {
+    const { t, b, fund } = await listed();
+    expect((await b.db.select().from(claims))[0]).toMatchObject({ listedAt: NOW_ISO, fundedAt: null, closedAt: null, showInvoiceNumber: 0 });
+    expect((await fund()).status).toBe(200);
+    expect((await b.db.select().from(claims))[0]).toMatchObject({ listedAt: NOW_ISO, fundedAt: NOW_ISO, closedAt: null });
+    t.chain.claimLogs.push({ eventName: "ClaimSettled", args: { invoiceId: INV, reserveReleased: 10_000_000n }, transactionHash: H(12), logIndex: 0, blockNumber: 12n } as ClaimLog);
+    await dbOf(t.db).delete(chainCursor);
+    await runClaimIndexer(t.env, dbOf(t.db), t.chain, new Date((NOW_S + 60) * 1000));
+    expect((await b.db.select().from(claims))[0]).toMatchObject({ status: "settled", fundedAt: NOW_ISO, closedAt: new Date((NOW_S + 60) * 1000).toISOString() });
+  });
+  it("stamps a purchase the API only learned about from the chain, and a default", async () => {
+    const { t, b } = await listed();
+    t.chain.claimLogs.push({ eventName: "ClaimFunded", args: { invoiceId: INV, investor: INVESTOR, price: 95_000_000n, advance: 85_000_000n }, transactionHash: H(10), logIndex: 0, blockNumber: 10n } as ClaimLog);
+    await dbOf(t.db).delete(chainCursor);
+    await runClaimIndexer(t.env, dbOf(t.db), t.chain, t.clock.now);
+    expect((await b.db.select().from(claims))[0]).toMatchObject({ status: "funded", fundedAt: NOW_ISO });
+    await b.db.update(claims).set({ dueDate: NOW_S - 8 * DAY });
+    t.chain.claimStates.set(INV, { status: "defaulted", received: 0n, toHolder: 10_000_000n, fundBy: 0n });
+    await runDefaults(t.env, dbOf(t.db), t.chain, t.clock.now);
+    expect((await b.db.select().from(claims))[0]).toMatchObject({ status: "defaulted", closedAt: NOW_ISO });
+  });
+});

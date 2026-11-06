@@ -314,7 +314,7 @@ investRoutes.post("/claims/:invoiceId/fund", async (c) => {
     }
     return fail(c, TANK_STATUS[sent.code], sent.code === "gas_tank_empty" || sent.code === "gas_cap_reached" ? "seller_unavailable" : sent.code, "The purchase could not be completed. Try again.");
   }
-  await db.update(claims).set({ status: "funded", investor: account, fundTxHash: sent.txHash, updatedAt: now.toISOString() }).where(eq(claims.id, row.id));
+  await db.update(claims).set({ status: "funded", investor: account, fundTxHash: sent.txHash, fundedAt: now.toISOString(), updatedAt: now.toISOString() }).where(eq(claims.id, row.id));
   await audit(db, { merchantId: row.merchantId, actor: `investor:${account}`, action: "claim.funded", payload: { invoiceId: row.invoiceId, price: row.price, txHash: sent.txHash } });
   return c.json({ status: "funded", txHash: sent.txHash, deployedAccount: deployed, claim: claimView({ ...row, status: "funded", investor: account, fundTxHash: sent.txHash }) });
 });

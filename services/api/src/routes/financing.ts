@@ -94,6 +94,10 @@ financingRoutes.post("/listings", async (c) => {
     fundTxHash: null,
     closeTxHash: null,
     leaseUntil: null,
+    showInvoiceNumber: 0,
+    listedAt: null,
+    fundedAt: null,
+    closedAt: null,
     createdAt: stamp,
     updatedAt: stamp,
   };
@@ -132,7 +136,7 @@ financingRoutes.post("/listings/:id/submit", async (c) => {
       return encodeWebAuthnSignature({ r, s, authenticatorData: x.parts.authenticatorData, clientDataJSON: x.parts.clientDataJSON });
     };
     const { txHash } = await chain.listClaim({ invoiceId: row.invoiceId as Hex, discountBps: row.discountBps, reserveBps: row.reserveBps, deadline: BigInt(row.deadline), termsSig: sig(t), hookSig: sig(hk) });
-    await db.update(claims).set({ status: "listed", listTxHash: txHash, updatedAt: c.var.now().toISOString() }).where(eq(claims.id, row.id));
+    await db.update(claims).set({ status: "listed", listTxHash: txHash, listedAt: c.var.now().toISOString(), updatedAt: c.var.now().toISOString() }).where(eq(claims.id, row.id));
     await audit(db, { merchantId: merchant.id, actor: `passkey:${t.pk.id}`, action: "claim.listed", payload: { id: row.id, invoiceId: row.invoiceId, price: row.price, discountBps: row.discountBps, reserveBps: row.reserveBps, txHash } });
     const fresh = await liveClaim(db, row.invoiceId);
     return c.json(claimView(fresh!));

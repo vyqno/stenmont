@@ -98,10 +98,10 @@ async function apply(env: Env, db: Db, log: ClaimLog, now: Date): Promise<void> 
 
   switch (log.eventName) {
     case "ClaimListed":
-      await set(row, ["pending", "sending"], { status: "listed", listTxHash: log.transactionHash });
+      await set(row, ["pending", "sending"], { status: "listed", listTxHash: log.transactionHash, listedAt: stamp });
       return;
     case "ClaimFunded":
-      await set(row, BEFORE_FUND, { status: "funded", investor: log.args.investor.toLowerCase(), fundTxHash: log.transactionHash });
+      await set(row, BEFORE_FUND, { status: "funded", investor: log.args.investor.toLowerCase(), fundTxHash: log.transactionHash, fundedAt: stamp });
       await announce(env, db, row, "funded", log.transactionHash);
       return;
     case "Transfer":
@@ -109,11 +109,11 @@ async function apply(env: Env, db: Db, log: ClaimLog, now: Date): Promise<void> 
       if (log.args.from !== "0x0000000000000000000000000000000000000000") await set(row, ["funded", "defaulted"], { investor: log.args.to.toLowerCase() });
       return;
     case "ClaimSettled":
-      await set(row, [...BEFORE_FUND, "funded"], { status: "settled", closeTxHash: log.transactionHash });
+      await set(row, [...BEFORE_FUND, "funded"], { status: "settled", closeTxHash: log.transactionHash, closedAt: stamp });
       await announce(env, db, row, "settled", log.transactionHash);
       return;
     case "ClaimDefaulted":
-      await set(row, [...BEFORE_FUND, "funded"], { status: "defaulted", closeTxHash: log.transactionHash });
+      await set(row, [...BEFORE_FUND, "funded"], { status: "defaulted", closeTxHash: log.transactionHash, closedAt: stamp });
       await announce(env, db, row, "defaulted", log.transactionHash);
       return;
     case "ClaimCancelled":
@@ -150,7 +150,7 @@ export async function runDefaults(env: Env, db: Db, chain: ChainClient, now: Dat
     const st = await chain.claimState(row.invoiceId as Hex);
     const status = st.status === "defaulted" || st.status === "settled" ? st.status : null;
     if (!status) continue;
-    const moved = await db.update(claims).set({ status, leaseUntil: null, ...(txHash ? { closeTxHash: txHash } : {}), updatedAt: now.toISOString() }).where(and(eq(claims.id, row.id), eq(claims.status, "funded"))).returning({ id: claims.id });
+    const moved = await db.update(claims).set({ status, leaseUntil: null, closedAt: now.toISOString(), ...(txHash ? { closeTxHash: txHash } : {}), updatedAt: now.toISOString() }).where(and(eq(claims.id, row.id), eq(claims.status, "funded"))).returning({ id: claims.id });
     if (moved.length > 0) {
       if (status === "defaulted") defaulted++;
       await announce(env, db, row, status, txHash);
