@@ -20,7 +20,7 @@ From building Stenmont on Whitechain Sepolia (chain 1874) with the official USDT
 - **Archive history**: the public RPC works, but one hosted Sepolia endpoint we tried had pruned history, so we kept a second provider for log reads.
 - **Reading the USDT implementation** was the only way to learn it accepts both signature forms; this should be documented.
 
-- **Test USDT supply**: every new demo payer needs USDT, so repeated end-to-end runs emptied our faucet wallet twice. We never mint our own token, because a self-minted token would not count, so we ask for more official test USDT each time.
+- **Test USDT supply**: every new demo payer needs USDT, so repeated end-to-end runs emptied our faucet wallet. We never mint our own token, because a self-minted token would not count, so we ask for more official test USDT each time.
 - **Mainnet USDT**: we could not confirm from the docs whether and when the official USDT reaches Whitechain mainnet. Our README says so instead of assuming it.
 
 ## What the docs were missing
@@ -31,7 +31,7 @@ From building Stenmont on Whitechain Sepolia (chain 1874) with the official USDT
 
 ## Found while making the kit agent-installable
 
-Not Whitechain bugs, but they cost us time and may help other builders: an OAuth-protected MCP server needs an unauthenticated `401` that carries a `resource_metadata` challenge, and a real client (the MCP Inspector) found a bug our tests had not: Cloudflare Workers' native `fetch` fails if it is called with an object as its receiver, so our MCP tool client had to preserve the call context. A regression test now pins it. An AI agent given only our public prompt and docs built a working checkout into a separate store; the order paid 1.00 test USDT on the first full run after we widened a timeout that was shorter than the chain's confirmation plus our indexing.
+Not Whitechain bugs, but they cost us time and may help other builders: an OAuth-protected MCP server needs an unauthenticated `401` that carries a `resource_metadata` challenge, and a real client (the MCP Inspector) found a bug our tests had not: Cloudflare Workers' native `fetch` fails if it is called with an object as its receiver, so our MCP tool client had to preserve the call context. A regression test now pins it. An AI agent given only our public prompt and docs built a working checkout into a separate store; the first real order failed because the generated shop gave up after eight seconds while invoice creation was still confirming; after the wait was extended a real checkout settled 1.00 test USDT.
 
 ## The improvement with the greatest impact
 
