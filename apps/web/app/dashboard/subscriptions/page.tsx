@@ -6,7 +6,11 @@ import { AuthError, api } from "../../../lib/auth";
 import { isTestEnvironment } from "../../../lib/pay";
 import { useApi } from "../../../lib/useApi";
 
-type Sub = { id: string; status: string; amount: string; periodSeconds: number; maxCharges: number; charges: number; payer: string | null; nextChargeAt: string | null; subscribeUrl: string };
+type Sub = {
+  id: string; status: string; amount: string; periodSeconds: number; maxCharges: number; charges: number; payer: string | null; nextChargeAt: string | null; subscribeUrl: string;
+  kind?: string; invoiceId?: string; payerBusinessName?: string; total?: string; atRisk?: { reason: string; since: string | null } | null;
+};
+const AT_RISK: Record<string, string> = { balance: "Customer balance is low", allowance: "Customer approval is too small" };
 
 const every = (s: number) => (s % 86_400 === 0 ? `${s / 86_400} day${s === 86_400 ? "" : "s"}` : s % 3_600 === 0 ? `${s / 3_600} hours` : `${Math.round(s / 60)} minutes`);
 const TONE: Record<string, "ok" | "wait" | "warn" | "off"> = { active: "ok", offered: "wait", past_due: "warn", cancelled: "off", completed: "off" };
@@ -79,7 +83,14 @@ export default function Subscriptions() {
             {data.data.map((s) => (
               <li key={s.id} data-testid="subscription-row" className="flex flex-wrap items-center gap-3 py-3">
                 <span className="amount font-medium">{money(s.amount)}</span>
-                <span className="text-muted">every {every(s.periodSeconds)} · {s.charges} of {s.maxCharges} charged</span>
+                {s.kind === "instalment" ? (
+                  <span className="text-muted" data-testid="instalment-summary">
+                    Pay in {s.maxCharges} · {s.payerBusinessName} · {money(s.total ?? s.amount)} total · every {every(s.periodSeconds)} · {s.charges} of {s.maxCharges} paid
+                  </span>
+                ) : (
+                  <span className="text-muted">every {every(s.periodSeconds)} · {s.charges} of {s.maxCharges} charged</span>
+                )}
+                {s.atRisk && <Badge tone="warn">At risk: {AT_RISK[s.atRisk.reason] ?? "next payment may fail"}</Badge>}
                 <Badge tone={TONE[s.status] ?? "wait"}>{s.status.replace("_", " ")}</Badge>
                 {s.nextChargeAt && <span className="text-sm text-muted">next {s.nextChargeAt.slice(0, 10)}</span>}
                 <span className="ml-auto" />

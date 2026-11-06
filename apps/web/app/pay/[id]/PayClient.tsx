@@ -23,6 +23,8 @@ type Invoice = {
   cancelUrl: string | null;
   paused?: boolean;
   trust?: Trust;
+  /** Business-to-business invoices may be paid in parts: the plan the buyer can take up instead. */
+  instalments?: { count: number; each: string; url: string } | null;
 };
 type View =
   | { kind: "loading" }
@@ -221,6 +223,11 @@ export default function PayClient({ id }: { id: string }) {
                 Pay {formatAmount(view.invoice.remaining)}
               </button>
               <p className="text-sm text-neutral-500">You&apos;ll confirm with Face ID, your fingerprint or your device PIN. Nothing to install.</p>
+              {view.invoice.instalments && (
+                <a href={view.invoice.instalments.url} className="text-sm underline" data-testid="pay-in-parts">
+                  Business buyer? Pay in {view.invoice.instalments.count} parts of {formatAmount(view.invoice.instalments.each)}
+                </a>
+              )}
               {provider && (
                 <div data-testid="wallet-option">
                   <button type="button" onClick={() => payWithWallet(view.invoice, provider)} className="rounded-lg border border-neutral-400 px-6 py-3 font-medium hover:border-black dark:hover:border-white" data-testid="pay-with-wallet">

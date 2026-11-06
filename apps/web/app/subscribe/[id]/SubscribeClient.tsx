@@ -5,7 +5,7 @@ import type { Hex } from "viem";
 import { toUnits } from "@stenmont/shared";
 import { createPasskey, loadPasskey, signDigest } from "../../../lib/passkey";
 import { ZERO_SALT, apiBase, formatAmount, friendly, isTestEnvironment } from "../../../lib/pay";
-import { cancelDigest, describePeriod, permitDigest, permitValue, subscribeDigest, type Terms } from "../../../lib/subscribe";
+import { cancelDigest, permitDigest, permitValue, planCopy, subscribeDigest, type Terms } from "../../../lib/subscribe";
 
 type View =
   | { kind: "loading" }
@@ -74,7 +74,7 @@ export default function SubscribeClient({ id }: { id: string }) {
       const permitDeadline = deadline;
       const permitSig = await signDigest(key, permitDigest(terms, info.address, { allowance: info.subscriptionAllowance, nonce: BigInt(info.permitNonce), deadline: permitDeadline }));
 
-      step("Starting your subscription…");
+      step(planCopy(terms).working);
       const payload = {
         id: terms.id,
         payer: info.address,
@@ -114,6 +114,7 @@ export default function SubscribeClient({ id }: { id: string }) {
     }
   }, []);
 
+  const copy = view.kind === "loading" || view.kind === "missing" ? null : planCopy(view.terms);
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-12" data-testid="subscribe-page">
       {view.kind === "loading" && <p role="status">Loading…</p>}
@@ -127,13 +128,15 @@ export default function SubscribeClient({ id }: { id: string }) {
       {(view.kind === "ready" || view.kind === "working") && (
         <>
           <div>
-            <p className="text-muted">Subscribe to {view.terms.merchantName}</p>
+            <p className="text-muted">{copy!.title}</p>
+            {copy!.forBusiness && <p className="mt-0.5 text-xs text-muted" data-testid="for-business">{copy!.forBusiness}</p>}
             <h1 className="amount mt-1 text-5xl font-bold tracking-tight" data-testid="amount">
               {formatAmount(view.terms.amount)}
             </h1>
             <p className="mt-2 text-muted" data-testid="schedule">
-              every {describePeriod(view.terms.periodSeconds)}, up to {view.terms.maxCharges} payments
+              {copy!.schedule}
             </p>
+            {copy!.total && <p className="mt-1 text-sm text-muted" data-testid="plan-total">{copy!.total}</p>}
           </div>
           {view.kind === "ready" && (
             <>
@@ -143,9 +146,10 @@ export default function SubscribeClient({ id }: { id: string }) {
                 </p>
               )}
               <button type="button" onClick={() => subscribe(view.terms)} className="rounded-lg bg-brand px-6 py-4 text-lg font-medium text-white">
-                Subscribe for {formatAmount(view.terms.amount)}
+                {copy!.button}
               </button>
-              <p className="text-sm text-muted">The first payment is taken now. You confirm twice with Face ID, your fingerprint or your device PIN, and you can cancel any time.</p>
+              <p className="text-sm text-muted">{copy!.consent}</p>
+              <p className="text-sm text-muted" data-testid="visibility">{copy!.visibility}</p>
             </>
           )}
           {view.kind === "working" && (
@@ -159,16 +163,16 @@ export default function SubscribeClient({ id }: { id: string }) {
       {view.kind === "active" && (
         <>
           <h1 className="text-4xl font-bold tracking-tight" data-testid={view.ended ? "cancelled" : "subscribed"}>
-            {view.ended ? "Subscription cancelled" : "You're subscribed"}
+            {view.ended ? (view.terms.kind === "instalment" ? "Payment plan stopped" : "Subscription cancelled") : copy!.done}
           </h1>
           <p className="text-lg">
             {view.ended
               ? `No more payments will be taken by ${view.terms.merchantName}.`
-              : `${view.terms.merchantName} will take ${formatAmount(view.terms.amount)} every ${describePeriod(view.terms.periodSeconds)}, at most ${view.terms.maxCharges} times.`}
+              : copy!.doneText}
           </p>
           {!view.ended && (
             <button type="button" onClick={() => cancel(view.terms)} className="self-start rounded border border-line px-4 py-2 text-sm hover:border-danger" data-testid="cancel-subscription">
-              Cancel subscription
+              {view.terms.kind === "instalment" ? "Stop the plan" : "Cancel subscription"}
             </button>
           )}
         </>

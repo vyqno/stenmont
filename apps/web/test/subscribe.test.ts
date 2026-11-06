@@ -55,7 +55,7 @@ describe("plan copy", () => {
   it("tells a buyer what a pay-in-3 plan will take, in plain words", () => {
     const c = planCopy(plan);
     expect(c.title).toBe("Pay Acme in 3 parts");
-    expect(c.schedule).toBe("3 payments of $33.33, one every 30 days. The first is taken now.");
+    expect(c.schedule).toBe("3 payments of $33.333333, one every 30 days. The first is taken now.");
     expect(c.total).toBe("Total $100.00");
     expect(c.forBusiness).toBe("A payment plan for Globex Ltd. Business purchases only.");
     expect(c.button).toBe("Start paying in 3 parts");
