@@ -49,6 +49,7 @@ export const FRIENDLY: Record<string, string> = {
   rate_limited: "Too many attempts. Please wait a minute and try again.",
   invoice_not_found: "We couldn't find this invoice.",
   invoice_not_payable: "This invoice can't be paid any more.",
+  payments_paused: "This business has paused payments for now. Please try again later.",
   gas_tank_empty: "This business can't take payments right now. Please contact them.",
   gas_cap_reached: "This business has reached today's limit. Please try again tomorrow.",
   payer_cap: "You've reached today's payment limit.",
@@ -71,3 +72,10 @@ export const FRIENDLY: Record<string, string> = {
 };
 
 export const friendly = (code: string) => FRIENDLY[code] ?? "Something went wrong. Please try again.";
+
+/** Which screen the pay page shows. A business that paused payments is "unavailable for now", not "missing". */
+export function payViewKind(invoice: { status: string; paused?: boolean }): "ready" | "paid" | "paused" | "missing" {
+  if (invoice.status === "paid") return "paid";
+  if (invoice.status !== "open" && invoice.status !== "partially_paid") return "missing";
+  return invoice.paused ? "paused" : "ready";
+}

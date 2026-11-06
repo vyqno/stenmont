@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Hex } from "viem";
 import { toUnits } from "@stenmont/shared";
 import { createPasskey, loadPasskey, signDigest } from "../../../lib/passkey";
-import { ZERO_SALT, apiBase, formatAmount, friendly, isTestEnvironment, payChallenge, routerFor } from "../../../lib/pay";
+import { ZERO_SALT, apiBase, formatAmount, friendly, isTestEnvironment, payChallenge, payViewKind, routerFor } from "../../../lib/pay";
 
 type Invoice = {
   id: string;
@@ -17,10 +17,12 @@ type Invoice = {
   payeeName?: string | null;
   successUrl: string | null;
   cancelUrl: string | null;
+  paused?: boolean;
 };
 type View =
   | { kind: "loading" }
   | { kind: "missing" }
+  | { kind: "paused"; invoice: Invoice }
   | { kind: "ready"; invoice: Invoice; notice?: string }
   | { kind: "working"; invoice: Invoice; step: string }
   | { kind: "paid"; invoice: Invoice; receipt: string | null };
@@ -50,8 +52,8 @@ export default function PayClient({ id }: { id: string }) {
       .then((invoice) => {
         if (!alive) return;
         if (!invoice) return setView({ kind: "missing" });
-        const open = invoice.status === "open" || invoice.status === "partially_paid";
-        setView(open ? { kind: "ready", invoice } : invoice.status === "paid" ? { kind: "paid", invoice, receipt: null } : { kind: "missing" });
+        const kind = payViewKind(invoice);
+        setView(kind === "ready" ? { kind, invoice } : kind === "paid" ? { kind, invoice, receipt: null } : kind === "paused" ? { kind, invoice } : { kind: "missing" });
       })
       .catch(() => alive && setView({ kind: "missing" }));
     return () => {
@@ -138,6 +140,18 @@ export default function PayClient({ id }: { id: string }) {
           <h1 className="text-2xl font-semibold">This invoice can&apos;t be paid</h1>
           <p className="text-neutral-500">It may have been paid already, cancelled, or the link may be wrong.</p>
         </>
+      )}
+
+      {view.kind === "paused" && (
+        <div data-testid="paused">
+          <h1 className="text-2xl font-semibold">Payments are temporarily unavailable</h1>
+          <p className="mt-2 text-neutral-500">{view.invoice.merchantName} has paused payments for now. Nothing was charged. Please try again later or contact them.</p>
+          {view.invoice.cancelUrl && (
+            <a className="mt-4 inline-block text-sm underline" href={view.invoice.cancelUrl}>
+              Go back to {view.invoice.merchantName}
+            </a>
+          )}
+        </div>
       )}
 
       {(view.kind === "ready" || view.kind === "working") && (
