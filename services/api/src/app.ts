@@ -1,3 +1,4 @@
+import { a2aPublicRoutes, a2aRoutes, agentAccessRoutes } from "./a2a/routes";
 import { drizzle, type DrizzleD1Database } from "drizzle-orm/d1";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -47,7 +48,7 @@ export type Db = DrizzleD1Database;
 export type Merchant = typeof merchants.$inferSelect;
 export type AppEnv = {
   Bindings: Env;
-  Variables: { db: Db; chain: ChainClient; ens: EnsClient; fetch: typeof fetch; now: () => Date; merchantId: string; merchant: Merchant };
+  Variables: { db: Db; chain: ChainClient; ens: EnsClient; fetch: typeof fetch; now: () => Date; merchantId: string; merchant: Merchant; agentScopes?: string };
 };
 export type Deps = { chain: (env: Env) => ChainClient; ens?: (env: Env) => EnsClient; now: () => Date; /** For outbound calls to World; tests pass a fake. */ fetch?: typeof fetch };
 
@@ -90,6 +91,8 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   const v1 = new Hono<AppEnv>();
   v1.use("*", requireAuth);
   v1.get("/me", (c) => c.json({ id: c.var.merchant.id, name: c.var.merchant.name }));
+  v1.route("/a2a", a2aRoutes);
+  v1.route("/agent-access", agentAccessRoutes);
   v1.route("/invoices", invoiceRoutes);
   v1.route("/invoices", installCleanupRoutes);
   v1.route("/payment-links", linkRoutes);
@@ -112,6 +115,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/import", importRoutes);
   v1.route("/import/shopify", shopifyConnectRoutes);
   app.route("/v1", v1);
+  app.route("/", a2aPublicRoutes);
   app.route("/", oauthRoutes);
   app.route("/webhooks/kyc", kycWebhookRoutes);
   app.route("/auth/world", worldAuthRoutes);
