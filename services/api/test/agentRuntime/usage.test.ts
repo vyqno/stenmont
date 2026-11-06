@@ -9,6 +9,7 @@ it("atomically reserves daily and conversation caps across concurrent requests a
  const id=holds.find(Boolean)!;
  await Promise.all([settle(db,id,1000),settle(db,id,1000)]);
  expect((await usage(db,"m",now)).daily).toBe(41000);
+ expect((await usage(db,"m",now)).estimatedMonthlyUsd).toBeCloseTo(0.1025);
  expect(await reserve(db,"m","huge","gemini",LIMITS.conversation+1,now)).toBeNull();
 });
 it("enforces monthly and fixed minute limits and isolates merchants",async()=>{

@@ -51,3 +51,12 @@ it("stores large result references and only the owning conversation can retrieve
  const page=await w.t.req(`/v1/agent/conversations/${id}/results/${ref}?offset=100`,{key:w.key});expect(page.status).toBe(200);expect((await page.json() as any).data.length).toBeLessThanOrEqual(1200);
  const other=await seedMerchant(w.t.db,"m_2","Other",`sk_test_${"b".repeat(32)}`);expect((await w.t.req(`/v1/agent/conversations/${id}/results/${ref}`,{key:other})).status).toBe(404);
 });
+it("concurrent messages on one conversation admit one provider turn",async()=>{
+ let release!:()=>void;let entered!:()=>void;const started=new Promise<void>(r=>entered=r);const wait=new Promise<void>(r=>release=r);
+ const t=setup({}, {AGENT_ENABLED:"yes",GEMINI_API_KEY:"fixture-only"},{fetch:(async()=>{entered();await wait;return Response.json({candidates:[{content:{parts:[{text:'{"text":"ok"}'}]}}],usageMetadata:{totalTokenCount:12}});}) as typeof fetch});
+ const key=await seedMerchant(t.db);const post=(path:string,body:unknown)=>t.req(path,{key,method:"POST",body:JSON.stringify(body)});
+ const {id}=await (await post("/v1/agent/conversations",{})).json() as any;
+ const first=await post(`/v1/agent/conversations/${id}/messages`,{message:"one"});await started;
+ expect((await post(`/v1/agent/conversations/${id}/messages`,{message:"two"})).status).toBe(409);release();expect(await first.text()).toContain('"text":"ok"');
+ expect((await t.db.prepare("SELECT count(*) n FROM agent_usage").first() as any).n).toBe(1);
+});

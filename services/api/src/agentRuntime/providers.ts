@@ -1,5 +1,5 @@
 export type Provider="gemini"|"anthropic"|"openai";
-export const MODELS={gemini:"gemini-3.5-flash-lite",anthropic:"claude-haiku-5-5",openai:"gpt-4.1-mini-2025-04-14"} as const;
+export const MODELS={gemini:"gemini-3.5-flash-lite",anthropic:"claude-haiku-5-5",openai:"gpt-5.4-mini-2026-03-17"} as const;
 export const OUTPUT_TOKENS=1024;
 /** Text JSON protocol keeps the executor independent of vendor function-call signatures. No dynamic URLs. */
 export async function complete(provider:Provider,key:string,system:string,prompt:string,send:typeof fetch,maxTokens=OUTPUT_TOKENS):Promise<{text:string;tokens:number|null}>{
@@ -13,7 +13,7 @@ export async function complete(provider:Provider,key:string,system:string,prompt
   body={model:MODELS.anthropic,max_tokens:maxTokens,system,messages:[{role:"user",content:prompt}]};
  }else{
   url="https://api.openai.com/v1/chat/completions";headers.authorization=`Bearer ${key}`;
-  body={model:MODELS.openai,max_tokens:maxTokens,response_format:{type:"json_object"},messages:[{role:"system",content:system},{role:"user",content:prompt}]};
+  body={model:MODELS.openai,max_completion_tokens:maxTokens,response_format:{type:"json_object"},messages:[{role:"system",content:system},{role:"user",content:prompt}]};
  }
  try{
   const r=await send(url,{method:"POST",headers,body:JSON.stringify(body),signal:AbortSignal.timeout(30000),redirect:"error"});

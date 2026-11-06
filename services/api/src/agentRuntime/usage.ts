@@ -24,5 +24,9 @@ export async function settle(db:D1Database,id:string,actual:number) {
 export async function usage(db:D1Database,merchant:string,now:Date){
  const at=now.toISOString();
  const row=await db.prepare(`SELECT COALESCE(SUM(CASE WHEN substr(created_at,1,10)=? THEN ${charged} ELSE 0 END),0) daily, COALESCE(SUM(${charged}),0) monthly FROM agent_usage WHERE merchant_id=? AND substr(created_at,1,7)=?`).bind(at.slice(0,10),merchant,at.slice(0,7)).first<{daily:number;monthly:number}>();
- return {...row!,limits:LIMITS,costLabel:"Estimated cost; provider billing is authoritative"};
+ const grouped=await db.prepare(`SELECT provider,SUM(${charged}) tokens FROM agent_usage WHERE merchant_id=? AND substr(created_at,1,7)=? GROUP BY provider`).bind(merchant,at.slice(0,7)).all<{provider:string;tokens:number}>();
+ // Conservative text estimate: charge all tokens at the standard output rate, without cache/free-tier discounts.
+ const rates:Record<string,number>={gemini:2.5,anthropic:0.5,openai:4.5};
+ const estimatedMonthlyUsd=grouped.results.reduce((sum,r)=>sum+r.tokens*(rates[r.provider]??0)/1000000,0);
+ return {...row!,limits:LIMITS,estimatedMonthlyUsd,costLabel:"Conservative estimated USD cost; provider billing is authoritative"};
 }
