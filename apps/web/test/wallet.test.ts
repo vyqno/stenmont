@@ -11,6 +11,8 @@ const INVOICE = `0x${"ab".repeat(32)}` as Hex;
 const SALT = `0x${"01".repeat(32)}` as Hex;
 const BANNED = /\b(gas|wbt|usdt|seed|chain|wallet|crypto|ethereum|token|blockchain|metamask|private key)\b/i;
 
+const withoutDomain = (t: Record<string, unknown>) => Object.fromEntries(Object.entries(t).filter(([k]) => k !== "EIP712Domain"));
+
 /** What a wallet extension does with eth_signTypedData_v4: parse the JSON and sign it. */
 function fakeWallet(opts: { chainId?: string; balance?: bigint; reject?: boolean; noSwitch?: boolean } = {}) {
   const account = privateKeyToAccount(generatePrivateKey());
@@ -36,7 +38,7 @@ function fakeWallet(opts: { chainId?: string; balance?: bigint; reject?: boolean
           return `0x${(opts.balance ?? 0n).toString(16).padStart(64, "0")}`;
         case "eth_signTypedData_v4": {
           const typed = JSON.parse(params![1] as string);
-          const { EIP712Domain: _d, ...types } = typed.types;
+          const types = withoutDomain(typed.types);
           return account.signTypedData({ domain: typed.domain, types, primaryType: typed.primaryType, message: typed.message });
         }
         default:
@@ -67,7 +69,7 @@ describe("what the wallet is asked to sign", () => {
     const typed = JSON.parse(toTypedDataV4({ ...typedArgs, account: out.payer }));
     expect(typed.types.EIP712Domain.map((f: { name: string }) => f.name)).toEqual(["name", "version", "chainId", "verifyingContract"]);
     // the digest a wallet computes equals the one the passkey path signs for the same payment
-    const { EIP712Domain: _d, ...types } = typed.types;
+    const types = withoutDomain(typed.types);
     expect(hashTypedData({ domain: typed.domain, types, primaryType: typed.primaryType, message: typed.message })).toBe(payChallenge({ account: out.payer, router: ROUTER, value: 5_000_000n, validBefore: 9_999_999_999n, invoiceId: INVOICE, salt: SALT }));
     // and the signature recovers to the account that is paying
     const recovered = await recoverTypedDataAddress({ domain: typed.domain, types, primaryType: typed.primaryType, message: { ...typed.message, value: BigInt(typed.message.value), validAfter: 0n, validBefore: BigInt(typed.message.validBefore) }, signature: out.signature });
@@ -139,7 +141,7 @@ describe("ending a subscription from a wallet", () => {
     const w = fakeWallet();
     const sig = await signWalletCancel(w.provider, w.account.address, { id: ID, manager: MANAGER, deadline: 9_999_999_999n });
     const typed = JSON.parse(w.calls.find((c) => c.method === "eth_signTypedData_v4")!.params![1] as string);
-    const { EIP712Domain: _d, ...types } = typed.types;
+    const types = withoutDomain(typed.types);
     expect(hashTypedData({ domain: typed.domain, types, primaryType: typed.primaryType, message: { id: ID, deadline: 9_999_999_999n } })).toBe(cancelDigest({ id: ID, manager: MANAGER }, 9_999_999_999n));
     const recovered = await recoverTypedDataAddress({ domain: typed.domain, types, primaryType: typed.primaryType, message: { id: ID, deadline: 9_999_999_999n }, signature: sig });
     expect(recovered.toLowerCase()).toBe(w.account.address.toLowerCase());
