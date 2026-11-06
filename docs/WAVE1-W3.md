@@ -1,6 +1,6 @@
 # Books and verifiable month snapshots
 
-Updated 2026-11-06 17:58 IST. Local implementation; staging and browser verification are still pending.
+Updated 2026-11-06 18:04 IST. Local implementation; staging and browser verification are still pending.
 
 ## What is available
 
@@ -59,3 +59,12 @@ Gas coverage is limited to recorded relayer transaction rows with measured `wbtC
 ## Integration follow-up
 
 Actual `instalment_charges` receipts are included as `instalment` cash lines mapped to their original invoice, clearly labelled replacement SubscriptionManager rail and observed receipt date. The original router invoice stays cancelled and its stored paid amount is not altered. Distinct successful agreement receipts remain distinct cash movements, while measured gas is deduplicated per transaction (including overlap with relayer rows). Unknown gas stays unknown. A matching relayer row finalized later retains the immutable charge receipt's event date, so previously booked gas is not booked again. Source observations and all queries remain merchant-scoped. Existing late adjustments remain assigned to their original eligible month when that month is later closed; they never migrate forward on subsequent previews.
+
+
+## Close/preview concurrency and source membership
+
+Each signed snapshot now contains `bookedSourceIds`, a sorted list of the exact payment, refund, financing funding/settlement and gas source keys that contributed to its ledger. This list is frozen atomically with that bundle in the single close INSERT. The next reconciliation reads these signed memberships and assigns already-booked sources to their recorded period. Timing alone never establishes that a source was included.
+
+This handles the close/preview interleaving: a close reads sources; another event arrives; a concurrent preview observes it; the close commits a snapshot without it. The missing source is absent from every signed membership, so it moves into the earliest eligible **unlocked** adjustment period even if its first observation timestamp preceded the close INSERT. Once a later close includes it, its signed membership prevents it from ever being booked again. Transaction gas source keys are stable per transaction across charge and relayer records.
+
+The regression reproduces this interleaving inside the close INSERT, verifies next-period recovery, then closes that next period and verifies no repeat in the subsequent month. Legacy closed snapshots without source membership are refused with `books_close_membership_unavailable`; inclusion cannot be inferred safely from timestamps. No Books snapshots have been deployed by this workstream, so no historical onchain or staging records were modified or re-signed.

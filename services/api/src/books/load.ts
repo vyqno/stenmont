@@ -14,7 +14,13 @@ export async function loadBooks(c:Context<AppEnv>,period:string, cutoff?:string)
   const instalments=await db.select().from(instalmentCharges).where(and(eq(instalmentCharges.merchantId,merchant),lt(instalmentCharges.observedAt,end)));
   const gas=await db.select().from(relayerTxs).where(eq(relayerTxs.merchantId,merchant));
   if ([inv,pay,ref,claim,gas,instalments].some(rows=>rows.length>20000)) throw new Error("Books source exceeds 20000 rows; narrow the source before closing");
-  const closes=await c.env.DB.prepare("SELECT period,closed_at FROM books_closes WHERE merchant_id=?").bind(merchant).all<{period:string;closed_at:string}>();
+  const closes=await c.env.DB.prepare("SELECT period,closed_at,bundle FROM books_closes WHERE merchant_id=?").bind(merchant).all<{period:string;closed_at:string;bundle:string}>();
+  const allocations=new Map<string,string>();
+  for (const row of closes.results) {
+    const members=JSON.parse(row.bundle).snapshot.bookedSourceIds;
+    if(!Array.isArray(members)) throw new Error("books_close_membership_unavailable");
+    for (const key of members) allocations.set(key,row.period);
+  }
   const closedPeriods=Object.fromEntries(closes.results.map(r=>[r.period,r.closed_at]));
   const now=c.var.now().toISOString();
   // One observation time per event, retained even when the month has not yet been closed.
@@ -39,12 +45,34 @@ export async function loadBooks(c:Context<AppEnv>,period:string, cutoff?:string)
       measuredGas.set(key,{...existing,at:r.observedAt,recordedAt:r.gasCostWbt?observed.get(`instalment-gas:${r.id}`):existing.recordedAt});
     } else if (r.gasCostWbt) measuredGas.set(key,{id:`instalment-gas:${r.id}`,txHash:r.txHash,kind:"replacement_instalment",wei:BigInt(r.gasCostWbt),at:r.observedAt,recordedAt:observed.get(`instalment-gas:${r.id}`)});
   }
-  return {period,closedPeriods,
+  const input:Input = {period,closedPeriods,
     invoices:inv.map(r=>({...r,amount:BigInt(r.amount)})),
     payments:[...pay.map(({event:r})=>({...r,value:BigInt(r.value),at:r.createdAt,recordedAt:observed.get(`pay:${r.id}`)})),
-      ...instalments.map(r=>({id:`instalment:${r.id}`,invoiceId:r.invoiceId,payer:r.payer,value:BigInt(r.amount),txHash:r.txHash,at:r.observedAt,recordedAt:observed.get(`instalment:${r.id}`),rail:"replacement_subscription" as const,agreementId:r.agreementId}))],
+      ...instalments.map(r=>({id:`instalment:${r.id}`,invoiceId:r.invoiceId,payer:r.payer,value:BigInt(r.amount),txHash:r.txHash,at:r.observedAt,recordedAt:observed.get(`instalment:${r.id}`),sourceKey:`instalment:${r.id}`,rail:"replacement_subscription" as const,agreementId:r.agreementId}))],
     refunds:ref.map(({event:r})=>({...r,to:r.toAddress,value:BigInt(r.value),at:r.createdAt,recordedAt:observed.get(`refund:${r.id}`)})),
     claims:claim.filter(r=>!r.fundedAt||r.fundedAt<end).map(r=>({...r,face:BigInt(r.face),price:BigInt(r.price),reserve:BigInt(r.reserve),fundRecordedAt:observed.get(`fund:${r.id}:${r.fundTxHash}`),closeRecordedAt:observed.get(`close:${r.id}:${r.closeTxHash}`)})),
-    gas:[...measuredGas.values()],
+    gas:[...measuredGas.values()].map(g=>({...g,sourceKey:`gas-tx:${g.txHash!.toLowerCase()}`})),
   };
+  // Booked membership wins over timing inference. A preview may observe a row after the close's source read
+  // but before its INSERT commits: absence from the signed membership must still make that row an adjustment.
+  const allocation=(key:string,at:string,recordedAt?:string)=>{
+    let bookedPeriod=allocations.get(key);
+    const sourceMonth=at.slice(0,7),close=closedPeriods[sourceMonth];
+    if (!bookedPeriod && close) {
+      if (!recordedAt || recordedAt<=close) recordedAt=new Date(Date.parse(close)+1).toISOString();
+      let candidate=recordedAt.slice(0,7)>sourceMonth?recordedAt.slice(0,7):periodBounds(sourceMonth).end.slice(0,7);
+      // No signed bundle contains this source: every already-closed candidate is unavailable, irrespective of clock order.
+      while(closedPeriods[candidate]) candidate=periodBounds(candidate).end.slice(0,7);
+      bookedPeriod=candidate;
+    }
+    return {bookedPeriod,recordedAt};
+  };
+  for(const r of input.payments) Object.assign(r,allocation(r.sourceKey??`pay:${r.id}`,r.at,r.recordedAt));
+  for(const r of input.refunds) Object.assign(r,allocation(r.sourceKey??`refund:${r.id}`,r.at,r.recordedAt));
+  for(const g of input.gas) Object.assign(g,allocation(g.sourceKey!,g.at,g.recordedAt));
+  for(const c of input.claims){
+    if(c.fundedAt){const a=allocation(`fund:${c.id}:${c.fundTxHash}`,c.fundedAt,c.fundRecordedAt);c.fundBookedPeriod=a.bookedPeriod;c.fundRecordedAt=a.recordedAt;}
+    if(c.closedAt){const a=allocation(`close:${c.id}:${c.closeTxHash}`,c.closedAt,c.closeRecordedAt);c.closeBookedPeriod=a.bookedPeriod;c.closeRecordedAt=a.recordedAt;}
+  }
+  return input;
 }
