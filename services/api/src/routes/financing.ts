@@ -1,13 +1,13 @@
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, like, ne } from "drizzle-orm";
 import { Hono } from "hono";
 import { hashTypedData, type Address, type Hex } from "viem";
 import { z } from "zod";
-import { CLAIM_LIMITS, b64urlEncode, claimDomain, claimTermsTypes, encodeWebAuthnSignature, parseDerSignature, quoteClaim, routerDomain, setHookTypes } from "@stenmont/shared";
+import { CLAIM_LIMITS, b64urlEncode, fromUnits, claimDomain, claimTermsTypes, encodeWebAuthnSignature, parseDerSignature, quoteClaim, routerDomain, setHookTypes } from "@stenmont/shared";
 import type { AppEnv } from "../app";
 import { audit } from "../audit";
 import { claimView, liveClaim } from "../claims";
 import { Rejected } from "../chain";
-import { claims, invoices } from "../db/schema";
+import { auditLog, claims, investorEnrollments, invoices, payments } from "../db/schema";
 import { fail } from "../errors";
 import { randomHex } from "../lib/crypto";
 import { idSchema, invalid } from "../lib/validation";
@@ -32,6 +32,64 @@ export const financingRoutes = new Hono<AppEnv>();
 financingRoutes.get("/listings", async (c) => {
   const rows = await c.var.db.select().from(claims).where(and(eq(claims.merchantId, c.var.merchantId), ne(claims.status, "pending"))).orderBy(desc(claims.createdAt));
   return c.json({ listings: rows.map(claimView) });
+});
+
+/** The financing timeline: for each of the merchant's financed invoices, everything each step needs to show (amounts, times, transactions). */
+financingRoutes.get("/timeline", async (c) => {
+  const { db, merchantId } = c.var;
+  const rows = await db.select().from(claims).where(and(eq(claims.merchantId, merchantId), ne(claims.status, "pending"), ne(claims.status, "sending"))).orderBy(desc(claims.createdAt));
+  const ids = rows.map((r) => r.invoiceId);
+  const invs = ids.length ? await db.select().from(invoices).where(and(eq(invoices.merchantId, merchantId), inArray(invoices.id, ids))) : [];
+  const paid = ids.length ? await db.select().from(payments).where(inArray(payments.invoiceId, ids)).orderBy(payments.blockNumber) : [];
+  const items = [];
+  for (const r of rows) {
+    const inv = invs.find((i) => i.id === r.invoiceId);
+    if (!inv) continue; // a claim whose invoice is not this merchant's is never shown
+    const view = claimView(r);
+    let investor = null;
+    if (r.investor) {
+      const [enrol] = await db.select().from(investorEnrollments).where(eq(investorEnrollments.address, r.investor));
+      // the investor's allowlist transaction is recorded in the audit log (account is already a validated lower-case address)
+      const [allow] = await db.select().from(auditLog).where(and(eq(auditLog.action, "investor.allowed"), like(auditLog.payload, `%"account":"${r.investor}"%`))).orderBy(desc(auditLog.id)).limit(1);
+      const allowTx = allow ? ((JSON.parse(allow.payload) as { txHash?: string }).txHash ?? null) : null;
+      investor = { address: r.investor, verified: !!enrol, verifiedAt: enrol?.verifiedAt ?? null, allowTx };
+    }
+    items.push({
+      claimId: r.id,
+      invoiceId: r.invoiceId,
+      invoiceNumber: inv.number,
+      invoiceStatus: inv.status,
+      status: r.status,
+      showInvoiceNumber: r.showInvoiceNumber === 1,
+      face: view.face,
+      price: view.price,
+      discount: fromUnits(BigInt(r.face) - BigInt(r.price)),
+      reserve: view.reserve,
+      advance: view.advance,
+      discountBps: r.discountBps,
+      reserveBps: r.reserveBps,
+      amountPaid: fromUnits(BigInt(inv.amountPaid)),
+      dueDate: view.dueDate,
+      fundBy: view.fundBy,
+      investor,
+      times: { listedAt: r.listedAt, fundedAt: r.fundedAt, closedAt: r.closedAt },
+      transactions: { list: r.listTxHash, fund: r.fundTxHash, close: r.closeTxHash },
+      payments: paid.filter((p) => p.invoiceId === r.invoiceId).map((p) => ({ value: fromUnits(BigInt(p.value)), txHash: p.txHash, at: p.createdAt })),
+    });
+  }
+  return c.json({ items });
+});
+
+/** The merchant's choice: may the public certificate show this invoice's number? Hidden by default. */
+financingRoutes.patch("/listings/:id", async (c) => {
+  const parsed = z.strictObject({ showInvoiceNumber: z.boolean() }).safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return invalid(c, parsed.error);
+  const { db, merchant } = c.var;
+  const [row] = await db.select().from(claims).where(and(eq(claims.id, c.req.param("id")), eq(claims.merchantId, merchant.id)));
+  if (!row || row.status === "pending" || row.status === "sending") return fail(c, 404, "not_found", "Listing not found");
+  await db.update(claims).set({ showInvoiceNumber: parsed.data.showInvoiceNumber ? 1 : 0, updatedAt: c.var.now().toISOString() }).where(eq(claims.id, row.id));
+  await audit(db, { merchantId: merchant.id, actor: `merchant:${merchant.id}`, action: "claim.public_number", payload: { id: row.id, invoiceId: row.invoiceId, show: parsed.data.showInvoiceNumber } });
+  return c.json({ id: row.id, showInvoiceNumber: parsed.data.showInvoiceNumber });
 });
 
 /**
