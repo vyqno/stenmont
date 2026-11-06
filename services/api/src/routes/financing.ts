@@ -81,7 +81,7 @@ financingRoutes.get("/timeline", async (c) => {
 });
 
 /** The merchant's choice: may the public certificate show this invoice's number? Hidden by default. */
-financingRoutes.patch("/listings/:id", async (c) => {
+financingRoutes.post("/listings/:id/public-number", async (c) => {
   const parsed = z.strictObject({ showInvoiceNumber: z.boolean() }).safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return invalid(c, parsed.error);
   const { db, merchant } = c.var;

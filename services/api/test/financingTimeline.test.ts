@@ -81,18 +81,18 @@ describe("GET /v1/financing/timeline", () => {
   });
 });
 
-describe("PATCH /v1/financing/listings/:id (show the invoice number on the public certificate)", () => {
-  const patch = (t: Awaited<ReturnType<typeof world>>["t"], key: string, id: string, body: unknown) =>
-    t.req(`/v1/financing/listings/${id}`, { method: "PATCH", key, body: JSON.stringify(body) });
+describe("POST /v1/financing/listings/:id/public-number (show the invoice number on the public certificate)", () => {
+  const post = (t: Awaited<ReturnType<typeof world>>["t"], key: string, id: string, body: unknown) =>
+    t.req(`/v1/financing/listings/${id}/public-number`, { method: "POST", key, body: JSON.stringify(body) });
 
   it("lets the business turn the invoice number on and off, and records it", async () => {
     const { t, key, db, addInvoice, addClaim } = await world();
     await addInvoice(INV, "m_1", "INV-1");
     await addClaim("cl_1", INV, "m_1");
-    expect((await patch(t, key, "cl_1", { showInvoiceNumber: true })).status).toBe(200);
+    expect((await post(t, key, "cl_1", { showInvoiceNumber: true })).status).toBe(200);
     expect((await db.select().from(claims))[0]!.showInvoiceNumber).toBe(1);
     expect((await json(await t.req(`/public/claims/${INV}`))).invoiceNumber).toBe("INV-1");
-    expect((await patch(t, key, "cl_1", { showInvoiceNumber: false })).status).toBe(200);
+    expect((await post(t, key, "cl_1", { showInvoiceNumber: false })).status).toBe(200);
     expect((await json(await t.req(`/public/claims/${INV}`))).invoiceNumber).toBeNull();
     expect((await db.select().from(auditLog)).filter((a) => a.action === "claim.public_number")).toHaveLength(2);
   });
@@ -101,10 +101,10 @@ describe("PATCH /v1/financing/listings/:id (show the invoice number on the publi
     const { t, key, key2, db, addInvoice, addClaim } = await world();
     await addInvoice(INV, "m_1", "INV-1");
     await addClaim("cl_1", INV, "m_1");
-    expect((await patch(t, key2, "cl_1", { showInvoiceNumber: true })).status).toBe(404);
+    expect((await post(t, key2, "cl_1", { showInvoiceNumber: true })).status).toBe(404);
     expect((await db.select().from(claims))[0]!.showInvoiceNumber).toBe(0);
-    expect((await patch(t, key, "cl_nope", { showInvoiceNumber: true })).status).toBe(404);
-    expect((await patch(t, key, "cl_1", { showInvoiceNumber: "yes" })).status).toBe(400);
-    expect((await patch(t, key, "cl_1", { showInvoiceNumber: true, extra: 1 })).status).toBe(400);
+    expect((await post(t, key, "cl_nope", { showInvoiceNumber: true })).status).toBe(404);
+    expect((await post(t, key, "cl_1", { showInvoiceNumber: "yes" })).status).toBe(400);
+    expect((await post(t, key, "cl_1", { showInvoiceNumber: true, extra: 1 })).status).toBe(400);
   });
 });
