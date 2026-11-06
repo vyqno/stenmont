@@ -6,6 +6,7 @@ import { listFeed, recordOrder, TOPICS } from "./mirror";
 import { receiveStenmont } from "./stenmontWebhook";
 import { createDraft, parseCartLines, registerWebhooks, sendDraftInvoice } from "./ops";
 import { numericId, toGid } from "./shopify";
+import { BUTTON_SCRIPT } from "./button";
 import { webhookSecret } from "./token";
 import { BridgeError, bearerOk, verifyShopifyHmac } from "./util";
 
@@ -25,6 +26,9 @@ export function createApp(overrides: Partial<Deps> = {}) {
   });
 
   app.get("/health", (c) => c.json({ ok: true }));
+
+  // One script tag in the shop theme: <script src="https://<bridge>/button.js" defer></script>
+  app.get("/button.js", (c) => c.body(BUTTON_SCRIPT, 200, { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=300", "x-content-type-options": "nosniff" }));
 
   // The storefront calls this from the browser, so only the shop's own origins may (CORS), and it is rate limited.
   app.use("/checkout", async (c, next) => {
