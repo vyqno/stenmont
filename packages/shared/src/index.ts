@@ -10,3 +10,4 @@ export * from "./chainAbis";
 export * from "./ens";
 export * from "./financing";
 export * from "./directory";
+export * from "./merkle";
