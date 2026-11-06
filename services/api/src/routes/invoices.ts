@@ -28,6 +28,9 @@ const createSchema = z.strictObject({
   /** Who gets paid: the business's own ENS name (resolved now) or its own payout address. Anything else is refused. */
   payTo: z.string().max(100).optional(),
   buyerMerchantId: z.string().max(80).optional(),
+  /** Tax already included in `amount`, in basis points (2000 = 20%). We store and total it for the books; we do not compute tax law. */
+  taxRate: z.number().int().min(0).max(10_000).optional(),
+  taxLabel: z.string().regex(/^[A-Za-z][A-Za-z0-9 ._-]{0,19}$/, "letters, digits, space . _ - (max 20)").optional(),
   successUrl: z.string().max(2048).optional(),
   cancelUrl: z.string().max(2048).optional(),
   metadata: z
@@ -35,6 +38,8 @@ const createSchema = z.strictObject({
     .refine((m) => Object.keys(m).length <= 10, "at most 10 keys")
     .optional(),
 });
+
+const createChecked = createSchema.refine((v) => v.taxLabel === undefined || v.taxRate !== undefined, { message: "taxLabel needs taxRate", path: ["taxLabel"] });
 
 const listSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
@@ -46,7 +51,7 @@ export const invoiceRoutes = new Hono<AppEnv>();
 invoiceRoutes.post("/", async (c) => {
   // The business can pause payments (dashboard switch): no new invoices or checkout sessions until it resumes.
   if (await isPaused(c.var.db, c.var.merchantId)) return fail(c, 403, "payments_paused", "Payments are paused for this business. Resume them in the dashboard.");
-  const parsed = createSchema.safeParse(await c.req.json().catch(() => null));
+  const parsed = createChecked.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return invalid(c, parsed.error);
   return runIdempotent(c, c.var.merchant.id, () => createInvoice(c, parsed.data));
 });
@@ -125,6 +130,8 @@ export async function createInvoice(c: Context<AppEnv>, input: CreateInvoiceInpu
       dueDate: input.dueDate ?? null,
       payeeName,
       buyerMerchantId: input.buyerMerchantId ?? null,
+      taxRateBps: input.taxRate ?? null,
+      taxLabel: input.taxRate === undefined ? null : (input.taxLabel ?? "Tax"),
       successUrl: input.successUrl ?? null,
       cancelUrl: input.cancelUrl ?? null,
       metaHash,
