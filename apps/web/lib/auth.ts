@@ -13,10 +13,10 @@ export class AuthError extends Error {
   }
 }
 
-async function call<T>(method: "GET" | "POST" | "DELETE", path: string, body?: unknown, as: "json" | "text" = "json"): Promise<T> {
+async function call<T>(method: "GET" | "POST" | "DELETE", path: string, body?: unknown, as: "json" | "text" = "json", idempotencyKey?: string): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["content-type"] = "application/json";
-  if (method === "POST" && path.startsWith("/v1/")) headers["idempotency-key"] = crypto.randomUUID();
+  if (method === "POST" && path.startsWith("/v1/")) headers["idempotency-key"] = idempotencyKey ?? crypto.randomUUID();
   const res = await fetch(apiBase(location.hostname) + path, {
     method,
     credentials: "include", // the session cookie
@@ -133,7 +133,8 @@ export const signOut = () => call<void>("POST", "/auth/logout");
 /** Calls the merchant API with the signed-in session. Throws AuthError with the server's plain-words message. */
 export const api = {
   get: <T>(path: string) => call<T>("GET", path),
-  post: <T>(path: string, body?: unknown) => call<T>("POST", path, body ?? {}),
+  /** `idempotencyKey` lets a caller reuse one key when the same request is retried, so it is applied once. */
+  post: <T>(path: string, body?: unknown, idempotencyKey?: string) => call<T>("POST", path, body ?? {}, "json", idempotencyKey),
   delete: <T>(path: string) => call<T>("DELETE", path),
   text: (path: string) => call<string>("GET", path, undefined, "text"),
 };

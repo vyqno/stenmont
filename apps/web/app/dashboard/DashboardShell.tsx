@@ -20,6 +20,7 @@ const NAV = [
   { href: "/dashboard/financing", label: "Financing" },
   { href: "/dashboard/books", label: "Books" },
   { href: "/dashboard/identity", label: "Identity" },
+  { href: "/dashboard/profile", label: "Public profile" },
   { href: "/dashboard/verification", label: "Verification" },
   { href: "/dashboard/settings", label: "Settings" },
 ];
