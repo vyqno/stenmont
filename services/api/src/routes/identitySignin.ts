@@ -27,7 +27,7 @@ identitySigninRoutes.use("*", async (c, next) => {
 identitySigninRoutes.post("/email/start", async(c) => {
   const body = z.object({ email: z.email().max(254) }).safeParse(await c.req.json().catch(()=>null));
   if(!body.success) return fail(c,400,"invalid_email","Enter a valid email address.");
-  if(!emailCodesAvailable(c.env)) return fail(c,501,"email_codes_unavailable","Email codes are not switched on yet.");
+  const secret=c.env.EMAIL_CODE_SECRET; if(!secret || !emailCodesAvailable(c.env)) return fail(c,501,"email_codes_unavailable","Email codes are not switched on yet.");
   const email=body.data.email.trim().toLowerCase(), now=c.var.now();
   const allowed=await Promise.all([hitRateLimit(c.var.db,`email:ip:${clientIp(c)??"unknown"}`,10,600,now), hitRateLimit(c.var.db,`email:address:${await sha256Hex(email)}`,3,600,now)]);
   if(allowed.some(v=>!v)) return fail(c,429,"rate_limited","Try again later.");
@@ -35,7 +35,7 @@ identitySigninRoutes.post("/email/start", async(c) => {
   // Rejection sampling avoids modulo bias for the eight-digit code.
   let n: number; do { n=crypto.getRandomValues(new Uint32Array(1))[0]!; } while(n>=4_200_000_000);
   const code=String(n%100_000_000).padStart(8,"0");
-  const hash=await hmacSha256Hex(c.env.EMAIL_CODE_SECRET,`${id}:${code}`);
+  const hash=await hmacSha256Hex(secret,`${id}:${code}`);
   await c.env.DB.prepare("INSERT INTO identity_email_codes(id,email,code_hash,expires_at) VALUES(?,?,?,?)").bind(id,email,hash,new Date(now.getTime()+TEN_MIN).toISOString()).run();
   try { await deliverEmail(c.env,email,renderEmail("email-code",{ business:"Stenmont",reference:"Sign-in",amount:"",actionUrl:`${c.env.APP_URL}/login`,code })); }
   catch { await c.env.DB.prepare("DELETE FROM identity_email_codes WHERE id=?").bind(id).run(); return fail(c,503,"email_unavailable","Email could not be sent. Try again later."); }
