@@ -93,4 +93,19 @@ describe("durable gas receipt recovery", () => {
     expect(await w.t.db.prepare("SELECT wbt_balance,spent_today_wbt FROM gas_tanks WHERE merchant_id='m_2'").first()).toEqual({wbt_balance:'4800',spent_today_wbt:'200'});
   });
 
+  it("retains an accepted payment with a lost RPC response and refuses a duplicate broadcast",async()=>{
+    const w=await world(); w.t.chain.sendTransaction=async(call)=>{w.t.chain.sent.push(call);throw Error('response lost after acceptance');};
+    expect((await w.pay()).status).toBe(504);
+    const held=await w.tank(); expect(BigInt(held!.spent_today_wbt)).toBeGreaterThan(0n);
+    expect((await w.pay()).status).toBe(409); await w.recover();
+    expect(await w.tank()).toEqual(held); expect(w.t.chain.sent).toHaveLength(1);
+    expect(await w.t.db.prepare("SELECT usdt FROM payer_usage").first()).toMatchObject({usdt:'1000000'});
+  });
+  it("keeps generic send gas held when the broadcast response is uncertain",async()=>{
+    const w=await world(); w.t.chain.sendTransaction=async(call)=>{w.t.chain.sent.push(call);throw Error('response lost after acceptance');};
+    expect(await sendFromTank({db:drizzle(w.t.db),chain:w.t.chain,now:w.t.clock.now},'m_1',{to:PAYER,data:'0x'})).toMatchObject({ok:false,code:'timeout'});
+    expect(BigInt((await w.tank())!.spent_today_wbt)).toBeGreaterThan(0n);
+    await w.recover(); expect(w.t.chain.sent).toHaveLength(1);
+  });
+
 });

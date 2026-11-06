@@ -246,9 +246,10 @@ export async function relayPay(ctx: { db: Db; chain: ChainClient; env: Env; now:
   try {
     txHash = await chain.sendTransaction({ ...call, gas: gasLimit });
   } catch (e) {
-    await release();
-    console.error("send failed", e);
-    return fail("chain_error");
+    // A failed RPC response does not prove that the network rejected the signed transaction.
+    // Keep authorization, payer allowance and gas held; retrying this authorization must not broadcast again.
+    console.error("send response uncertain; reservations stay held", e);
+    return fail("timeout");
   }
   await hold.sent(txHash, {id:rowId,payer:i.payer,value:i.value});
 

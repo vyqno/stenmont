@@ -164,7 +164,7 @@ describe("every hold is settled or released exactly once", () => {
     const rnd = mulberry32(seed * 7919);
     const MAX = 200_000n * 125n / 100n * 5_000_000_000n; // what a reservation holds
     const fate = new Map<string, "success" | "reverted" | "timeout">();
-    let n = 0;
+    let n = 0, unknownSends = 0;
     const t = setup({
       async estimateGas() {
         await tick();
@@ -173,7 +173,7 @@ describe("every hold is settled or released exactly once", () => {
       },
       async sendTransaction(call) {
         await tick();
-        if (rnd() < 0.15) throw new Error("rpc down");
+        if (rnd() < 0.15) { unknownSends++; throw new Error("rpc down"); }
         t.chain.sent.push(call);
         const h = `0x${(++n).toString(16).padStart(64, "0")}` as `0x${string}`;
         const r = rnd();
@@ -202,16 +202,16 @@ describe("every hold is settled or released exactly once", () => {
     await Promise.all(Array.from({ length: 60 }, (_, i) => pay(w, i)));
 
     const outcomes = [...fate.values()];
-    const charged = BigInt(outcomes.filter((f) => f !== "timeout").length) * COST + BigInt(outcomes.filter((f) => f === "timeout").length) * MAX;
+    const charged = BigInt(outcomes.filter((f) => f !== "timeout").length) * COST + BigInt(outcomes.filter((f) => f === "timeout").length + unknownSends) * MAX;
     const { balance, spent } = await tankOf(t);
     expect(violations).toEqual([]);
     expect(spent).toBe(charged);
     expect(balance).toBe(INITIAL - charged);
-    // nothing is left half-way: every row is finished, or is a timeout waiting to be reconciled
+    // Unknown send responses preserve pending authorization; known hashes may await receipt reconciliation.
     const open = (await t.db.prepare("select count(*) n from relayer_txs where status = 'pending'").first("n")) as number;
-    expect(open).toBe(0);
-    // a payer's allowance is kept for payments that happened (success, timeout) and given back otherwise
+    expect(open).toBe(unknownSends);
+    // Payer allowance stays held for unknown outcomes; only confirmed reverts release it.
     const used = (await t.db.prepare("select coalesce(sum(cast(usdt as integer)), 0) u from payer_usage").first("u")) as number;
-    expect(used).toBe((outcomes.filter((f) => f !== "reverted").length) * 1_000_000);
+    expect(used).toBe((outcomes.filter((f) => f !== "reverted").length + unknownSends) * 1_000_000);
   }, 60_000);
 });

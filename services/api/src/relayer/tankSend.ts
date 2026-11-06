@@ -42,9 +42,9 @@ export async function sendFromTank(ctx: { db: Db; chain: ChainClient; now: Date 
   try {
     txHash = await chain.sendTransaction({ ...call, gas: gasLimit });
   } catch (e) {
-    console.error("send failed", e);
-    await hold.release().catch((err) => console.error("gas release failed", err));
-    return { ok: false, code: "chain_error" };
+    // Unknown broadcast outcome: a transport error is not authority to refund gas or resend.
+    console.error("send response uncertain; reservation stays held", e);
+    return { ok: false, code: "timeout" };
   }
   await hold.sent(txHash);
   try {
