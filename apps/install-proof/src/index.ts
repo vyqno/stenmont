@@ -84,7 +84,7 @@ app.post("/orders/:id/checkout", async (c) => {
         cancelUrl: new URL(`/orders/${o.id}/pay`, origin).href,
         metadata: { order: o.id },
       }),
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(60000),
     });
     const result = await response.json() as { id?: string; payUrl?: string; error?: { code?: string } };
     if (!response.ok) {

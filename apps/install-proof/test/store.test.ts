@@ -55,6 +55,25 @@ describe("Stenmont checkout", () => {
     const stored = await e.ORDERS.get<{ checkoutKey: string }>(`order:${id}`, "json");
     expect(init.headers["Idempotency-Key"]).toBe(stored!.checkoutKey);
   });
+  it("waits for a confirmed invoice beyond eight seconds before redirecting", async () => {
+    vi.useFakeTimers();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), ms);
+      return controller.signal;
+    });
+    try {
+      const e = env(); const id = await buy(e);
+      vi.stubGlobal("fetch", async (_url: unknown, init: RequestInit) => {
+        await new Promise((resolve) => setTimeout(resolve, 9000));
+        init.signal?.throwIfAborted();
+        return Response.json({ id: "slow-invoice", payUrl: "https://app-staging.stenmont.com/pay/slow-invoice" });
+      });
+      const response = app.request(`/orders/${id}/checkout`, { method: "POST" }, e);
+      await vi.advanceTimersByTimeAsync(9000);
+      expect((await response).status).toBe(303);
+    } finally { timeout.mockRestore(); vi.useRealTimers(); }
+  });
   it("shows paused payments without disclosing upstream errors", async () => {
     const e = env(); const id = await buy(e);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ error: { code: "payments_paused", message: e.STENMONT_API_KEY } }, { status: 403 })));
