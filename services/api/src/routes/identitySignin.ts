@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { z } from "zod";
 import type { AppEnv } from "../app";
+import type { Env } from "../env";
 import { isAppOrigin, sessionContext } from "../auth";
 import { fail } from "../errors";
 import { clientIp } from "../lib/request";
@@ -13,6 +14,11 @@ import { establishIdentity, openIdentity } from "../identity/sessions";
 import { createOidcVerifier } from "../world/oidc";
 export const identitySigninRoutes = new Hono<AppEnv>();
 const TEN_MIN = 600_000;
+/** Codes only count as "on" when something can deliver them: live mode with the Email binding (test/local use the sink). */
+export const emailCodesAvailable = (e: Env) => !!e.EMAIL_CODE_SECRET && (["test", "local"].includes(e.ENVIRONMENT) || (e.EMAIL_MODE === "live" && !!e.EMAIL));
+export const googleAvailable = (e: Env) => !!e.GOOGLE_CLIENT_ID && !!e.GOOGLE_CLIENT_SECRET;
+// Public and secret-free: the sign-in pages use it to hide buttons that would lead nowhere.
+identitySigninRoutes.get("/methods", c => c.json({ passkey: true, emailCode: emailCodesAvailable(c.env), google: googleAvailable(c.env), wallet: true }, 200, { "cache-control": "public, max-age=60" }));
 identitySigninRoutes.use("*", async (c, next) => {
   if (!c.req.path.startsWith("/auth/email/") && c.req.path !== "/auth/identity/link") return next();
   if(c.req.method === "POST" && !isAppOrigin(c.req.header("origin"),c.env)) return fail(c,403,"csrf","Use the Stenmont app.");
@@ -21,7 +27,7 @@ identitySigninRoutes.use("*", async (c, next) => {
 identitySigninRoutes.post("/email/start", async(c) => {
   const body = z.object({ email: z.email().max(254) }).safeParse(await c.req.json().catch(()=>null));
   if(!body.success) return fail(c,400,"invalid_email","Enter a valid email address.");
-  if(!c.env.EMAIL_CODE_SECRET) return fail(c,503,"unavailable","Email sign-in is not configured.");
+  const secret=c.env.EMAIL_CODE_SECRET; if(!secret || !emailCodesAvailable(c.env)) return fail(c,501,"email_codes_unavailable","Email codes are not switched on yet.");
   const email=body.data.email.trim().toLowerCase(), now=c.var.now();
   const allowed=await Promise.all([hitRateLimit(c.var.db,`email:ip:${clientIp(c)??"unknown"}`,10,600,now), hitRateLimit(c.var.db,`email:address:${await sha256Hex(email)}`,3,600,now)]);
   if(allowed.some(v=>!v)) return fail(c,429,"rate_limited","Try again later.");
@@ -29,7 +35,7 @@ identitySigninRoutes.post("/email/start", async(c) => {
   // Rejection sampling avoids modulo bias for the eight-digit code.
   let n: number; do { n=crypto.getRandomValues(new Uint32Array(1))[0]!; } while(n>=4_200_000_000);
   const code=String(n%100_000_000).padStart(8,"0");
-  const hash=await hmacSha256Hex(c.env.EMAIL_CODE_SECRET,`${id}:${code}`);
+  const hash=await hmacSha256Hex(secret,`${id}:${code}`);
   await c.env.DB.prepare("INSERT INTO identity_email_codes(id,email,code_hash,expires_at) VALUES(?,?,?,?)").bind(id,email,hash,new Date(now.getTime()+TEN_MIN).toISOString()).run();
   try { await deliverEmail(c.env,email,renderEmail("email-code",{ business:"Stenmont",reference:"Sign-in",amount:"",actionUrl:`${c.env.APP_URL}/login`,code })); }
   catch { await c.env.DB.prepare("DELETE FROM identity_email_codes WHERE id=?").bind(id).run(); return fail(c,503,"email_unavailable","Email could not be sent. Try again later."); }
@@ -64,7 +70,7 @@ identitySigninRoutes.post("/identity/link",async(c)=>{
 });
 const flowCookie="stenmont_google_flow";
 identitySigninRoutes.get("/google/start",async(c)=>{
-  if(!c.env.GOOGLE_CLIENT_ID || !c.env.GOOGLE_CLIENT_SECRET) return fail(c,503,"unavailable","Google sign-in is not configured.");
+  if(!c.env.GOOGLE_CLIENT_ID || !c.env.GOOGLE_CLIENT_SECRET) return fail(c,501,"google_not_configured","Google sign-in is not switched on.");
   if(!await hitRateLimit(c.var.db,`google:${clientIp(c)??"unknown"}`,10,600,c.var.now())) return fail(c,429,"rate_limited","Try again later.");
   const state=randomHex(32), browser=randomHex(32),nonce=randomHex(32),verifier=randomHex(32);
   const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(verifier));

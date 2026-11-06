@@ -60,7 +60,15 @@ siteRoutes.post("/", async (c) => {
   const row = { id: crypto.randomUUID(), merchantId, url: url.url, host: url.host, platform: parsed.data.platform ?? null, token: randomHex(16), createdAt: c.var.now().toISOString() };
   await db.insert(sites).values(row);
   await audit(db, { merchantId, actor: `merchant:${merchantId}`, action: "site.registered", payload: { id: row.id, host: row.host } });
-  return c.json((await views(db, [row]))[0], 201);
+  const view = (await views(db, [row]))[0]!;
+  // First check runs in the background so the checks are not all "Not checked yet"; poll GET /v1/sites/:id for the result.
+  // ponytail: no ExecutionContext (unit tests, local) means no automatic check; "Check again" still works.
+  try {
+    c.executionCtx.waitUntil(runChecks({ db, fetch: c.var.fetch, now: c.var.now() }, row, CHECKS).catch(() => {}));
+  } catch {
+    return c.json(view, 201);
+  }
+  return c.json({ ...view, checking: true }, 201);
 });
 
 siteRoutes.get("/", async (c) => {

@@ -11,7 +11,11 @@ export const CHECKS = ["reachable", "domain", "webhook", "payment"] as const;
 export type CheckKind = (typeof CHECKS)[number];
 export type CheckResult = { ok: boolean; detail: string };
 export type SiteRow = { id: string; merchantId: string; url: string; host: string; token: string };
-type Ctx = { db: Db; fetch: typeof fetch; now: Date };
+/** `deadlineMs` caps each check as a whole (lookups and redirects included); tests shorten it. */
+type Ctx = { db: Db; fetch: typeof fetch; now: Date; deadlineMs?: number };
+/** Each check, as a whole, gets this long. The checks run side by side, so a full run takes about this long at worst. */
+export const CHECK_DEADLINE_MS = 5_000;
+const TOO_SLOW: CheckResult = { ok: false, detail: "This check took too long to answer. Try again." };
 
 export const txtRecord = (s: SiteRow) => ({ recordName: `_stenmont.${s.host}`, recordValue: `stenmont-verify=${s.token}` });
 
@@ -43,7 +47,7 @@ async function webhook(s: SiteRow, { db, fetch, now }: Ctx): Promise<CheckResult
     const res = await fetch(ep.url, {
       method: "POST",
       redirect: "manual",
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(CHECK_DEADLINE_MS),
       headers: { "content-type": "application/json", "user-agent": "Stenmont-Webhooks/1", "stenmont-signature": await signWebhook(ep.secret, body, Math.floor(now.getTime() / 1000)), "stenmont-event-id": eventId },
       body,
     });
@@ -79,7 +83,10 @@ export async function runChecks(ctx: Ctx, site: SiteRow, which: readonly CheckKi
   };
   await Promise.all(
     which.map(async (kind) => {
-      const r = await run[kind]().catch((): CheckResult => ({ ok: false, detail: "This check could not run. Try again." }));
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const slow = new Promise<CheckResult>((resolve) => { timer = setTimeout(() => resolve(TOO_SLOW), ctx.deadlineMs ?? CHECK_DEADLINE_MS); });
+      const r = await Promise.race([run[kind]().catch((): CheckResult => ({ ok: false, detail: "This check could not run. Try again." })), slow]);
+      clearTimeout(timer);
       const row = { siteId: site.id, kind, ok: r.ok ? 1 : 0, detail: r.detail, checkedAt: ctx.now.toISOString() };
       await ctx.db.insert(siteChecks).values(row).onConflictDoUpdate({ target: [siteChecks.siteId, siteChecks.kind], set: row });
     }),

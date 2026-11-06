@@ -1,6 +1,7 @@
 import { expect,it } from "vitest";
 import { setup,seedMerchant } from "../helpers/app";
 import { seedInvoice } from "../helpers/fixtures";
+import { settle } from "../../src/agentRuntime/usage";
 const fixture=(responses:unknown[])=>{let calls=0;return {get calls(){return calls},send:(async(url)=>{if(!responses[calls])throw new Error("fixture credential must stay private");const text=JSON.stringify(responses[calls++]);return Response.json(String(url).includes("openai.com")?{choices:[{message:{content:text}}],usage:{total_tokens:100}}:{candidates:[{content:{parts:[{text}]}}],usageMetadata:{totalTokenCount:100}});}) as typeof fetch};};
 async function world(responses:unknown[]=[{text:"Hello"}]){
  const f=fixture(responses),t=setup({}, {AGENT_ENABLED:"yes",GEMINI_API_KEY:"fixture-only",AGENT_KEY_SECRET:"fixture-only seal secret of sufficient length"},{fetch:f.send});const key=await seedMerchant(t.db);
@@ -37,11 +38,49 @@ it("enabled refund tools produce proposals without creating or executing request
  const reply=await w.post(`/v1/agent/conversations/${id}/messages`,{message:"Refund one"});expect(await reply.text()).toContain('"requiresConfirmation":true');
  expect((await w.t.db.prepare("SELECT count(*) n FROM refund_requests").first() as any).n).toBe(0);
 });
-it("provider failure charges the reservation once, returns generic error and unlocks conversation",async()=>{
+it("provider failure is not charged, returns a stable code and unlocks the conversation",async()=>{
  const w=await world([]);const {id}=await (await w.post("/v1/agent/conversations",{})).json() as any;
- const r=await w.post(`/v1/agent/conversations/${id}/messages`,{message:"hello"});expect(await r.text()).toContain("provider_failed");
+ const r=await w.post(`/v1/agent/conversations/${id}/messages`,{message:"hello"});const text=await r.text();expect(text).toContain('"code":"provider_failed"');expect(text).toContain("The assistant could not answer");
  expect((await w.t.db.prepare("SELECT count(*) n FROM agent_usage WHERE status='pending'").first() as any).n).toBe(0);
+ expect((await w.t.db.prepare("SELECT COALESCE(SUM(actual),0) n FROM agent_usage").first() as any).n).toBe(0);
+ expect(((await (await w.t.req("/v1/agent/usage",{key:w.key})).json()) as any).daily).toBe(0);
  expect((await w.t.db.prepare("SELECT busy FROM agent_conversations WHERE id=?").bind(id).first() as any).busy).toBe(0);
+});
+const failing=(status:number,body:string)=>{
+ const t=setup({}, {AGENT_ENABLED:"yes",GEMINI_API_KEY:"fixture-only"},{fetch:(async()=>new Response(body,{status}))as typeof fetch});
+ return seedMerchant(t.db).then(key=>({t,key}));
+};
+it.each([
+ [402,'{"error":{"code":429,"message":"Your prepayment credits are depleted. Please go to AI Studio","status":"RESOURCE_EXHAUSTED"}}',"provider_unavailable"],
+ [429,'{"error":{"status":"RESOURCE_EXHAUSTED"}}',"provider_unavailable"],
+ [400,'{"error":{"status":"RESOURCE_EXHAUSTED","message":"Quota exceeded"}}',"provider_unavailable"],
+ [500,"internal error","provider_failed"],
+ [503,"overloaded","provider_failed"],
+ [401,"API key not valid","provider_failed"],
+])("provider answering %i maps to %s, charges nothing and never leaks the body",async(status,body,code)=>{
+ const {t,key}=await failing(status,body);
+ const {id}=await (await t.req("/v1/agent/conversations",{key,method:"POST",body:"{}"})).json() as any;
+ const text=await (await t.req(`/v1/agent/conversations/${id}/messages`,{key,method:"POST",body:JSON.stringify({message:"hello"})})).text();
+ expect(text).toContain(`event: error`);expect(text).toContain(`"code":"${code}"`);expect(text).not.toContain("depleted");expect(text).not.toContain("AI Studio");
+ const rows=await t.db.prepare("SELECT status,actual FROM agent_usage").all() as any;
+ expect(rows.results).toEqual([{status:"settled",actual:0}]);
+ expect((await t.db.prepare("SELECT busy FROM agent_conversations WHERE id=?").bind(id).first() as any).busy).toBe(0);
+});
+it("a failed call cannot be settled twice: a later settle does not change the ledger",async()=>{
+ const {t,key}=await failing(402,"x");
+ const {id}=await (await t.req("/v1/agent/conversations",{key,method:"POST",body:"{}"})).json() as any;
+ await (await t.req(`/v1/agent/conversations/${id}/messages`,{key,method:"POST",body:JSON.stringify({message:"hello"})})).text();
+ const row=await t.db.prepare("SELECT id FROM agent_usage").first() as any;
+ await settle(t.db,row.id,500);
+ expect((await t.db.prepare("SELECT actual FROM agent_usage WHERE id=?").bind(row.id).first() as any).actual).toBe(0);
+});
+it("with the assistant switched off, usage still answers and says it is unavailable",async()=>{
+ const w=await world();w.t.env.AGENT_ENABLED="no";
+ const r=await w.t.req("/v1/agent/usage",{key:w.key});expect(r.status).toBe(200);
+ expect((await r.json() as any).agent).toEqual({available:false,reason:"disabled"});
+ const on=await world();expect((await (await on.t.req("/v1/agent/usage",{key:on.key})).json() as any).agent).toEqual({available:true});
+ const bare=setup({}, {AGENT_ENABLED:"yes"});const k=await seedMerchant(bare.db);
+ expect((await (await bare.req("/v1/agent/usage",{key:k})).json() as any).agent).toEqual({available:false,reason:"not_configured"});
 });
 it("stores large result references and only the owning conversation can retrieve bounded pages",async()=>{
  const w=await world([{tool:"list_invoices",arguments:{}},{text:"Here are your invoices"}]);await seedInvoice(w.t.db,"A".repeat(1800));

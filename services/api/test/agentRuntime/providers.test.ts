@@ -51,3 +51,8 @@ it.each([302,403,429,500])("Vertex Express failure %s never retries another bill
  await expect(complete("gemini","fixture-only","system","prompt",send,32,"vertex_express")).rejects.toThrow("Provider request failed");
  expect(calls).toEqual([`https://aiplatform.googleapis.com/v1/publishers/google/models/${MODELS.gemini}:generateContent`]);
 });
+
+it.each([[402,"{}","provider_unavailable"],[429,"{}","provider_unavailable"],[403,'{"status":"RESOURCE_EXHAUSTED","message":"Your prepayment credits are depleted."}',"provider_unavailable"],[500,"boom","provider_failed"],[401,"bad key","provider_failed"]] as const)("status %i carries code %s without exposing the body",async(status,body,code)=>{
+ const err=await complete("gemini","fixture-only","s","u",(async()=>new Response(body,{status})) as typeof fetch).catch(e=>e);
+ expect(err).toMatchObject({code,message:"Provider request failed. Check the key or try again."});
+});

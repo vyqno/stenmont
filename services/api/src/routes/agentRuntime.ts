@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { AppEnv } from "../app";
 import { fail } from "../errors";
 import { createTools, type Api } from "../../../mcp/src/capabilities";
-import { complete, type Provider } from "../agentRuntime/providers";
+import { complete, ProviderError } from "../agentRuntime/providers";
 import { reserve,settle,usage } from "../agentRuntime/usage";
 import { SYSTEM_PREFIX,byteTokens,context,tainted } from "../agentRuntime/context";
 import { seal,unseal } from "../lib/seal";
@@ -12,11 +12,28 @@ const provider=z.enum(["gemini","anthropic","openai"]);
 const toolNames=z.enum(["list_invoices","get_invoice","export_payments","draft_refund"]);
 const conversationSchema=z.strictObject({tools:z.array(toolNames).max(4).default(["list_invoices","get_invoice"])});
 export const agentRuntimeRoutes=new Hono<AppEnv>();
+// Stable codes the UI can switch on, each with a calm sentence. Anything not listed is `provider_failed`.
+const KNOWN=/^(usage_limit_reached|tool_not_allowed|invalid_tool_input|tool_turn_limit|agent_disabled|invalid_provider_response|provider_unavailable)$/;
+const CALM:Record<string,string>={
+ provider_unavailable:"The assistant is unavailable right now. Please try again later.",
+ provider_failed:"The assistant could not answer. Please try again.",
+ usage_limit_reached:"The assistant usage limit is reached for now.",
+ agent_disabled:"The assistant is currently unavailable.",
+};
+const calm=(code:string)=>CALM[code]??"The assistant stopped. No draft was executed.";
 agentRuntimeRoutes.use("*",async(c,next)=>{
- if(c.env.AGENT_ENABLED!=="yes")return fail(c,503,"agent_disabled","The finance assistant is currently unavailable.");
+ // The usage endpoint stays readable when the assistant is off so the page can say so instead of erroring.
+ if(c.env.AGENT_ENABLED!=="yes"){
+  if(c.req.method==="GET"&&c.req.path.endsWith("/usage"))return c.json({...await usage(c.env.DB,c.var.merchantId,c.var.now()),agent:{available:false,reason:"disabled"}});
+  return fail(c,503,"agent_disabled",calm("agent_disabled"));
+ }
  await next();
 });
-agentRuntimeRoutes.get("/usage",async c=>c.json(await usage(c.env.DB,c.var.merchantId,c.var.now())));
+agentRuntimeRoutes.get("/usage",async c=>{
+ const own=await c.env.DB.prepare("SELECT 1 FROM agent_provider_keys WHERE merchant_id=? LIMIT 1").bind(c.var.merchantId).first();
+ const agent=c.env.GEMINI_API_KEY||own?{available:true}:{available:false,reason:"not_configured"};
+ return c.json({...await usage(c.env.DB,c.var.merchantId,c.var.now()),agent});
+});
 agentRuntimeRoutes.get("/conversations",async c=>c.json({items:(await c.env.DB.prepare("SELECT id,created_at,tools FROM agent_conversations WHERE merchant_id=? ORDER BY created_at DESC LIMIT 50").bind(c.var.merchantId).all()).results}));
 agentRuntimeRoutes.post("/conversations",async c=>{
  const p=conversationSchema.safeParse(await c.req.json().catch(()=>null));if(!p.success)return fail(c,400,"invalid_input","Choose supported read or draft tools.");
@@ -41,7 +58,7 @@ agentRuntimeRoutes.post("/keys",async c=>{
   await settle(c.env.DB,hold,Math.min(1024,result.tokens??1024));
   const sealed=await seal(c.env.AGENT_KEY_SECRET,p.data.key,["agent-key/v1",c.var.merchantId,p.data.provider]);
   await c.env.DB.prepare("INSERT INTO agent_provider_keys(merchant_id,provider,sealed) VALUES(?,?,?) ON CONFLICT(merchant_id,provider) DO UPDATE SET sealed=excluded.sealed").bind(c.var.merchantId,p.data.provider,sealed).run();return c.json({provider:p.data.provider,configured:true});
- }catch{await settle(c.env.DB,hold,1024);return fail(c,502,"provider_failed","The provider could not validate that key.");}
+ }catch(e){await settle(c.env.DB,hold,0);return e instanceof ProviderError&&e.code==="provider_unavailable"?fail(c,503,"provider_unavailable",calm("provider_unavailable")):fail(c,502,"provider_failed","The provider could not validate that key.");}
 });
 agentRuntimeRoutes.delete("/keys/:provider",async c=>{
  const p=provider.safeParse(c.req.param("provider"));if(!p.success)return fail(c,400,"invalid_input","Unknown provider");
@@ -59,7 +76,7 @@ agentRuntimeRoutes.post("/conversations/:id/messages",async c=>{
  const locked=await db.prepare("UPDATE agent_conversations SET busy=1 WHERE id=? AND merchant_id=? AND busy=0 RETURNING id").bind(id,merchant).all();if(!locked.results.length)return fail(c,409,"conversation_busy","Wait for the current reply.");
  return streamSSE(c,async stream=>{
   const write=async(event:string,data:unknown)=>{await stream.writeSSE({event,data:JSON.stringify(data)});};
-  let hold:string|null=null;let heldTokens=0;
+  let hold:string|null=null;
   try{
    const history=(await db.prepare("SELECT role,content FROM agent_messages WHERE conversation_id=? ORDER BY created_at DESC,id DESC LIMIT 40").bind(id).all<{role:string;content:string}>()).results.reverse();
    let prompt=context(history,p.data.message);
@@ -75,7 +92,7 @@ agentRuntimeRoutes.post("/conversations/:id/messages",async c=>{
    for(let turn=0;turn<3;turn++){
     if(c.env.AGENT_ENABLED!=="yes")throw new Error("agent_disabled");
     const budget=byteTokens(system)+byteTokens(prompt)+1024;
-    heldTokens=budget;hold=await reserve(db,merchant,id,p.data.provider,budget,c.var.now());if(!hold)throw new Error("usage_limit_reached");
+    hold=await reserve(db,merchant,id,p.data.provider,budget,c.var.now());if(!hold)throw new Error("usage_limit_reached");
     const result=await complete(p.data.provider,key!,system,prompt,c.var.fetch,1024,c.env.GEMINI_BACKEND);
     await settle(db,hold,result.tokens!==null&&result.tokens<=budget?result.tokens:budget);hold=null;
     let answer:any;try{answer=JSON.parse(result.text);}catch{throw new Error("invalid_provider_response");}
@@ -103,9 +120,10 @@ agentRuntimeRoutes.post("/conversations/:id/messages",async c=>{
    }
    throw new Error("tool_turn_limit");
   }catch(e){
-   // Unknown provider failures charge their entire reservation: an upstream may already have billed it.
-   if(hold)await settle(db,hold,heldTokens);
-   await write("error",{code:e instanceof Error&&/^(usage_limit_reached|tool_not_allowed|invalid_tool_input|tool_turn_limit|agent_disabled|invalid_provider_response)$/.test(e.message)?e.message:"provider_failed",message:"The assistant stopped. No draft was executed."});
+   // A failed call is not counted: the row is settled once, at zero, so it frees the hold but still counts toward the per-minute rate limit.
+   if(hold)await settle(db,hold,0);
+   const code=e instanceof ProviderError?e.code:e instanceof Error&&KNOWN.test(e.message)?e.message:"provider_failed";
+   await write("error",{code,message:calm(code)});
   }finally{await db.prepare("UPDATE agent_conversations SET busy=0 WHERE id=? AND merchant_id=?").bind(id,merchant).run();}
  });
 });
