@@ -1,3 +1,5 @@
+import type { Address, Hex } from "viem";
+import { verifyWalletSignature } from "../../src/verification/siwe";
 import { Rejected, type ActivateRequest, type AllowInvestorRequest, type ChainClient, type ClaimLog, type ClaimState, type ListClaimRequest, type RefundRequest } from "../../src/chain";
 import type { Call } from "../../src/relayer/sender";
 
@@ -19,11 +21,24 @@ export function fakeChain(overrides: Partial<ChainClient> = {}) {
   const claimStates = new Map<string, ClaimState>();
   const reputation = new Map<string, { onTime: number; late: number; volume: bigint; score: number }>();
   const claimLogs: ClaimLog[] = [];
+  /** Smart-account wallets the fake chain knows: the check that decides their ERC-1271 answer. */
+  const contractWallets = new Map<string, (hash: Hex, signature: Hex) => boolean>();
   const chain: ChainClient & {
+    contractWallets: typeof contractWallets;
     calls: unknown[]; sent: Call[]; activations: ActivateRequest[]; refundsSent: RefundRequest[]; counts: typeof counts;
     listed: ListClaimRequest[]; allowedSent: AllowInvestorRequest[]; allowed: Set<string>; claimStates: Map<string, ClaimState>;
     reputation: typeof reputation; claimLogs: ClaimLog[];
   } = {
+    contractWallets,
+    async verifyWalletSignature(req) {
+      return verifyWalletSignature(
+        {
+          getCode: async (a: Address) => (contractWallets.has(a.toLowerCase()) ? ("0x6001" as Hex) : undefined),
+          isValidSignature: async (a: Address, h: Hex, s: Hex) => (contractWallets.get(a.toLowerCase())?.(h, s) ? "0x1626ba7e" : "0xffffffff"),
+        },
+        req,
+      );
+    },
     listed,
     allowedSent,
     allowed,

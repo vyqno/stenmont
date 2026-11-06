@@ -57,6 +57,8 @@ export type Env = {
   /** The Shopify app that merchants install to connect their store (read-only import). Both missing = the connect routes answer 503. */
   SHOPIFY_CLIENT_ID?: string;
   SHOPIFY_CLIENT_SECRET?: string;
+  /** Signs the sandbox KYC provider's webhooks. Test environments only: the sandbox provider is off in production and without this. */
+  KYC_MOCK_WEBHOOK_SECRET?: string;
   /** Test environments: business sign-ups (activations) per IP per hour (default 5). Each costs the platform gas. */
   ACTIVATE_IP_LIMIT?: string;
 };

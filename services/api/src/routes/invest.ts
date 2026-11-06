@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, inArray } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import { encodeFunctionData, hashTypedData, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -15,6 +15,8 @@ import { clientIp } from "../lib/request";
 import { invalid } from "../lib/validation";
 import { hitRateLimit } from "../relayer/caps";
 import { sendFromTank } from "../relayer/tankSend";
+import { loadLimits, merchantTier, refused, tierLimitResponse } from "../verification/store";
+import { checkInvestor } from "../verification/tiers";
 import { createRpContext } from "../world/rp";
 import { verifyProof } from "../world/verify";
 
@@ -155,6 +157,14 @@ investRoutes.post("/allow", async (c) => {
   if (!c.env.ATTESTER_PRIVATE_KEY) return fail(c, 503, "attestation_unavailable", "Investor approval is not available right now."); // checked first: a proof is never spent for nothing
   const { db, chain } = c.var;
   const account = parsed.data.account.toLowerCase();
+
+  // Investors must be tier 4 (identity documents): the account has to be the onchain account of a business with an approved check.
+  // Decided before the World proof is checked, so a proof is never spent on an account that cannot be allowed.
+  // The attester-signed test path in scripts/ does not come through here and is untouched.
+  const [owner] = await db.select({ id: merchants.id }).from(merchants).where(sql`lower(${merchants.address}) = ${account}`);
+  const { tier } = owner ? await merchantTier(db, owner.id, c.var.now()) : { tier: 0 as const };
+  const gate = checkInvestor(await loadLimits(db), tier);
+  if (refused(gate)) return tierLimitResponse(c, gate, tier);
 
   const v = await verifyProof(
     { fetch: c.var.fetch, baseUrl: c.env.WORLD_VERIFY_URL ?? "https://developer.world.org", rpId: c.env.WORLD_RP_ID, environment: environmentOf(c.env) },

@@ -17,6 +17,8 @@ import { assertDifferentHumans } from "../world/samehuman";
 import { ensNames, merchants } from "../db/schema";
 import { emitEvent } from "../webhooks";
 import { isPaused } from "../sites/switch";
+import { loadLimits, merchantTier, refused, tierLimitResponse, volumeToday } from "../verification/store";
+import { checkInvoice } from "../verification/tiers";
 
 const createSchema = z.strictObject({
   amount: amountSchema,
@@ -68,6 +70,11 @@ export async function createInvoice(c: Context<AppEnv>, input: CreateInvoiceInpu
       await hitRateLimit(db, "invoices:global", 20_000, 86_400, at),
     ];
     if (within.includes(false)) return fail(c, 429, "rate_limited", "Too many invoices created. Try again in a minute.");
+    // Trust tier: the per-invoice and rolling daily caps for this business's verification level.
+    // ponytail: read-then-insert, so two simultaneous creates can overshoot the daily cap by one invoice; the rate limits above bound it.
+    const { tier } = await merchantTier(db, merchant.id, at);
+    const gate = checkInvoice(await loadLimits(db), tier, toUnits(input.amount), await volumeToday(db, merchant.id, at));
+    if (refused(gate)) return tierLimitResponse(c, gate, tier);
     // An invoice between two businesses run by the same person is not a real sale: refuse it (World ID, one person one business).
     if (input.buyerMerchantId) {
       const [buyer] = await db.select({ id: merchants.id }).from(merchants).where(eq(merchants.id, input.buyerMerchantId));

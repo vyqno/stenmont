@@ -27,6 +27,8 @@ import { refundRoutes } from "./routes/refunds";
 import { siteRoutes, switchRoutes } from "./routes/siteStatus";
 import { relayRoutes } from "./routes/relay";
 import { subscriptionPublicRoutes, subscriptionRelayRoutes, subscriptionRoutes } from "./routes/subscriptions";
+import { siweRoutes } from "./routes/siwe";
+import { kycWebhookRoutes, verificationRoutes } from "./routes/verification";
 import { approvalRoutes, worldAuthRoutes, worldRoutes } from "./routes/world";
 import { webhookEndpointRoutes } from "./routes/webhookEndpoints";
 
@@ -96,6 +98,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/approvals", approvalRoutes);
   v1.route("/financing", financingRoutes);
   v1.route("/oauth", oauthGrantRoutes);
+  v1.route("/verification", verificationRoutes);
   v1.route("/sites", siteRoutes);
   v1.route("/payment-switch", switchRoutes);
   v1.route("/", catalogRoutes);
@@ -104,8 +107,10 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/import/shopify", shopifyConnectRoutes);
   app.route("/v1", v1);
   app.route("/", oauthRoutes);
+  app.route("/webhooks/kyc", kycWebhookRoutes);
   app.route("/auth/world", worldAuthRoutes);
   app.route("/auth/shopify", shopifyCallbackRoutes);
+  app.route("/auth/siwe", siweRoutes);
   app.route("/auth", authRoutes);
   app.route("/invest", investRoutes);
   app.route("/store", storePublicRoutes);
