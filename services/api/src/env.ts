@@ -33,6 +33,16 @@ export type Env = {
   USDT_ADDRESS: string;
   ROUTER_ADDRESS: string;
   ROUTER_DEPLOY_BLOCK: string;
+  /** Creation only. Unset/1 keeps v1; 2 requires explicit v2 acceptance and fresh delegation. */
+  INVOICE_DEFAULT_VERSION?: string;
+  INVOICE_CREATION_PAUSED?: string;
+  ROUTER_V2_ADDRESS?: string;
+  ROUTER_V2_DEPLOY_BLOCK?: string;
+  INVOICE_CLAIM_V2_ADDRESS?: string;
+  INVOICE_CLAIM_V2_DEPLOY_BLOCK?: string;
+  INVESTOR_REGISTRY_V2_ADDRESS?: string;
+  REPUTATION_REGISTRY_V2_ADDRESS?: string;
+  INVOICE_ACK_ADDRESS?: string;
   APP_URL: string;
   API_URL: string;
   FACTORY_ADDRESS: string;

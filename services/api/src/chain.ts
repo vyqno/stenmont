@@ -76,6 +76,7 @@ export class Rejected extends Error {
 export type Receipt = { status: "success" | "reverted"; gasUsed: bigint; effectiveGasPrice: bigint };
 
 export interface ChainClient {
+  forVersion?(version: "v1"|"v2"): ChainClient;
   /** Read-only invoice facts used before retiring an abandoned staging install. */
   invoiceState(id: Hex): Promise<{ status: number; paid: bigint; hook: Address }>;
   /** Creates the invoice onchain through the router's delegation (the relayer is the merchant's creator). Resolves after the receipt. */
