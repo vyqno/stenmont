@@ -7,7 +7,7 @@ export function IdentitySignIn({ link = false }: {link?:boolean}) {
   const router=useRouter();
   const [email,setEmail]=useState("");const [code,setCode]=useState("");const [id,setId]=useState("");
   const [verified,setVerified]=useState(false);const [busy,setBusy]=useState(false);const [notice,setNotice]=useState("");
-  useEffect(()=>{void api.get<{linked:boolean}>("/auth/identity").then(r=>{setVerified(true);if(r.linked&&!link)router.push("/dashboard");}).catch(()=>{});},[link,router]);
+  useEffect(()=>{void api.get<{linked:boolean;email:string}>("/auth/identity").then(r=>{setVerified(true);setEmail(r.email);if(r.linked&&!link)router.push("/dashboard");}).catch(()=>{});},[link,router]);
   async function submit(event:React.FormEvent) {
     event.preventDefault();setBusy(true);setNotice("");
     try {
@@ -31,6 +31,7 @@ export function IdentitySignIn({ link = false }: {link?:boolean}) {
       <button disabled={busy} className="rounded border border-line px-4 py-3">{busy?"Working…":id?"Verify code":"Send sign-in code"}</button>
       {id&&<button type="button" disabled={busy} onClick={()=>{setId("");setCode("");}}>Use another email</button>}
     </form>}
+    {verified&&<p className="text-sm">Verified email: {email}</p>}
     {verified&&link&&<button disabled={busy} onClick={connect} className="rounded border border-line px-4 py-3">Link verified identity to this business</button>}
     <button className="text-left underline" onClick={()=>router.push(`${apiBase(location.hostname)}/auth/google/start`)}>Continue with Google</button>
     {notice&&<p role="status" className="text-sm">{notice}</p>}
