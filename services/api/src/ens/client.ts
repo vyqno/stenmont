@@ -59,6 +59,8 @@ export interface EnsClient {
   grantProfileRole(a: { name: string; resolver: Address; member: Address }): Promise<Hex>;
   /** Permanently takes the registrar's rights over the payout record (it keeps the profile record). */
   lockPayout(a: { name: string; resolver: Address }): Promise<Hex>;
+  /** The ENS primary name an address has set, or null. Read-only and best effort: a lookup failure is the same as no name. */
+  primaryName(address: Address): Promise<string | null>;
   /** The address a name points to, or null when it does not resolve. */
   resolveAddress(name: string, options?: { strict: boolean }): Promise<Address | null>;
 }
@@ -178,6 +180,10 @@ export function viemEns(env: Env): EnsClient {
       const st = await reader.readContract({ address: agentRegistry, abi: ensRegistryAbi, functionName: "getState", args: [BigInt(labelhash(label))] });
       if (st.status === 2) hashes.push(await run(agentRegistry, encodeFunctionData({ abi: ensRegistryAbi, functionName: "unregister", args: [BigInt(labelhash(label))] })));
       return hashes;
+    },
+
+    async primaryName(address) {
+      return reader.getEnsName({ address }).catch(() => null);
     },
 
     async resolveAddress(name, options) {

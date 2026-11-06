@@ -25,6 +25,7 @@ import { refundRoutes } from "./routes/refunds";
 import { siteRoutes, switchRoutes } from "./routes/siteStatus";
 import { relayRoutes } from "./routes/relay";
 import { subscriptionPublicRoutes, subscriptionRelayRoutes, subscriptionRoutes } from "./routes/subscriptions";
+import { siweRoutes } from "./routes/siwe";
 import { kycWebhookRoutes, verificationRoutes } from "./routes/verification";
 import { approvalRoutes, worldAuthRoutes, worldRoutes } from "./routes/world";
 import { webhookEndpointRoutes } from "./routes/webhookEndpoints";
@@ -104,6 +105,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.route("/", oauthRoutes);
   app.route("/webhooks/kyc", kycWebhookRoutes);
   app.route("/auth/world", worldAuthRoutes);
+  app.route("/auth/siwe", siweRoutes);
   app.route("/auth", authRoutes);
   app.route("/invest", investRoutes);
   app.route("/store", storePublicRoutes);

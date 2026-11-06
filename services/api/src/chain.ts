@@ -3,6 +3,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { MULTICALL3_ADDRESS, USDT_ADDRESS, investorRegistryAbi, invoiceClaimAbi, multicall3Abi, passkeyAccountFactoryAbi, paymentRouterAbi, reputationRegistryAbi, subscriptionManagerAbi, usdtAbi, whitechainSepolia } from "@stenmont/shared";
 import type { Env } from "./env";
 import type { Call } from "./relayer/sender";
+import { verifyWalletSignature } from "./verification/siwe";
 
 export type CreateInvoiceRequest = {
   merchant: Address;
@@ -97,6 +98,8 @@ export interface ChainClient {
   getClaimLogs(fromBlock: bigint, toBlock: bigint): Promise<ClaimLog[]>;
   getBlockNumber(): Promise<bigint>;
   getRouterLogs(fromBlock: bigint, toBlock: bigint): Promise<RouterLog[]>;
+  /** Did this address sign this message (EIP-191)? Ordinary wallets by recovery; smart accounts through ERC-1271 on this chain. */
+  verifyWalletSignature(req: { address: Address; message: string; signature: Hex }): Promise<boolean>;
   // relayer
   hasCode(address: Address): Promise<boolean>;
   passkeyAddress(qx: Hex, qy: Hex, salt: Hex): Promise<Address>;
@@ -282,6 +285,15 @@ export function viemChain(env: Env): ChainClient {
       const code = await publicClient.getCode({ address });
       return !!code && code !== "0x";
     },
+    verifyWalletSignature: (req) =>
+      verifyWalletSignature(
+        {
+          getCode: (address) => publicClient.getCode({ address }),
+          isValidSignature: (address, hash, signature) =>
+            publicClient.readContract({ address, abi: [{ type: "function", name: "isValidSignature", stateMutability: "view", inputs: [{ type: "bytes32" }, { type: "bytes" }], outputs: [{ type: "bytes4" }] }] as const, functionName: "isValidSignature", args: [hash, signature] }),
+        },
+        req,
+      ),
     passkeyAddress: (qx, qy, salt) =>
       publicClient.readContract({ address: env.FACTORY_ADDRESS as Address, abi: passkeyAccountFactoryAbi, functionName: "getAddress", args: [qx, qy, salt] }),
     usdtNonce: (address) => publicClient.readContract({ address: USDT_ADDRESS, abi: usdtAbi, functionName: "nonces", args: [address] }),
