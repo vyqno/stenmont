@@ -31,10 +31,10 @@ The first shop order `b181e50ef71e` left invoice `0x6afa7aa8e936d566eaf85d8f41b1
 
 - Site reachability: passed, HTTP 200.
 - Signed webhook probe: passed, HTTP 200 after signature verification.
-- Domain TXT: pending operator action; the Cloudflare login has zone-read permission but no DNS-write permission.
+- Domain TXT: passed after sir added the record; DNS lookup and all four stored checks were confirmed on 2026-11-06 at 16:34 IST.
 - Indexed paid invoice and signed-webhook order fulfilment: passed; the real store order page reports **Paid** after delivery.
-- Current real-browser result: **3 of 4 checks passed**.
-- Four green checks: **not yet achieved**. Do not proceed past Part V F2 on a claim that this gate passed.
+- Current real-browser result: **Ready**, with each of the four checks marked Passed.
+- Part V F2 acceptance gate: passed. Inspector OAuth and the real prompt-install payment/webhook checks are complete.
 
 Required TXT name: `_stenmont.install-proof-staging.stenmont.com`; value: `stenmont-verify=19a639ff77a0a7f80e00c8e8edc77fe7`.
 
