@@ -22,11 +22,19 @@ This is the exported original demo store with its fake payment endpoint removed.
 - After sir added the TXT record, the Connect panel showed Ready with all four checks passed. The real order page reports Paid. Further evidence is recorded in `docs/INSTALL-ACCEPTANCE.md`.
 - The first checkout timed out at eight seconds, leaving an unpaid `creating` invoice and in-progress retry key. One separate diagnostic invoice is also unpaid. No funds were sent to either. A regression test failed before extending the storefront wait to 60 seconds and passed afterward.
 
-Do not claim four green checks until the real panel reports them. Closing a request can still leave an API idempotency operation unfinished; durable recovery of abandoned invoice creation remains separate work. The test store does not repair or rewrite API database state.
+The original request can still be abandoned; maintenance now fails it safely rather than pretending it completed. The store calls the authenticated staging API cleanup path, which checks age, chain payment/financing state, in-flight payment records and the exact original creation fingerprint before releasing a reservation. No manual database edits are needed.
+
+## Stale installation records
+
+The staging-only policy expires unpaid hosted invoices after 15 minutes and fails stuck creation after 10 minutes. The staging Worker runs the same maintenance function every 15 minutes. An operator may POST `{"invoiceIds":["<id>"]}` to `/maintenance/cleanup` using the installed server key in a Bearer header; never put the key in shell arguments or chat. The endpoint returns 401 without authorization.
+
+Only this store's invoices are eligible; paid/settled, partially paid, financed and in-flight payment records are protected. Orders, bindings and per-invoice cleanup audit records are retained. Retired checkout returns 410; signed paid markers always win. Lost API responses or KV writes are repaired on retry. Expiry is local hosted-checkout expiry, not onchain cancellation.
+
+The two authorized unpaid records were processed and the paid proof retained. Exact IDs, transitions, retry result and limitations are recorded in `docs/COMBINED-STAGING-ACCEPTANCE.md`.
 
 ## Validation and limitations
 
-Run `npm test` and `npm run lint`. All 37 local tests pass. Local tests mock the invoice API and in-memory storage; they exercise invalid/old/future signatures, raw-body tampering, rotated signatures, duplicate delivery, site.test, server prices, paused errors, saved checkout-key reuse after timeouts and double clicks, early webhook retry, invoice/amount mismatches, exact integer comparison and the redirect path. They do not prove deployed bindings, DNS, API authentication or passkey settlement.
+Run `npm test` and `npm run lint`. All 57 local tests pass. Local tests mock the invoice API and in-memory storage; they exercise invalid/old/future signatures, raw-body tampering, rotated signatures, duplicate delivery, site.test, server prices, paused errors, saved checkout-key reuse after timeouts and double clicks, early webhook retry, invoice/amount mismatches, exact integer comparison and the redirect path. They do not prove deployed bindings, DNS, API authentication or passkey settlement.
 
 The exported baseline extended an absent monorepo tsconfig; this copy has a standalone strict config. The isolated workspace package uses the same library families as the original demo. Workers KV is inherited from the demo and eventually consistent: a return page can briefly show pending after a webhook. Order creation writes immutable order data including the saved checkout UUID; the invoice binding and paid marker live in separate keys so late concurrent checkout responses cannot overwrite payment status. All concurrent invoice requests share the order's UUID and rely on the provider's idempotency contract. This remains a demo store, with no production shipping/fulfilment pipeline.
 
