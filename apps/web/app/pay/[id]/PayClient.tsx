@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { Hex } from "viem";
 import { toUnits } from "@stenmont/shared";
+import { Logo } from "../../../components/Logo";
 import FundingHelp from "../../../components/FundingHelp";
 import { ACCOUNT_COPY, accountUrl, saveAccountToken } from "../../../lib/account";
 import { createPasskey, loadPasskey, signDigest } from "../../../lib/passkey";
@@ -170,19 +171,20 @@ export default function PayClient({ id }: { id: string }) {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-12" data-testid="pay-page">
+      <p className="mb-4 text-xl"><Logo /></p>
       {view.kind === "loading" && <p role="status">Loading…</p>}
 
       {view.kind === "missing" && (
         <>
           <h1 className="text-2xl font-semibold">This invoice can&apos;t be paid</h1>
-          <p className="text-neutral-500">It may have been paid already, cancelled, or the link may be wrong.</p>
+          <p className="text-muted">It may have been paid already, cancelled, or the link may be wrong.</p>
         </>
       )}
 
       {view.kind === "paused" && (
         <div data-testid="paused">
           <h1 className="text-2xl font-semibold">Payments are temporarily unavailable</h1>
-          <p className="mt-2 text-neutral-500">{view.invoice.merchantName} has paused payments for now. Nothing was charged. Please try again later or contact them.</p>
+          <p className="mt-2 text-muted">{view.invoice.merchantName} has paused payments for now. Nothing was charged. Please try again later or contact them.</p>
           {view.invoice.cancelUrl && (
             <a className="mt-4 inline-block text-sm underline" href={view.invoice.cancelUrl}>
               Go back to {view.invoice.merchantName}
@@ -194,9 +196,9 @@ export default function PayClient({ id }: { id: string }) {
       {(view.kind === "ready" || view.kind === "working") && (
         <>
           <div>
-            <p className="text-neutral-500">Pay {view.invoice.merchantName}</p>
+            <p className="text-muted">Pay {view.invoice.merchantName}</p>
             {view.invoice.payeeName && (
-              <p className="mt-0.5 text-xs text-neutral-500" data-testid="payee-name">
+              <p className="mt-0.5 text-xs text-muted" data-testid="payee-name">
                 Paying {view.invoice.payeeName}
               </p>
             )}
@@ -204,29 +206,29 @@ export default function PayClient({ id }: { id: string }) {
             <h1 className="mt-1 text-5xl font-semibold tracking-tight" data-testid="amount">
               {formatAmount(view.invoice.remaining)}
             </h1>
-            <p className="mt-2 text-sm text-neutral-500">Invoice {view.invoice.number}</p>
+            <p className="mt-2 text-sm text-muted">Invoice {view.invoice.number}</p>
           </div>
           {view.kind === "ready" && (
             <>
               {view.notice && (
-                <p role="alert" data-testid="notice" className="rounded-md bg-red-50 p-3 text-sm text-red-800">
+                <p role="alert" data-testid="notice" className="rounded-md border border-danger p-3 text-sm text-danger">
                   {view.notice}
                 </p>
               )}
               <button
                 type="button"
                 onClick={() => pay(view.invoice)}
-                className="rounded-lg bg-black px-6 py-4 text-lg font-medium text-white hover:bg-neutral-800"
+                className="rounded-lg bg-foreground px-6 py-4 text-lg font-medium text-white hover:bg-neutral-800"
               >
                 Pay {formatAmount(view.invoice.remaining)}
               </button>
-              <p className="text-sm text-neutral-500">You&apos;ll confirm with Face ID, your fingerprint or your device PIN. Nothing to install.</p>
+              <p className="text-sm text-muted">You&apos;ll confirm with Face ID, your fingerprint or your device PIN. Nothing to install.</p>
               {provider && (
                 <div data-testid="wallet-option">
-                  <button type="button" onClick={() => payWithWallet(view.invoice, provider)} className="rounded-lg border border-neutral-400 px-6 py-3 font-medium hover:border-black" data-testid="pay-with-wallet">
+                  <button type="button" onClick={() => payWithWallet(view.invoice, provider)} className="rounded-lg border border-control px-6 py-3 font-medium hover:border-black" data-testid="pay-with-wallet">
                     {WALLET_COPY.button}
                   </button>
-                  <p className="mt-1 text-sm text-neutral-500">{WALLET_COPY.hint}</p>
+                  <p className="mt-1 text-sm text-muted">{WALLET_COPY.hint}</p>
                 </div>
               )}
               <FundingHelp />
@@ -264,12 +266,12 @@ export default function PayClient({ id }: { id: string }) {
             </a>
           )}
           {view.keepLink && (
-            <div className="rounded-lg border border-neutral-300 p-4 text-sm" data-testid="keep-link">
+            <div className="rounded-lg border border-line p-4 text-sm" data-testid="keep-link">
               <p className="font-medium">{ACCOUNT_COPY.keep}</p>
               <a className="mt-1 block break-all underline" href={view.keepLink} data-testid="keep-link-url">
                 {view.keepLink.split("#")[0]}
               </a>
-              <p className="mt-1 text-neutral-500">{ACCOUNT_COPY.keepHint}</p>
+              <p className="mt-1 text-muted">{ACCOUNT_COPY.keepHint}</p>
             </div>
           )}
         </>
@@ -283,17 +285,17 @@ function TrustBadge({ trust }: { trust?: Trust }) {
   const t = describeTrust(trust);
   if (!t) return null;
   return (
-    <div className="mt-3 rounded-md border border-neutral-200 p-3 text-sm" data-testid="trust-badge">
-      <p className={t.verified ? "font-medium" : "text-neutral-500"}>{t.headline}</p>
+    <div className="mt-3 rounded-md border border-line p-3 text-sm" data-testid="trust-badge">
+      <p className={t.verified ? "font-medium" : "text-muted"}>{t.headline}</p>
       {t.proofs.length > 0 && (
-        <ul className="mt-1 list-disc pl-5 text-neutral-500">
+        <ul className="mt-1 list-disc pl-5 text-muted">
           {t.proofs.map((p) => (
             <li key={p}>{p}</li>
           ))}
         </ul>
       )}
-      {t.level && <p className="mt-1 text-xs text-neutral-500">{t.level}</p>}
-      {t.note && <p className="mt-1 text-xs text-neutral-500">{t.note}</p>}
+      {t.level && <p className="mt-1 text-xs text-muted">{t.level}</p>}
+      {t.note && <p className="mt-1 text-xs text-muted">{t.note}</p>}
     </div>
   );
 }

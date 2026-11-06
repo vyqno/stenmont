@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Hex } from "viem";
+import { Logo } from "../../components/Logo";
 import FundingHelp from "../../components/FundingHelp";
 import { ACCOUNT_COPY, fetchSummary, loadAccountToken, saveAccountToken, statusLabel, tokenFromHash, type Summary } from "../../lib/account";
 import { loadPasskey, signDigest } from "../../lib/passkey";
@@ -75,6 +76,7 @@ export default function AccountClient() {
 
   return (
     <main className="mx-auto min-h-screen max-w-2xl space-y-8 px-6 py-12" data-testid="account-page">
+      <p className="mb-8 text-xl"><Logo /></p>
       <header>
         <h1 className="text-3xl font-semibold tracking-tight">{ACCOUNT_COPY.title}</h1>
         <p className="mt-1 text-muted">{ACCOUNT_COPY.intro}</p>

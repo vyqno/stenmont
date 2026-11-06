@@ -18,7 +18,7 @@ export default function Home() {
         <section className="hero marketing-container">
           <p className="eyebrow">The agentic business kit.</p>
           <h1 aria-label="Get paid the day you invoice.">
-            <span>Get paid <BrandScene scene="dispatch" className="hero-chip" /> the day</span>
+            <span>Get paid <BrandScene scene="dispatch" className="hero-chip" /> the day</span>{" "}
             <span>you <BrandScene scene="invoice" className="hero-chip" /> invoice.</span>
           </h1>
           <div className="hero-bottom">

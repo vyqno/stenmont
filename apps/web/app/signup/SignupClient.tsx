@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Logo } from "../../components/Logo";
 import { IdentitySignIn } from "../../components/IdentitySignIn";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -29,7 +30,8 @@ export default function SignupClient() {
   if (apiKey) {
     return (
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-12">
-        <h1 className="text-2xl font-semibold">You&apos;re in</h1>
+        <Link href="/" aria-label="Stenmont home" className="mb-6 text-3xl"><Logo /></Link>
+      <h1 className="text-2xl font-semibold">You&apos;re in</h1>
         <p>This is your API key. It is shown once, so copy it somewhere safe before you continue.</p>
         <code data-testid="api-key" className="break-all rounded border border-current/20 p-3 text-sm">
           {apiKey}
@@ -43,6 +45,7 @@ export default function SignupClient() {
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-12">
+      <Link href="/" aria-label="Stenmont home" className="mb-6 text-3xl"><Logo /></Link>
       <h1 className="text-2xl font-semibold">Create your business</h1>
       <p>No password and no code to type. Your device asks for your fingerprint, face or PIN, twice.</p>
       <form onSubmit={submit} className="flex flex-col gap-4">
