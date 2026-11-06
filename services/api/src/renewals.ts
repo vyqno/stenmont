@@ -5,6 +5,7 @@ import { subscriptionManagerAbi } from "@stenmont/shared";
 import type { Db } from "./app";
 import type { ChainClient } from "./chain";
 import { invoices, subscriptions } from "./db/schema";
+import { readAgreementState } from "./instalments";
 import { audit } from "./audit";
 import type { Env } from "./env";
 import { sendFromTank } from "./relayer/tankSend";
@@ -16,10 +17,13 @@ const MAX_ATTEMPTS = 3;
 const BATCH = 25;
 
 /** A plan may only charge while its invoice is still unpaid and open. */
-async function invoiceStillOpen(db: Db, invoiceId: string | null): Promise<boolean> {
+async function invoiceStillOpen(db: Db, chain: ChainClient, sub: typeof subscriptions.$inferSelect): Promise<boolean> {
+  const invoiceId = sub.invoiceId;
   if (!invoiceId) return false;
-  const [inv] = await db.select({ status: invoices.status }).from(invoices).where(eq(invoices.id, invoiceId));
-  return inv?.status === "open";
+  const [inv] = await db.select().from(invoices).where(eq(invoices.id, invoiceId));
+  if (!inv || inv.status === "paid" || !sub.total) return false;
+  const state = await chain.invoiceState(invoiceId as Hex);
+  return state.status === 3 && state.hook === "0x0000000000000000000000000000000000000000" && BigInt(inv.amount) - state.paid === BigInt(sub.total);
 }
 
 /**
@@ -39,7 +43,7 @@ export async function runRenewals(env: Env, db: Db, chain: ChainClient, now: Dat
   let failed = 0;
 
   for (const sub of due) {
-    if (sub.kind === "instalment" && !(await invoiceStillOpen(db, sub.invoiceId))) {
+    if (sub.kind === "instalment" && !(await invoiceStillOpen(db, chain, sub))) {
       // The invoice was paid or cancelled another way: another charge would be a second payment, so the plan stops here.
       await db.update(subscriptions).set({ status: "cancelled", updatedAt: now.toISOString() }).where(and(eq(subscriptions.id, sub.id), eq(subscriptions.status, "active")));
       await audit(db, { merchantId: sub.merchantId, actor: "system", action: "instalment.superseded", payload: { id: sub.id, invoiceId: sub.invoiceId } });
@@ -52,12 +56,18 @@ export async function runRenewals(env: Env, db: Db, chain: ChainClient, now: Dat
       .where(and(eq(subscriptions.id, sub.id), eq(subscriptions.status, "active"), or(isNull(subscriptions.retryAt), lte(subscriptions.retryAt, nowS))))
       .returning({ id: subscriptions.id });
     if (leased.length === 0) continue;
-    const data = encodeFunctionData({ abi: subscriptionManagerAbi, functionName: "charge", args: [sub.id as Hex] });
+    const before = sub.segments ? await readAgreementState(chain, sub) : null;
+    if (before && (before.status !== "active" || before.nextCharge > BigInt(nowS))) {
+      await db.update(subscriptions).set({ charges: before.charges, nextChargeAt: Number(before.nextCharge), status: before.status, retryAt: null }).where(eq(subscriptions.id, sub.id));
+      continue;
+    }
+    const chargeId = before?.chargeId ?? sub.id;
+    const data = encodeFunctionData({ abi: subscriptionManagerAbi, functionName: "charge", args: [chargeId as Hex] });
     const sent = await sendFromTank({ db, chain, now }, sub.merchantId, { to: env.SUBSCRIPTION_MANAGER_ADDRESS as Address, data });
     const stamp = now.toISOString();
 
     const resync = async () => {
-      const st = await chain.subscriptionState(sub.id as Hex);
+      const st = sub.segments ? await readAgreementState(chain, sub) : await chain.subscriptionState(sub.id as Hex);
       const status = st.status === "completed" ? "completed" : st.status === "cancelled" ? "cancelled" : sub.status;
       await db.update(subscriptions).set({ charges: st.charges, nextChargeAt: Number(st.nextCharge), status, failedAttempts: 0, retryAt: null, atRiskReason: null, atRiskAt: null, updatedAt: stamp }).where(eq(subscriptions.id, sub.id));
       return { st, status };
@@ -67,7 +77,7 @@ export async function runRenewals(env: Env, db: Db, chain: ChainClient, now: Dat
       const { st, status } = await resync();
       charged++;
       if (sub.kind === "instalment") {
-        const part = { id: sub.id, invoiceId: sub.invoiceId, number: st.charges, of: sub.maxCharges, amount: fromUnits(BigInt(sub.amount)), status, payer: sub.payer };
+        const part = { id: sub.id, invoiceId: sub.invoiceId, number: st.charges, of: sub.maxCharges, amount: fromUnits(BigInt(before?.amount ?? sub.amount)), status, payer: sub.payer };
         await emitEvent(db, env.WEBHOOKS, sub.merchantId, { id: `evt_inst_${sub.id}_${st.charges}`, type: "instalment.charged", data: { instalment: part, txHash: sent.txHash } });
         if (status === "completed") await emitEvent(db, env.WEBHOOKS, sub.merchantId, { id: `evt_inst_done_${sub.id}`, type: "instalment.completed", data: { instalment: part, total: fromUnits(BigInt(sub.total ?? "0")) } });
         continue;

@@ -173,6 +173,8 @@ export const subscriptions = sqliteTable("subscriptions", {
   payerBusinessName: text("payer_business_name"),
   /** The invoice amount the plan covers (base units). The contract charges `amount` each time; the difference is rounding. */
   total: text("total"),
+  /** Fixed-amount agreements for remainder-first plans; null for an evenly split plan. */
+  segments: text("segments"),
   /** Set one day ahead of a charge the payer cannot cover (balance | allowance); cleared when the charge goes through. */
   atRiskReason: text("at_risk_reason"),
   atRiskAt: text("at_risk_at"),

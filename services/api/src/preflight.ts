@@ -5,6 +5,7 @@ import type { Db } from "./app";
 import type { ChainClient } from "./chain";
 import { subscriptions } from "./db/schema";
 import type { Env } from "./env";
+import { readAgreementState } from "./instalments";
 import { emitEvent } from "./webhooks";
 
 const AHEAD_SECONDS = 86_400;
@@ -29,9 +30,10 @@ export async function runPreflight(env: Env, db: Db, chain: ChainClient, now: Da
   for (const sub of rows) {
     if (!sub.payer) continue;
     checked++;
-    const amount = BigInt(sub.amount);
+    let amount = BigInt(sub.amount);
     let reason: "balance" | "allowance" | null;
     try {
+      if (sub.segments) amount = BigInt((await readAgreementState(chain, sub)).amount);
       const [balance, allowance] = await Promise.all([chain.usdtBalance(sub.payer as Address), chain.usdtAllowance(sub.payer as Address, env.SUBSCRIPTION_MANAGER_ADDRESS as Address)]);
       reason = balance < amount ? "balance" : allowance < amount ? "allowance" : null;
     } catch (e) {

@@ -7,7 +7,7 @@ import type { AppEnv } from "../app";
 import { audit } from "../audit";
 import { claimView, liveClaim } from "../claims";
 import { Rejected } from "../chain";
-import { auditLog, claims, investorEnrollments, invoices, payments } from "../db/schema";
+import { auditLog, claims, investorEnrollments, invoices, payments, subscriptions } from "../db/schema";
 import { fail } from "../errors";
 import { randomHex } from "../lib/crypto";
 import { idSchema, invalid } from "../lib/validation";
@@ -106,6 +106,8 @@ financingRoutes.post("/listings", async (c) => {
 
   const [inv] = await db.select().from(invoices).where(and(eq(invoices.id, b.invoiceId), eq(invoices.merchantId, merchant.id)));
   if (!inv) return fail(c, 404, "not_found", "Invoice not found");
+  const [plan] = await db.select({ id: subscriptions.id }).from(subscriptions).where(and(eq(subscriptions.invoiceId, inv.id), eq(subscriptions.kind, "instalment"), inArray(subscriptions.status, ["offered", "subscribing", "active", "past_due"])));
+  if (plan) return fail(c, 409, "instalment_invoice", "Withdraw or cancel the replacement plan before offering this invoice for financing.");
   // Selling needs tier 3 (World Proof of Human) or 4 (documents), and the invoice must be within the tier's financing cap.
   const { tier } = await merchantTier(db, merchant.id, clock());
   const gate = checkFinancing(await loadLimits(db), tier, BigInt(inv.amount));

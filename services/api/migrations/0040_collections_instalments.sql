@@ -1,6 +1,7 @@
 ALTER TABLE `subscriptions` ADD `kind` text DEFAULT 'subscription' NOT NULL;--> statement-breakpoint
 ALTER TABLE `subscriptions` ADD `invoice_id` text;--> statement-breakpoint
 ALTER TABLE `subscriptions` ADD `payer_business_name` text;--> statement-breakpoint
+ALTER TABLE `subscriptions` ADD `segments` text;--> statement-breakpoint
 ALTER TABLE `subscriptions` ADD `total` text;--> statement-breakpoint
 ALTER TABLE `subscriptions` ADD `at_risk_reason` text;--> statement-breakpoint
 ALTER TABLE `subscriptions` ADD `at_risk_at` text;--> statement-breakpoint

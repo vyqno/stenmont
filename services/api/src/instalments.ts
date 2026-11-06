@@ -4,17 +4,18 @@ import type { Db } from "./app";
 import { invoices, subscriptions } from "./db/schema";
 
 export const DEFAULT_PERIOD_SECONDS = 30 * 86_400;
-/** Most parts a plan may have. The invoice option allows 2 or 3; the collections agent's policy may allow more. */
-export const MAX_PARTS = 12;
+/** Executable plans are always two or three charges, even if a human approves an exception. */
+export const MAX_PARTS = 3;
 
-/**
- * The contract charges the same amount each time, so a plan is `each` x `count`. What does not divide evenly (at most
- * `count - 1` base units, never more than a few millionths of a dollar) is `rounding`: it is not charged. The plan can
- * therefore never take more than the invoice total.
- */
-export function splitInstalments(total: bigint, count: number): { each: bigint; rounding: bigint } {
+/** Remainder belongs to the first charge; each agreement below is bounded independently by the existing manager. */
+export function splitInstalments(total: bigint, count: number): { each: bigint; rounding: bigint; first: bigint } {
+  if (!Number.isInteger(count) || count < 2 || count > MAX_PARTS || total <= 0n) throw new Error("invalid instalment terms");
   const n = BigInt(count);
-  return { each: total / n, rounding: total % n };
+  return { each: total / n, rounding: total % n, first: total / n + total % n };
+}
+export type Segment = { id: string; amount: string; maxCharges: number; startAt: number };
+export function agreementSegments(row: typeof subscriptions.$inferSelect): Segment[] {
+  return row.segments ? JSON.parse(row.segments) as Segment[] : [{ id: row.id, amount: row.amount, maxCharges: row.maxCharges, startAt: row.startAt }];
 }
 
 /** `subscription.charged` for a normal subscription, `instalment.charged` for a plan. */
@@ -31,12 +32,18 @@ export async function createInstalmentPlan(
 ): Promise<Created> {
   const { invoice, count } = input;
   const outstanding = BigInt(invoice.amount) - BigInt(invoice.amountPaid);
-  const { each } = splitInstalments(outstanding, count);
+  if (input.payerBusinessName.trim().length < 2) throw new Error("payer legal name required");
+  const { each, first, rounding } = splitInstalments(outstanding, count);
   if (each <= 0n) return { ok: false, code: "too_small" };
   const nowS = Math.floor(now.getTime() / 1000);
   const startAt = nowS + (input.extensionDays ?? 0) * 86_400;
+  const id = `0x${randomHex(32)}`;
+  const segments: Segment[] | null = rounding === 0n ? null : [
+    { id, amount: first.toString(), maxCharges: 1, startAt },
+    { id: `0x${randomHex(32)}`, amount: each.toString(), maxCharges: count - 1, startAt: startAt + input.periodSeconds },
+  ];
   const row: typeof subscriptions.$inferSelect = {
-    id: `0x${randomHex(32)}`,
+    id,
     merchantId: invoice.merchantId,
     amount: each.toString(),
     periodSeconds: input.periodSeconds,
@@ -54,6 +61,7 @@ export async function createInstalmentPlan(
     invoiceId: invoice.id,
     payerBusinessName: input.payerBusinessName,
     total: outstanding.toString(),
+    segments: segments ? JSON.stringify(segments) : null,
     atRiskReason: null,
     atRiskAt: null,
     createdAt: now.toISOString(),
@@ -62,3 +70,16 @@ export async function createInstalmentPlan(
   await db.insert(subscriptions).values(row);
   return { ok: true, row };
 }
+
+/** Read every signed agreement: aggregate count and exact paid value survive cron retries and direct onchain charges. */
+export async function readAgreementState(chain: import("./chain").ChainClient, row: typeof subscriptions.$inferSelect) {
+  const segments = agreementSegments(row);
+  const states = await Promise.all(segments.map(s => chain.subscriptionState(s.id as `0x${string}`)));
+  const charges = states.reduce((n, s) => n + s.charges, 0);
+  const paid = states.reduce((n, s, i) => n + BigInt(segments[i]!.amount) * BigInt(s.charges), 0n);
+  const next = states.findIndex(s => s.status === "active");
+  const status = states.some(s => s.status === "cancelled") ? "cancelled" : states.every(s => s.status === "completed") ? "completed" : "active";
+  return { charges, paid, status, nextCharge: next < 0 ? 0n : states[next]!.nextCharge, chargeId: segments[Math.max(0, next)]!.id, amount: segments[Math.max(0, next)]!.amount };
+}
+
+
