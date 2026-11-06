@@ -1,0 +1,9 @@
+{
+  // Top level = local development only. Staging is the only deployed environment for now.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stenmont-example-store-dev",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "vars": { "SHOP_URL": "http://localhost:8788" }
+}
