@@ -33,6 +33,8 @@ export const ETH_COIN_TYPE = 60n;
 export const PAYOUT_KEY = "stenmont.payout";
 export const PROFILE_KEY = "stenmont.profile";
 export const AGENT_CONTEXT_KEY = "agent-context";
+export const AGENT_ENDPOINT_KEY = "agent-endpoint[mcp]";
+export const AGENT_POLICY_KEY = "stenmont.agent.policy";
 
 export const ensRegistryAbi = parseAbi([
   "function getState(uint256 anyId) view returns ((uint8 status, uint64 expiry, address latestOwner, uint256 tokenId, uint256 resource))",
@@ -41,6 +43,7 @@ export const ensRegistryAbi = parseAbi([
   "function register(string label, address owner, address registry, address resolver, uint256 roleBitmap, uint64 expires) returns (uint256 tokenId)",
   "function setResolver(uint256 anyId, address resolver)",
   "function setSubregistry(uint256 tokenId, address registry)",
+  "function unregister(uint256 anyId)",
   "function ownerOf(uint256 tokenId) view returns (address)",
   "function grantRootRoles(uint256 roleBitmap, address account) returns (bool)",
   "function initialize((address account, uint256 roleBitmap)[] grants)",

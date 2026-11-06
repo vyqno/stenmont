@@ -4,12 +4,17 @@ import { sepolia } from "viem/chains";
 import { labelhash } from "viem/ens";
 import {
   ADDR_RIGHTS,
+  AGENT_CONTEXT_KEY,
+  AGENT_ENDPOINT_KEY,
+  AGENT_POLICY_KEY,
   ALL_ROLES,
   ENS_SEPOLIA as E,
   ETH_COIN_TYPE,
   PAYOUT_KEY,
   PROFILE_KEY,
+  ROLE,
   TEXT_RIGHTS,
+  textResource,
   dnsName,
   ensRegistryAbi,
   permissionedResolverAbi,
@@ -20,7 +25,29 @@ import type { Env } from "../env";
 
 export type ClaimResult = { name: string; resolver: Address; agentRegistry: Address; txHashes: Hex[] };
 
+export type AgentInput = {
+  businessName: string;
+  agentRegistry: Address;
+  label: string;
+  agent: Address;
+  /** Unix seconds. After this the name stops resolving. */
+  expiresAt: number;
+  context: string;
+  endpoint: string | null;
+  /** JSON published as a text record so anyone can read the agent's policy. */
+  limits: string;
+};
+
 export interface EnsClient {
+  /** True when the agent label is free in the business's agent registry. */
+  agentLabelAvailable(a: { businessName: string; agentRegistry: Address; label: string }): Promise<boolean>;
+  /**
+   * Makes an agent a name under the business: its own resolver (identity, endpoint, policy), the name owned by the
+   * agent, and the agent's right to edit only its own `agent-context` record. Safe to repeat after a failure.
+   */
+  createAgent(a: AgentInput): Promise<{ name: string; resolver: Address; txHashes: Hex[] }>;
+  /** Takes the agent's right to edit its record away and removes its name. */
+  revokeAgent(a: { name: string; label: string; agentRegistry: Address; resolver: Address; agent: Address }): Promise<Hex[]>;
   /** True when the label is free in the subname registry (nobody registered it, even outside our database). */
   labelAvailable(label: string): Promise<boolean>;
   /**
@@ -114,6 +141,43 @@ export function viemEns(env: Env): EnsClient {
       const keepProfile = encodeFunctionData({ abi: permissionedResolverAbi, functionName: "grantSetterRoles", args: [textSetter(name, PROFILE_KEY), registrar] });
       const dropRoot = encodeFunctionData({ abi: permissionedResolverAbi, functionName: "revokeRootRoles", args: [CALL_ROOT_RIGHTS, registrar] });
       return run(resolver, encodeFunctionData({ abi: permissionedResolverAbi, functionName: "multicall", args: [[keepProfile, dropRoot]] }));
+    },
+
+    async agentLabelAvailable({ agentRegistry, label }) {
+      const st = await reader.readContract({ address: agentRegistry, abi: ensRegistryAbi, functionName: "getState", args: [BigInt(labelhash(label))] });
+      return st.status === 0;
+    },
+
+    async createAgent(a) {
+      const name = `${a.label}.${a.businessName}`;
+      const hashes: Hex[] = [];
+      const text = (key: string, value: string) => encodeFunctionData({ abi: permissionedResolverAbi, functionName: "setText", args: [dnsName(name), key, value] });
+      const setters = [
+        encodeFunctionData({ abi: permissionedResolverAbi, functionName: "setAddress", args: [dnsName(name), ETH_COIN_TYPE, a.agent] }),
+        text(AGENT_CONTEXT_KEY, a.context),
+        text(AGENT_POLICY_KEY, a.limits),
+        ...(a.endpoint ? [text(AGENT_ENDPOINT_KEY, a.endpoint)] : []),
+      ];
+      const init = encodeFunctionData({ abi: permissionedResolverAbi, functionName: "initialize", args: [[{ account: registrar, roleBitmap: CALL_ROOT_RIGHTS }], setters] });
+      const resolver = await deploy(E.permissionedResolverImpl, salt("agentResolver", name), init, hashes);
+
+      const existing = await reader.readContract({ address: a.agentRegistry, abi: ensRegistryAbi, functionName: "getState", args: [BigInt(labelhash(a.label))] });
+      if (existing.status === 0) {
+        hashes.push(await run(a.agentRegistry, encodeFunctionData({ abi: ensRegistryAbi, functionName: "register", args: [a.label, a.agent, zeroAddress, resolver, 0n, BigInt(a.expiresAt)] })));
+      } else if (existing.latestOwner.toLowerCase() !== a.agent.toLowerCase()) {
+        throw new EnsRejected("agent label already registered to someone else");
+      }
+      // The agent may edit this one record of its own name, and nothing else.
+      hashes.push(await run(resolver, encodeFunctionData({ abi: permissionedResolverAbi, functionName: "grantSetterRoles", args: [textSetter(name, AGENT_CONTEXT_KEY), a.agent] })));
+      return { name, resolver, txHashes: hashes };
+    },
+
+    async revokeAgent({ label, agentRegistry, resolver, agent }) {
+      const hashes: Hex[] = [];
+      hashes.push(await run(resolver, encodeFunctionData({ abi: permissionedResolverAbi, functionName: "revokeRoles", args: [textResource(AGENT_CONTEXT_KEY), ROLE.SET_TEXT, agent] })));
+      const st = await reader.readContract({ address: agentRegistry, abi: ensRegistryAbi, functionName: "getState", args: [BigInt(labelhash(label))] });
+      if (st.status === 2) hashes.push(await run(agentRegistry, encodeFunctionData({ abi: ensRegistryAbi, functionName: "unregister", args: [BigInt(labelhash(label))] })));
+      return hashes;
     },
 
     async resolveAddress(name) {

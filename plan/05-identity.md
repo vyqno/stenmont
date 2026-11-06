@@ -70,9 +70,12 @@
 
 **Files:** Create `services/api/src/ens/agents.ts`, route `POST /v1/ens/agents`, `DELETE /v1/ens/agents/:name`, tests; migration `0006_agents.sql` (`agents(id, merchant_id, ens_subname, address, scopes, daily_limit TEXT, per_tx_limit TEXT, expires_at, status)`)
 
-- [ ] Failing tests: creating `billing-bot.acme.stenmont.eth` sets text records `agent-context` and `agent-endpoint[mcp]`; expiry set; the agent may edit only its own `agent-context`; revoke makes the name unusable
-- [ ] Run → FAIL; implement; run → PASS
-- [ ] Commit line: `feat: add agent subnames with limits and expiry`
+- [x] Failing tests: creating `billing-bot.acme.stenmont.eth` sets text records `agent-context` and `agent-endpoint[mcp]`; expiry set; the agent may edit only its own `agent-context`; revoke makes the name unusable
+- [x] Run → FAIL; implement; run → PASS
+- [x] Commit line: `feat: add agent subnames with limits and expiry`
+
+**Built:** `POST /v1/ens/agents` creates `label.<business>.stenmont.eth` for an agent: its own resolver (address, `agent-context`, `agent-endpoint[mcp]`, and a `stenmont.agent.policy` record with its limits and scopes), the name owned by the agent's address, an expiry (1 to 365 days), and the agent's right to edit only its own `agent-context` record. `GET /v1/ens/agents` lists them (an agent past its expiry shows `expired`); `DELETE /v1/ens/agents/:label` removes the agent's right and its name. A daily limit above 100 USDT needs a World approval for exactly those terms (operation `agent_limit`), used once. At most 20 agents per business. Unit tests: 8; the on-chain run on Sepolia is the next check.
+
 
 ### Task 5.6: Resolve the payee from the name
 

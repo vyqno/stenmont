@@ -11,7 +11,11 @@ export function fakeEns(overrides: Partial<EnsClient> = {}) {
   const claims: { label: string; payout: Address }[] = [];
   const finance: { name: string; member: Address }[] = [];
   const locks: string[] = [];
-  const ens: EnsClient & { taken: Set<string>; claims: typeof claims; finance: typeof finance; locks: string[] } = {
+  const agents: Parameters<EnsClient["createAgent"]>[0][] = [];
+  const revoked: Parameters<EnsClient["revokeAgent"]>[0][] = [];
+  const ens: EnsClient & { taken: Set<string>; claims: typeof claims; finance: typeof finance; locks: string[]; agents: typeof agents; revoked: typeof revoked } = {
+    agents,
+    revoked,
     taken,
     claims,
     finance,
@@ -31,6 +35,18 @@ export function fakeEns(overrides: Partial<EnsClient> = {}) {
     async lockPayout(a) {
       locks.push(a.name);
       return hash(9200 + locks.length);
+    },
+    async agentLabelAvailable(a) {
+      return !taken.has(`${a.label}.${a.businessName}`);
+    },
+    async createAgent(a) {
+      agents.push(a);
+      taken.add(`${a.label}.${a.businessName}`);
+      return { name: `${a.label}.${a.businessName}`, resolver: RESOLVER, txHashes: [hash(9300), hash(9301), hash(9302)] };
+    },
+    async revokeAgent(a) {
+      revoked.push(a);
+      return [hash(9400), hash(9401)];
     },
     async resolveAddress() {
       return null;

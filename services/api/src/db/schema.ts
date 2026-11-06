@@ -216,6 +216,26 @@ export const approvals = sqliteTable(
   (t) => [index("approvals_lookup").on(t.merchantId, t.operation, t.createdAt)],
 );
 
+export const ensAgents = sqliteTable(
+  "ens_agents",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id").notNull(),
+    label: text("label").notNull(),
+    name: text("name").notNull(), // billing-bot.acme.stenmont.eth
+    agentAddress: text("agent_address").notNull(),
+    resolver: text("resolver").notNull(), // the agent's own resolver
+    scopes: text("scopes").notNull().default("[]"),
+    dailyLimit: text("daily_limit").notNull(), // USDT base units
+    perTxLimit: text("per_tx_limit").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    status: text("status").notNull(), // creating | active | revoked
+    txHashes: text("tx_hashes").notNull().default("[]"),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("ens_agents_merchant_label_uq").on(t.merchantId, t.label)],
+);
+
 export const paymentLinks = sqliteTable(
   "payment_links",
   {
