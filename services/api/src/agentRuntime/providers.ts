@@ -16,7 +16,9 @@ export async function complete(provider:Provider,key:string,system:string,prompt
   body={model:MODELS.openai,max_completion_tokens:maxTokens,response_format:{type:"json_object"},messages:[{role:"system",content:system},{role:"user",content:prompt}]};
  }
  try{
-  const r=await send(url,{method:"POST",headers,body:JSON.stringify(body),signal:AbortSignal.timeout(30000),redirect:"error"});
+  const r=await send(url,{method:"POST",headers,body:JSON.stringify(body),signal:AbortSignal.timeout(30000),redirect:"manual"});
+  // Workers supports manual redirect handling; never forward credentials to a Location target.
+  if(r.status>=300&&r.status<400)throw new Error("redirect");
   if(!r.ok)throw new Error("provider");
   const raw=await r.text();if(raw.length>100000)throw new Error("oversize");
   const j=JSON.parse(raw);
