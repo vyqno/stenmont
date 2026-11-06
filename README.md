@@ -1,10 +1,20 @@
 # Stenmont
 
-**Commerce and finance for businesses that run on stablecoins.**
+**Get paid in USDT with one tap, get paid early, with the rules enforced in the contract.**
 
-*The agentic business kit.*
+Stenmont is a commerce and finance platform for businesses that run on stablecoins, built on Whitechain. A customer pays the official USDT with one passkey tap: no wallet, no seed phrase, no gas. The business can sell an unpaid invoice for cash today, and a scoped agent can run the work inside limits that the contracts enforce.
 
-Stenmont brings selling, USDT payments, books and working capital into one platform. A financial agent can install the checkout through Connect and help operate the business within explicit permissions; people retain control of money actions.
+[**Live demo**](https://app-staging.stenmont.com) · [Docs](https://app-staging.stenmont.com/docs) · [Demo shop](https://demo-shop-staging.stenmont.com) · Demo video: *link added at submission* · [How we used AI](AI_USAGE.md) · Whitechain Sepolia, test USDT only
+
+![Stenmont](docs/assets/cover.png)
+
+### How it works
+
+1. **A customer pays with one tap.** The payer signs a single-use authorisation bound to one invoice and one payout address. The merchant's gas tank pays the network fee, so the payer holds no native token. [A real Shopify order paid this way](https://explorer.testnet.whitechain.io/tx/0xe0f73087b7d1b4b7a492222afd5fe182c51ab0f81a7c5e5657594b89d6250c41).
+2. **The business gets paid, and can get paid early.** Refunds, subscriptions, reminders and an accountant export run on the same records. A verified business can sell an unpaid invoice to an allowlisted investor at a discount; the claim can only move between allowlisted holders. This part is a testnet demonstration.
+3. **Agents work inside limits.** A scoped agent gets its own ENS name with a daily limit and pays by x402. A large refund or a high agent limit needs a real person to approve it with World ID. [An x402 payment settled on Whitechain](https://explorer.testnet.whitechain.io/tx/0x2a13cb73752a19224db5378a97108513bebe5f0b35abe851c8177e5dbac61e91).
+
+**Honest status:** everything above runs on the Whitechain test network with test USDT. There is no external audit, no real money and no merchant traction. What is proven live and what is only built is listed in the [track checklist](docs/TRACK-CHECKLIST.md).
 
 Built from scratch for ETHGlobal Mumbai 2026. Staging uses Whitechain test network 1874 and official test USDT; ENS uses Ethereum Sepolia. No real money, merchant traction or production deployment is claimed.
 
@@ -153,7 +163,7 @@ USDT sender/receiver addresses, amounts and transaction times are public. Public
 - Gemini live generation is held: the Vertex API request returned a missing prediction-permission error; no successful model reply is claimed. Provider fixtures are not a real model call. A2A discovery is opt-in and signed fact observations require recorded proof provenance.
 - Collections queue entries are drafts/decisions, not sent messages. B2B replacement plans require cancellation of the original router invoice and signatures for every agreement.
 - Books signs recorded source membership and ledger lines; a Merkle proof does not prove completeness of offchain income. Anchoring is unavailable until a registry is separately approved and configured.
-- The current live-proof status belongs in the dated [combined staging acceptance](docs/COMBINED-STAGING-ACCEPTANCE.md) and later lead reports; do not infer it from this feature list.
+- The current live-proof status belongs in the dated [combined staging acceptance](docs/COMBINED-STAGING-ACCEPTANCE.md) and later acceptance notes; do not infer it from this feature list.
 
 ## Track evidence and remaining proof
 
