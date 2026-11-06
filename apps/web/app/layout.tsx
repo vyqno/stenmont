@@ -24,6 +24,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${onest.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Adobe Fonts web project: Neue Haas Grotesk (Text and Display) and All Round Gothic. Domains must be listed in the project. */}
+        <link rel="stylesheet" href="https://use.typekit.net/szp4mzp.css" />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

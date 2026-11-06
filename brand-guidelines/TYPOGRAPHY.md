@@ -22,3 +22,7 @@ Weights: 400 body, 500 labels and buttons, 700 headings. Line height 1.5 for bod
 ## Loading (when licensed)
 
 Put the web fonts in `apps/web/public/fonts/` and declare them with `font-display: swap`; keep the fallback stack so the site renders correctly without them.
+
+## Loaded from Adobe Fonts (2026-11-06)
+
+The site loads one Adobe Fonts web project, `https://use.typekit.net/szp4mzp.css`, from `apps/web/app/layout.tsx`. Families: `neue-haas-grotesk-text` (body and UI), `neue-haas-grotesk-display` (h1 to h3), `all-round-gothic` (logo only). The project's domain list must include `stenmont.com` and `localhost`, or the fonts will not load there and the fallbacks (Onest, Helvetica) show instead.
