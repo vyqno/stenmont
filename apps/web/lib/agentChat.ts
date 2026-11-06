@@ -1,6 +1,12 @@
 export type AgentEvent={event:string;data:Record<string,unknown>};
+/** What the person reads when the assistant fails. Server codes are never shown; the data is never touched by a failed reply. */
+export function assistantErrorText(code?:string){
+ if(code==="usage_limit_reached")return "You have used today's assistant allowance. It resets tomorrow.";
+ return "The assistant is unavailable right now. Your data is unchanged.";
+}
+export class AssistantError extends Error{constructor(readonly code:string,message=assistantErrorText(code)){super(message);}}
 export async function readAgentEvents(response:Response,onEvent:(event:AgentEvent)=>void){
- if(!response.ok){const j=await response.json().catch(()=>null);throw new Error(j?.error?.message??"The assistant could not connect.");}
+ if(!response.ok){const j=await response.json().catch(()=>null);throw new AssistantError(j?.error?.code??"unavailable");}
  if(!response.body)throw new Error("The assistant returned no response.");
  const reader=response.body.getReader(),decoder=new TextDecoder();let pending="";
  try{for(;;){const {value,done}=await reader.read();pending+=decoder.decode(value,{stream:!done});

@@ -10,7 +10,7 @@ type Wallet = { address: string; ensName: string | null; linkedAt: string };
 type Eip1193 = { request(a: { method: string; params?: unknown[] }): Promise<unknown> };
 
 /**
- * For people who already use a crypto wallet: link it as another way to sign in. It never replaces the passkey, which still
+ * For people who already use a wallet: link it as another way to sign in. It never replaces the passkey, which still
  * approves every payment-moving action, and a wallet cannot create a business.
  */
 export function WalletConnect() {
@@ -58,7 +58,7 @@ export function WalletConnect() {
 
   return (
     <Card title="Sign in with a wallet">
-      <p className="text-sm text-muted">Already use a crypto wallet? Link it as another way to sign in. Your passkey still approves anything that moves money, and a wallet cannot create a business by itself.</p>
+      <p className="text-sm text-muted">Already use a wallet you trust? Link it as another way to sign in. Your passkey still approves anything that moves money, and a wallet cannot create a business by itself.</p>
       {wallets.length > 0 && (
         <ul className="mt-3 divide-y divide-line" data-testid="wallets">
           {wallets.map((w) => (

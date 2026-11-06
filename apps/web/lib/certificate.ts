@@ -32,8 +32,8 @@ export function certificateStatus(c: Certificate): { label: string; tone: Certif
   if (c.status === "unconfirmed" || c.confirmation.state === "unconfirmed") {
     const why =
       c.confirmation.state === "unconfirmed" && c.confirmation.reason === "chain_unavailable"
-        ? "The blockchain could not be read just now, so this status could not be checked."
-        : "Our records and the blockchain do not match right now.";
+        ? "The public record could not be read just now, so this status could not be checked."
+        : "Our records and the public record do not match right now.";
     return { label: "Unconfirmed", tone: "warn", explanation: `${why} Check the claim on the explorer before relying on this page.` };
   }
   switch (c.status) {

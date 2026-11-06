@@ -127,7 +127,7 @@ export default function Identity() {
       {pending && <p aria-live="polite" className="text-sm text-muted">{pending === "check" ? "Checking availability…" : "Working… This may take a few minutes. Keep this page open; refresh to check confirmed state if the connection is interrupted."}</p>}
       {!loaded ? <p className="text-muted">{error ? "Identity could not be loaded. Use Refresh identity to retry." : "Loading identity…"}</p> : !name ? (
         <Card title="Give your business a name">
-          <p className="mb-4 text-sm text-muted">Choose a unique name for payment links and your agents. Names are registered on ENS Sepolia for this test environment.</p>
+          <p className="mb-4 text-sm text-muted">Choose a unique name for payment links and your agents. Your name is public and can be checked by anyone. This is a test environment, so names here are for practice.</p>
           <form onSubmit={(e) => submit(e, "check", async () => {
             setAvailability(null);
             setAvailability(await api.get<Availability>(`/v1/ens/availability?label=${encodeURIComponent(label)}`));

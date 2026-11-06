@@ -27,20 +27,20 @@ export default function CertificateClient({ id }: { id: string }) {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-3xl font-bold">Receivable certificate</h1>
-        <p className="mt-1 text-muted">A claim on an unpaid invoice, checked against the blockchain each time this page opens.</p>
+        <p className="mt-1 text-muted">A claim on an unpaid invoice, checked against the public record each time this page opens.</p>
       </div>
 
       <Card>
         <div className="flex flex-wrap items-center gap-3">
           <Badge tone={status.tone}>{status.label}</Badge>
           <span className="text-sm text-muted" data-testid="certificate-confirmation">
-            {cert.confirmation.state === "confirmed" ? "Confirmed on the blockchain" : "Not confirmed by the blockchain"}
+            {cert.confirmation.state === "confirmed" ? "Confirmed on the public record" : "Not confirmed by the public record"}
           </span>
         </div>
         <p className="mt-2 text-sm" data-testid="certificate-status">{status.explanation}</p>
         {cert.confirmation.state === "unconfirmed" && (
           <p className="mt-2 text-sm text-muted" data-testid="certificate-detail">
-            Our records say &ldquo;{cert.confirmation.databaseStatus}&rdquo;; the blockchain says &ldquo;{cert.confirmation.onchainStatus ?? "unknown"}&rdquo;.
+            Our records say &ldquo;{cert.confirmation.databaseStatus}&rdquo;; the public record says &ldquo;{cert.confirmation.onchainStatus ?? "unknown"}&rdquo;.
           </p>
         )}
       </Card>
