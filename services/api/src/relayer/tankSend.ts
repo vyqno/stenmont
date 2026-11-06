@@ -1,7 +1,7 @@
 import type { Hex } from "viem";
 import type { Db } from "../app";
 import { Rejected, type ChainClient } from "../chain";
-import { RELAYER_MIN_BALANCE_WEI, loadTank, reserveGas, settleGas } from "./caps";
+import { RELAYER_MIN_BALANCE_WEI, holdGas, loadTank } from "./caps";
 import type { Call } from "./sender";
 
 export type TankSend =
@@ -35,20 +35,21 @@ export async function sendFromTank(ctx: { db: Db; chain: ChainClient; now: Date 
     console.error("price lookup failed", e);
     return { ok: false, code: "chain_error" };
   }
-  const hold = await reserveGas(db, merchantId, maxCost, now);
-  if (hold !== "ok") return { ok: false, code: hold === "payer_cap" ? "busy" : hold };
+  const hold = await holdGas(db, merchantId, maxCost, now);
+  if (typeof hold === "string") return { ok: false, code: hold === "payer_cap" ? "busy" : hold };
 
   let txHash: Hex;
   try {
     txHash = await chain.sendTransaction({ ...call, gas: gasLimit });
   } catch (e) {
     console.error("send failed", e);
-    await settleGas(db, merchantId, maxCost, 0n, now);
+    await hold.release().catch((err) => console.error("gas release failed", err));
     return { ok: false, code: "chain_error" };
   }
   try {
     const receipt = await chain.waitForReceipt(txHash);
-    await settleGas(db, merchantId, maxCost, receipt.gasUsed * receipt.effectiveGasPrice, now);
+    // If settling cannot be written the full reservation stays charged: the merchant is over- never under-charged.
+    await hold.settle(receipt.gasUsed * receipt.effectiveGasPrice).catch((err) => console.error("gas settlement failed; reservation stays held", err));
     return receipt.status === "success" ? { ok: true, txHash } : { ok: false, code: "tx_reverted", txHash };
   } catch (e) {
     console.error("receipt wait failed", e); // it may still land; the reservation stays until reconciled

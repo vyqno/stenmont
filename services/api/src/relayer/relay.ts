@@ -10,12 +10,12 @@ import {
   RELAYER_MIN_BALANCE_WEI,
   checkCaps,
   hitRateLimit,
+  holdGas,
   releasePayer,
-  reserveGas,
   reservePayer,
-  settleGas,
   loadTank,
   type CapError,
+  type GasHold,
 } from "./caps";
 
 export type RelayErrorCode =
@@ -182,11 +182,16 @@ export async function relayPay(ctx: { db: Db; chain: ChainClient; env: Env; now:
     .returning({ id: relayerTxs.id });
   if (claimed.length === 0) return fail("duplicate");
 
-  let gasReserved = 0n;
+  let hold: GasHold | null = null;
   let payerReserved = false;
+  /** Gives back everything this request holds. Safe to call twice; one failing step never skips the others. */
   const release = async () => {
-    if (gasReserved > 0n) await settleGas(db, merchantId, gasReserved, 0n, now);
-    if (payerReserved) await releasePayer(db, merchantId, i.payer, i.value, now);
+    const gas = hold;
+    const payer = payerReserved;
+    hold = null;
+    payerReserved = false;
+    if (gas) await gas.release().catch((e) => console.error("gas release failed", e));
+    if (payer) await releasePayer(db, merchantId, i.payer, i.value, now).catch((e) => console.error("payer release failed", e));
     await db.delete(relayerTxs).where(eq(relayerTxs.id, rowId)); // frees the authorization to be tried again
   };
 
@@ -215,8 +220,8 @@ export async function relayPay(ctx: { db: Db; chain: ChainClient; env: Env; now:
     console.error("price lookup failed", e);
     return fail("chain_error");
   }
-  const gasHold = await reserveGas(db, merchantId, maxCost, now);
-  if (gasHold !== "ok") {
+  const held = await holdGas(db, merchantId, maxCost, now);
+  if (typeof held === "string") {
     // The daily cap counts reservations that other payments are still holding. If any are in flight, this is a
     // transient shortage ("busy, retry"), not the merchant's limit being reached.
     const recent = new Date(now.getTime() - 120_000).toISOString();
@@ -225,9 +230,9 @@ export async function relayPay(ctx: { db: Db; chain: ChainClient; env: Env; now:
       .from(relayerTxs)
       .where(and(eq(relayerTxs.merchantId, merchantId), inArray(relayerTxs.status, ["pending", "sent"]), gt(relayerTxs.updatedAt, recent)));
     await release();
-    return fail(gasHold === "gas_cap_reached" && n > 1 ? "busy" : gasHold); // n includes this request's own row
+    return fail(held === "gas_cap_reached" && n > 1 ? "busy" : held); // n includes this request's own row
   }
-  gasReserved = maxCost;
+  hold = held;
   const tank = await loadTank(db, merchantId, now);
   const payerHold = await reservePayer(db, merchantId, i.payer, i.value, tank?.perPayerCap ?? 0n, now);
   if (payerHold !== "ok") {
@@ -256,10 +261,11 @@ export async function relayPay(ctx: { db: Db; chain: ChainClient; env: Env; now:
     return fail("timeout", txHash); // it may still land; the reservation stays until it is reconciled
   }
   const actual = receipt.gasUsed * receipt.effectiveGasPrice;
-  await settleGas(db, merchantId, gasReserved, actual, now);
+  // If settling cannot be written the full reservation stays charged: the merchant is over- never under-charged.
+  await hold.settle(actual).catch((e) => console.error("gas settlement failed; reservation stays held", e));
   const done = { gasUsed: receipt.gasUsed.toString(), wbtCost: actual.toString(), updatedAt: now.toISOString() };
   if (receipt.status !== "success") {
-    await releasePayer(db, merchantId, i.payer, i.value, now);
+    await releasePayer(db, merchantId, i.payer, i.value, now).catch((e) => console.error("payer release failed", e));
     await db.update(relayerTxs).set({ ...done, status: "reverted" }).where(eq(relayerTxs.id, rowId));
     return fail("tx_reverted", txHash);
   }

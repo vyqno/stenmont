@@ -30,6 +30,8 @@ export type Tank = {
   spentToday: bigint; // already reset to 0 when the stored day is not today
   perPayerCap: bigint;
   version: number;
+  day: string; // the UTC day `stored` belongs to
+  stored: bigint; // spent amount exactly as stored, for the day above
 };
 
 export async function loadTank(db: Db, merchantId: string, now: Date): Promise<Tank | null> {
@@ -41,21 +43,32 @@ export async function loadTank(db: Db, merchantId: string, now: Date): Promise<T
     spentToday: t.spentDay === dayOf(now) ? BigInt(t.spentTodayWbt) : 0n,
     perPayerCap: BigInt(t.perPayerDailyCapUsdt),
     version: t.version,
+    day: t.spentDay,
+    stored: BigInt(t.spentTodayWbt),
   };
 }
 
+/** A reservation that loses a few races is told "busy" and the caller retries; nothing was held, so nothing leaks. */
 const ATTEMPTS = 8;
+/**
+ * Giving back or charging a reservation must never be abandoned: every failed compare-and-swap means another writer
+ * succeeded, so this always finishes. The bound only guards against a stuck database, and then it throws (never a
+ * silent "busy" that leaves gas held forever).
+ */
+const SETTLE_ATTEMPTS = 1_000;
+
+type TankWrite = { balance: bigint; spent: bigint; day: string };
 
 /** Optimistic update: retries when another request changed the row between our read and our write. */
-async function writeTank(db: Db, merchantId: string, now: Date, change: (t: Tank) => { balance: bigint; spent: bigint } | CapError): Promise<"ok" | CapError> {
-  for (let i = 0; i < ATTEMPTS; i++) {
+async function writeTank(db: Db, merchantId: string, now: Date, change: (t: Tank) => TankWrite | CapError, attempts = ATTEMPTS): Promise<"ok" | CapError> {
+  for (let i = 0; i < attempts; i++) {
     const t = await loadTank(db, merchantId, now);
     if (!t) return "gas_tank_empty";
     const next = change(t);
     if (typeof next === "string") return next;
     const hit = await db
       .update(gasTanks)
-      .set({ wbtBalance: next.balance.toString(), spentTodayWbt: next.spent.toString(), spentDay: dayOf(now), version: t.version + 1 })
+      .set({ wbtBalance: next.balance.toString(), spentTodayWbt: next.spent.toString(), spentDay: next.day, version: t.version + 1 })
       .where(and(eq(gasTanks.merchantId, merchantId), eq(gasTanks.version, t.version)))
       .returning({ v: gasTanks.version });
     if (hit.length > 0) return "ok";
@@ -68,21 +81,65 @@ export const reserveGas = (db: Db, merchantId: string, amount: bigint, now: Date
   writeTank(db, merchantId, now, (t) => {
     if (t.balance < amount) return "gas_tank_empty";
     if (t.spentToday + amount > t.dailyCap) return "gas_cap_reached";
-    return { balance: t.balance - amount, spent: t.spentToday + amount };
+    return { balance: t.balance - amount, spent: t.spentToday + amount, day: dayOf(now) };
   });
 
-/** After the receipt: give back what was reserved and charge what was actually used. */
-export const settleGas = (db: Db, merchantId: string, reserved: bigint, actual: bigint, now: Date) =>
-  writeTank(db, merchantId, now, (t) => {
-    const refund = reserved - actual; // negative if the transaction cost more than reserved
-    const spent = t.spentToday - refund;
-    return { balance: t.balance + refund, spent: spent < 0n ? 0n : spent };
-  });
+/**
+ * After the receipt: give back what was reserved and charge what was actually used. Throws if it cannot be written.
+ * `now` is when the reservation was made. If the tank has moved on to a later day, only the balance is corrected;
+ * today's counter belongs to today's reservations and is left alone.
+ */
+export async function settleGas(db: Db, merchantId: string, reserved: bigint, actual: bigint, now: Date): Promise<"ok"> {
+  const r = await writeTank(
+    db,
+    merchantId,
+    now,
+    (t) => {
+      const refund = reserved - actual; // negative if the transaction cost more than reserved
+      if (t.day !== dayOf(now)) return { balance: t.balance + refund, spent: t.stored, day: t.day };
+      return { balance: t.balance + refund, spent: t.stored - refund < 0n ? 0n : t.stored - refund, day: t.day };
+    },
+    SETTLE_ATTEMPTS,
+  );
+  if (r !== "ok") throw new Error(`gas settlement for ${merchantId} could not be written (${r})`);
+  return "ok";
+}
 
-async function writePayer(db: Db, merchantId: string, payer: string, day: string, change: (used: bigint) => bigint | "payer_cap"): Promise<"ok" | CapError> {
+/** One reserved amount of gas. Settling or releasing it happens at most once, however often the caller asks. */
+export class GasHold {
+  private done = false;
+  constructor(
+    private readonly db: Db,
+    private readonly merchantId: string,
+    readonly amount: bigint,
+    private readonly now: Date,
+  ) {}
+
+  /** Charges `actual`, returns the rest. A second call does nothing. If writing fails it throws and may be retried. */
+  async settle(actual: bigint): Promise<void> {
+    if (this.done) return;
+    this.done = true;
+    try {
+      await settleGas(this.db, this.merchantId, this.amount, actual, this.now);
+    } catch (e) {
+      this.done = false;
+      throw e;
+    }
+  }
+
+  release = () => this.settle(0n);
+}
+
+/** Reserves gas and hands back the hold that must be settled or released, or the reason it was refused. */
+export async function holdGas(db: Db, merchantId: string, amount: bigint, now: Date): Promise<GasHold | CapError> {
+  const r = await reserveGas(db, merchantId, amount, now);
+  return r === "ok" ? new GasHold(db, merchantId, amount, now) : r;
+}
+
+async function writePayer(db: Db, merchantId: string, payer: string, day: string, change: (used: bigint) => bigint | "payer_cap", attempts = ATTEMPTS): Promise<"ok" | CapError> {
   const key = and(eq(payerUsage.merchantId, merchantId), eq(payerUsage.payer, payer), eq(payerUsage.day, day));
   await db.insert(payerUsage).values({ merchantId, payer, day, usdt: "0" }).onConflictDoNothing();
-  for (let i = 0; i < ATTEMPTS; i++) {
+  for (let i = 0; i < attempts; i++) {
     const [row] = await db.select().from(payerUsage).where(key);
     const used = BigInt(row!.usdt);
     const next = change(used);
@@ -100,8 +157,12 @@ async function writePayer(db: Db, merchantId: string, payer: string, day: string
 export const reservePayer = (db: Db, merchantId: string, payer: string, value: bigint, cap: bigint, now: Date) =>
   writePayer(db, merchantId, payer.toLowerCase(), dayOf(now), (used) => (used + value > cap ? "payer_cap" : used + value));
 
-export const releasePayer = (db: Db, merchantId: string, payer: string, value: bigint, now: Date) =>
-  writePayer(db, merchantId, payer.toLowerCase(), dayOf(now), (used) => (used > value ? used - value : 0n));
+/** Gives back a payer's reserved amount. Throws if it cannot be written, so the allowance is never silently lost. */
+export async function releasePayer(db: Db, merchantId: string, payer: string, value: bigint, now: Date): Promise<"ok"> {
+  const r = await writePayer(db, merchantId, payer.toLowerCase(), dayOf(now), (used) => (used > value ? used - value : 0n), SETTLE_ATTEMPTS);
+  if (r !== "ok") throw new Error(`payer allowance for ${merchantId} could not be released (${r})`);
+  return "ok";
+}
 
 /**
  * Cheap read-only pre-check, run before anything is simulated: an empty tank or an exhausted payer is refused for free.
