@@ -1,4 +1,4 @@
-import { Rejected, type ActivateRequest, type ChainClient, type RefundRequest } from "../../src/chain";
+import { Rejected, type ActivateRequest, type AllowInvestorRequest, type ChainClient, type ClaimLog, type ClaimState, type ListClaimRequest, type RefundRequest } from "../../src/chain";
 import type { Call } from "../../src/relayer/sender";
 
 export const RELAYER_ADDRESS = "0xe4F5853650f40f04e920c62F6dE9e4e38D767B66" as const;
@@ -12,7 +12,24 @@ export function fakeChain(overrides: Partial<ChainClient> = {}) {
   const activations: ActivateRequest[] = [];
   const refundsSent: RefundRequest[] = [];
   const counts = { estimate: 0 };
-  const chain: ChainClient & { calls: unknown[]; sent: Call[]; activations: ActivateRequest[]; refundsSent: RefundRequest[]; counts: typeof counts } = {
+  const listed: ListClaimRequest[] = [];
+  const allowedSent: AllowInvestorRequest[] = [];
+  /** Investors the fake registry allows, claim states and reputation records it serves, and logs it emits. */
+  const allowed = new Set<string>();
+  const claimStates = new Map<string, ClaimState>();
+  const reputation = new Map<string, { onTime: number; late: number; volume: bigint; score: number }>();
+  const claimLogs: ClaimLog[] = [];
+  const chain: ChainClient & {
+    calls: unknown[]; sent: Call[]; activations: ActivateRequest[]; refundsSent: RefundRequest[]; counts: typeof counts;
+    listed: ListClaimRequest[]; allowedSent: AllowInvestorRequest[]; allowed: Set<string>; claimStates: Map<string, ClaimState>;
+    reputation: typeof reputation; claimLogs: ClaimLog[];
+  } = {
+    listed,
+    allowedSent,
+    allowed,
+    claimStates,
+    reputation,
+    claimLogs,
     calls,
     sent,
     activations,
@@ -35,6 +52,30 @@ export function fakeChain(overrides: Partial<ChainClient> = {}) {
     async createInvoice(req) {
       calls.push(req);
       return { txHash: hash(calls.length) };
+    },
+    async listClaim(req) {
+      listed.push(req);
+      return { txHash: hash(8000 + listed.length) };
+    },
+    async allowInvestor(req) {
+      allowedSent.push(req);
+      allowed.add(req.investor.toLowerCase());
+      return { txHash: hash(9000 + allowedSent.length) };
+    },
+    async claimState(id) {
+      return claimStates.get(id) ?? { status: "none", received: 0n, toHolder: 0n, fundBy: 0n };
+    },
+    async reputationOf(a) {
+      return reputation.get(a.toLowerCase()) ?? { onTime: 0, late: 0, volume: 0n, score: 0 };
+    },
+    async investorAllowed(a) {
+      return allowed.has(a.toLowerCase());
+    },
+    async investorNonce() {
+      return 0n;
+    },
+    async getClaimLogs() {
+      return claimLogs;
     },
     async getBlockNumber() {
       return 1_000n;

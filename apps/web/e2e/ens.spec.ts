@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createPublicClient, http } from "viem";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { sepolia } from "viem/chains";
 
 const APP = process.env.E2E_APP_URL ?? "https://app-staging.stenmont.com";
@@ -54,4 +55,19 @@ test("a business gets a real ENS name that resolves to its account, adds a finan
   expect(lock.status(), await lock.text()).toBe(200);
   expect((await call("/v1/ens/finance", { member })).status()).toBe(409);
   expect((await sepoliaClient.getEnsText({ name, key: "stenmont.payout" }))?.toLowerCase()).toBe(account);
+
+  // an agent is a name under the business: its own identity, policy, expiry, and the right to edit one record
+  const agent = privateKeyToAccount(generatePrivateKey()).address;
+  const made = await call("/v1/ens/agents", { label: "billing-bot", agentAddress: agent, scopes: ["invoice.read", "refund.draft"], dailyLimit: "50", perTxLimit: "10", expiresInDays: 30, context: "Drafts refunds for the finance team" });
+  expect(made.status(), await made.text()).toBe(201);
+  const agentName = `billing-bot.${name}`;
+  expect(((await made.json()) as { name: string }).name).toBe(agentName);
+  await expect.poll(async () => (await sepoliaClient.getEnsAddress({ name: agentName }).catch(() => null))?.toLowerCase(), { timeout: 90_000, intervals: [4_000] }).toBe(agent.toLowerCase());
+  expect(await sepoliaClient.getEnsText({ name: agentName, key: "agent-context" })).toBe("Drafts refunds for the finance team");
+  expect(JSON.parse((await sepoliaClient.getEnsText({ name: agentName, key: "stenmont.agent.policy" }))!)).toEqual({ dailyLimit: "50", perTxLimit: "10", scopes: ["invoice.read", "refund.draft"] });
+
+  // revoking removes the name
+  const gone = await request.delete(`${API}/v1/ens/agents/billing-bot`, { headers: { authorization: `Bearer ${key}` }, timeout: 240_000 });
+  expect(gone.status(), await gone.text()).toBe(200);
+  await expect.poll(async () => (await sepoliaClient.getEnsAddress({ name: agentName }).catch(() => null)) ?? null, { timeout: 90_000, intervals: [4_000] }).toBeNull();
 });

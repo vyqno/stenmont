@@ -26,6 +26,9 @@ export type Env = {
   /** The UserRegistry that holds the subnames of ENS_ROOT_NAME. */
   ENS_SUBNAME_REGISTRY: string;
   SUBSCRIPTION_MANAGER_ADDRESS: string;
+  INVESTOR_REGISTRY_ADDRESS: string;
+  INVOICE_CLAIM_ADDRESS: string;
+  REPUTATION_REGISTRY_ADDRESS: string;
   /** Parent domain for the session cookie, so the app and the API (sibling subdomains) share it. Unset = host-only. */
   COOKIE_DOMAIN?: string;
   INDEXER_CONFIRMATIONS?: string;

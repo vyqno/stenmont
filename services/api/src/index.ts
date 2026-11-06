@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/d1";
 import { createApp } from "./app";
 import { viemChain } from "./chain";
+import { runClaimIndexer, runDefaults } from "./claims";
 import { handleQueue } from "./delivery";
 import type { Env, WebhookJob } from "./env";
 import { runIndexer } from "./indexer";
@@ -20,9 +21,13 @@ export default {
     const db = drizzle(env.DB);
     const chain = viemChain(env);
     ctx.waitUntil(runIndexer(env, db, chain));
+    ctx.waitUntil(runClaimIndexer(env, db, chain));
     ctx.waitUntil(runRenewals(env, db, chain, new Date(_event.scheduledTime)));
     const at = new Date(_event.scheduledTime);
-    if (at.getUTCMinutes() === 0) ctx.waitUntil(runReminders(env, db, at)); // hourly
+    if (at.getUTCMinutes() === 0) {
+      ctx.waitUntil(runReminders(env, db, at)); // hourly
+      ctx.waitUntil(runDefaults(env, db, chain, at));
+    }
   },
   /** Queue consumer: signed webhook deliveries with retries. */
   async queue(batch: MessageBatch<WebhookJob>, env: Env) {

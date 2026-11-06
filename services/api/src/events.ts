@@ -9,5 +9,8 @@ export const EVENT_TYPES = [
   "subscription.charged",
   "subscription.past_due",
   "subscription.cancelled",
+  "claim.funded",
+  "claim.settled",
+  "claim.defaulted",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];

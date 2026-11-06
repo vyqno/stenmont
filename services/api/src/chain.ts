@@ -1,6 +1,6 @@
 import { BaseError, createPublicClient, decodeErrorResult, encodeFunctionData, http, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { MULTICALL3_ADDRESS, USDT_ADDRESS, multicall3Abi, passkeyAccountFactoryAbi, paymentRouterAbi, subscriptionManagerAbi, usdtAbi, whitechainSepolia } from "@stenmont/shared";
+import { MULTICALL3_ADDRESS, USDT_ADDRESS, investorRegistryAbi, invoiceClaimAbi, multicall3Abi, passkeyAccountFactoryAbi, paymentRouterAbi, reputationRegistryAbi, subscriptionManagerAbi, usdtAbi, whitechainSepolia } from "@stenmont/shared";
 import type { Env } from "./env";
 import type { Call } from "./relayer/sender";
 
@@ -50,6 +50,20 @@ export type RouterLog =
   | (Base & { eventName: "InvoiceRefunded"; args: { id: Hex; to: Address; value: bigint; refundedTotal: bigint } })
   | (Base & { eventName: "InvoiceCancelled"; args: { id: Hex } });
 
+export type ListClaimRequest = { invoiceId: Hex; discountBps: number; reserveBps: number; deadline: bigint; termsSig: Hex; hookSig: Hex };
+export type AllowInvestorRequest = { investor: Address; expiresAt: bigint; deadline: bigint; signature: Hex };
+export const CLAIM_STATUSES = ["none", "listed", "funded", "settled", "defaulted", "cancelled"] as const;
+export type ClaimState = { status: (typeof CLAIM_STATUSES)[number]; received: bigint; toHolder: bigint; fundBy: bigint };
+/** A payer's onchain record (ReputationRegistry): invoices paid on time and late, volume in USDT base units, and the 0..100 score. */
+export type ReputationRecord = { onTime: number; late: number; volume: bigint; score: number };
+export type ClaimLog =
+  | (Base & { eventName: "ClaimListed"; args: { invoiceId: Hex; merchant: Address; face: bigint; price: bigint; reserve: bigint; dueDate: bigint } })
+  | (Base & { eventName: "ClaimFunded"; args: { invoiceId: Hex; investor: Address; price: bigint; advance: bigint } })
+  | (Base & { eventName: "ClaimSettled"; args: { invoiceId: Hex; reserveReleased: bigint } })
+  | (Base & { eventName: "ClaimDefaulted"; args: { invoiceId: Hex; holder: Address; reserveToHolder: bigint } })
+  | (Base & { eventName: "ClaimCancelled"; args: { invoiceId: Hex } })
+  | (Base & { eventName: "Transfer"; args: { from: Address; to: Address; tokenId: bigint } });
+
 /** A call the contracts would reject. `reason` is the router error name when it can be decoded. */
 export class Rejected extends Error {
   constructor(readonly reason: string) {
@@ -70,6 +84,17 @@ export interface ChainClient {
   subscriptionState(id: Hex): Promise<SubscriptionState>;
   /** The relayer wallet: the address merchants authorise to create invoices for them. */
   relayerAddress(): Address;
+  /** Offers an invoice for sale (InvoiceClaim.list with the merchant's two signatures). Throws Rejected if the contracts would revert. Resolves after the receipt. */
+  listClaim(req: ListClaimRequest): Promise<{ txHash: Hex }>;
+  /** Puts an investor on the allowlist (InvestorRegistry.allow with the attester's signature). Throws Rejected. Resolves after the receipt. */
+  allowInvestor(req: AllowInvestorRequest): Promise<{ txHash: Hex }>;
+  /** The claim as the contract sees it (the source of truth). */
+  claimState(invoiceId: Hex): Promise<ClaimState>;
+  reputationOf(address: Address): Promise<ReputationRecord>;
+  investorAllowed(address: Address): Promise<boolean>;
+  /** The investor's attestation counter: the next `allow` signature must use it. */
+  investorNonce(address: Address): Promise<bigint>;
+  getClaimLogs(fromBlock: bigint, toBlock: bigint): Promise<ClaimLog[]>;
   getBlockNumber(): Promise<bigint>;
   getRouterLogs(fromBlock: bigint, toBlock: bigint): Promise<RouterLog[]>;
   // relayer
@@ -96,10 +121,12 @@ function revertReason(e: unknown): string {
     const holder = e.walk((x) => typeof (x as { data?: unknown }).data === "string" && (x as { data: string }).data.startsWith("0x"));
     const data = (holder as { data?: Hex } | null)?.data;
     if (data) {
-      try {
-        return decodeErrorResult({ abi: paymentRouterAbi, data }).errorName;
-      } catch {
-        /* not a router error */
+      for (const abi of [paymentRouterAbi, invoiceClaimAbi, investorRegistryAbi]) {
+        try {
+          return decodeErrorResult({ abi, data }).errorName;
+        } catch {
+          /* not this contract's error */
+        }
       }
       try {
         return String(decodeErrorResult({ abi: errorString, data }).args![0]);
@@ -113,6 +140,7 @@ function revertReason(e: unknown): string {
 }
 
 const WATCHED = ["InvoicePaid", "InvoiceRefunded", "InvoiceCancelled"] as const;
+const CLAIM_WATCHED = ["ClaimListed", "ClaimFunded", "ClaimSettled", "ClaimDefaulted", "ClaimCancelled", "Transfer"] as const;
 
 export function viemChain(env: Env): ChainClient {
   const transport = http(env.WHITECHAIN_RPC);
@@ -194,6 +222,48 @@ export function viemChain(env: Env): ChainClient {
       const receipt = await wait(txHash);
       if (receipt.status !== "success") throw new Error(`activateMerchant reverted in ${txHash}`);
       return { txHash };
+    },
+    async listClaim(req) {
+      const call = {
+        to: env.INVOICE_CLAIM_ADDRESS as Address,
+        data: encodeFunctionData({ abi: invoiceClaimAbi, functionName: "list", args: [req.invoiceId, req.discountBps, req.reserveBps, req.deadline, req.termsSig, req.hookSig] }),
+      };
+      await estimate(call);
+      const txHash = await sender().submit(call);
+      const receipt = await wait(txHash);
+      if (receipt.status !== "success") throw new Error(`listClaim reverted in ${txHash}`);
+      return { txHash };
+    },
+    async allowInvestor(req) {
+      const call = {
+        to: env.INVESTOR_REGISTRY_ADDRESS as Address,
+        data: encodeFunctionData({ abi: investorRegistryAbi, functionName: "allow", args: [req.investor, req.expiresAt, req.deadline, req.signature] }),
+      };
+      await estimate(call);
+      const txHash = await sender().submit(call);
+      const receipt = await wait(txHash);
+      if (receipt.status !== "success") throw new Error(`allowInvestor reverted in ${txHash}`);
+      return { txHash };
+    },
+    async claimState(invoiceId) {
+      const c = await publicClient.readContract({ address: env.INVOICE_CLAIM_ADDRESS as Address, abi: invoiceClaimAbi, functionName: "claims", args: [invoiceId] });
+      return { status: CLAIM_STATUSES[c.status] ?? "none", received: c.received, toHolder: c.toHolder, fundBy: BigInt(c.fundBy) };
+    },
+    async reputationOf(address) {
+      const reputation = env.REPUTATION_REGISTRY_ADDRESS as Address;
+      const [r, score] = await Promise.all([
+        publicClient.readContract({ address: reputation, abi: reputationRegistryAbi, functionName: "recordOf", args: [address] }),
+        publicClient.readContract({ address: reputation, abi: reputationRegistryAbi, functionName: "score", args: [address] }),
+      ]);
+      return { onTime: r.onTime, late: r.late, volume: r.volume, score: Number(score) };
+    },
+    investorAllowed: (address) => publicClient.readContract({ address: env.INVESTOR_REGISTRY_ADDRESS as Address, abi: investorRegistryAbi, functionName: "isAllowed", args: [address] }),
+    investorNonce: (address) => publicClient.readContract({ address: env.INVESTOR_REGISTRY_ADDRESS as Address, abi: investorRegistryAbi, functionName: "nonces", args: [address] }),
+    async getClaimLogs(fromBlock, toBlock) {
+      const logs = await publicClient.getContractEvents({ address: env.INVOICE_CLAIM_ADDRESS as Address, abi: invoiceClaimAbi, fromBlock, toBlock });
+      return logs
+        .filter((l) => (CLAIM_WATCHED as readonly string[]).includes(l.eventName as string))
+        .map((l) => ({ eventName: l.eventName, args: l.args, transactionHash: l.transactionHash, logIndex: l.logIndex, blockNumber: l.blockNumber })) as ClaimLog[];
     },
     getBlockNumber: () => publicClient.getBlockNumber(),
     async getRouterLogs(fromBlock, toBlock) {

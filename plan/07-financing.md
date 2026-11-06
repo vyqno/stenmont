@@ -73,3 +73,5 @@ function transferClaim(bytes32 invoiceId, address to) external;                 
 **Stretch (only if time remains):** order financing in stages (trade finance) and supplier programme. Write their own plan files first.
 
 **Progress (contracts):** `InvestorRegistry`, `InvoiceClaim` and `ReputationRegistry` are built and tested locally (see BUILDER-NOTES.md, 11:40). Still to do for this phase: the router change (block `cancel` after a sale), reputation wiring, deployment to staging, the API and investor portal, and the live sell, settle and default demo.
+
+**Progress (API):** listing, the public market, the investor allowlist, funding, the claim indexer and the hourly default job are built and tested (330 API tests); see BUILDER-NOTES.md. Still to do: the investor and sell-invoice screens (Task 7.5) and a live run: list, allow, fund, pay, settle and default on the chain.

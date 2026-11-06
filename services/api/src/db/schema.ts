@@ -344,3 +344,49 @@ export const rateLimits = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.key, t.bucket] })],
 );
+
+// ---- financing (sell an invoice) --------------------------------------------------------------------------------------
+
+/**
+ * One row per offer to sell an invoice, mirrored from InvoiceClaim. `pending` rows are requests waiting for the merchant's
+ * two passkey signatures; from `sending` on, at most one row per invoice is live.
+ */
+export const claims = sqliteTable(
+  "claims",
+  {
+    id: text("id").primaryKey(), // cl_...: the listing id
+    invoiceId: text("invoice_id").notNull(),
+    merchantId: text("merchant_id").notNull(),
+    status: text("status").notNull(), // pending | sending | listed | funding | funded | settled | defaulted | cancelled
+    discountBps: integer("discount_bps").notNull(),
+    reserveBps: integer("reserve_bps").notNull(),
+    face: text("face").notNull(), // USDT base units
+    price: text("price").notNull(),
+    reserve: text("reserve").notNull(),
+    dueDate: integer("due_date").notNull(), // unix seconds
+    deadline: integer("deadline").notNull(), // unix seconds: signed into the terms and the hook; also the last moment to fund
+    termsChallenge: text("terms_challenge").notNull(), // base64url of the ClaimTerms digest
+    hookChallenge: text("hook_challenge").notNull(), // base64url of the router SetHook digest
+    expiresAt: integer("expires_at").notNull(), // unix seconds: how long the merchant has to sign
+    investor: text("investor"),
+    listTxHash: text("list_tx_hash"),
+    fundTxHash: text("fund_tx_hash"),
+    closeTxHash: text("close_tx_hash"), // settle or default
+    leaseUntil: integer("lease_until"), // default job: unix seconds until which one run owns this claim
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [index("claims_invoice_idx").on(t.invoiceId), index("claims_status_idx").on(t.status)],
+);
+
+/** One person, one investor address: the unique (action, nullifier) is what stops a replayed World proof. */
+export const investorEnrollments = sqliteTable(
+  "investor_enrollments",
+  {
+    address: text("address").primaryKey(), // lower-case investor account
+    action: text("action").notNull(),
+    nullifier: text("nullifier").notNull(),
+    verifiedAt: text("verified_at").notNull(),
+  },
+  (t) => [uniqueIndex("investor_enrollments_action_nullifier").on(t.action, t.nullifier)],
+);
