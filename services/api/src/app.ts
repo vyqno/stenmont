@@ -30,6 +30,7 @@ import { publicClaimRoutes } from "./routes/publicClaims";
 import { refundRoutes } from "./routes/refunds";
 import { siteRoutes, switchRoutes } from "./routes/siteStatus";
 import { relayRoutes } from "./routes/relay";
+import { collectionsRoutes } from "./routes/collections";
 import { subscriptionPublicRoutes, subscriptionRelayRoutes, subscriptionRoutes } from "./routes/subscriptions";
 import { siweRoutes } from "./routes/siwe";
 import { kycWebhookRoutes, verificationRoutes } from "./routes/verification";
@@ -99,6 +100,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/api-keys", apiKeyRoutes);
   v1.route("/refunds", refundRoutes);
   v1.route("/subscriptions", subscriptionRoutes);
+  v1.route("/collections", collectionsRoutes);
   v1.route("/ens", ensRoutes);
   v1.route("/world", worldRoutes);
   v1.route("/approvals", approvalRoutes);

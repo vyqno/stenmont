@@ -1,6 +1,6 @@
 import type { OidcClaims } from "./oidc";
 
-export type Operation = "refund" | "payout_change" | "agent_limit";
+export type Operation = "refund" | "payout_change" | "agent_limit" | "collections_exception";
 export type ApprovalStatus = "pending" | "approved" | "denied" | "consumed";
 export type ApprovalRow = {
   id: string;

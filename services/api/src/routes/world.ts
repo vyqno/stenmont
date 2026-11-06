@@ -18,7 +18,7 @@ import { enrol } from "../world/verify";
 const base64url = (b: Uint8Array) => btoa(String.fromCharCode(...b)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 const ENROL_ACTION = "enrol-business";
 const ACTIONS = new Set([ENROL_ACTION]);
-const OPERATIONS = ["refund", "payout_change", "agent_limit"] as const;
+const OPERATIONS = ["refund", "payout_change", "agent_limit", "collections_exception"] as const;
 
 /** "production" in production, "staging" everywhere else, unless set explicitly. Proofs from any other environment are refused. */
 const environmentOf = (env: Env) => env.WORLD_ENVIRONMENT ?? (env.ENVIRONMENT === "production" ? "production" : "staging");
@@ -116,7 +116,7 @@ worldAuthRoutes.get("/callback", async (c) => {
   if (!me) return fail(c, 401, "unauthorized", "Sign in first");
   if (me.id !== approval.merchantId) return fail(c, 403, "forbidden", "This approval belongs to another business");
 
-  const destination = approval.operation === "agent_limit" ? "identity" : "invoices";
+  const destination = approval.operation === "collections_exception" ? "collections" : approval.operation === "agent_limit" ? "identity" : "invoices";
   const back = (result: "approved" | "denied") => c.redirect(`${c.env.APP_URL}/dashboard/${destination}?approval=${approval.id}&result=${result}`, 302);
   const deny = async (reason: string) => {
     await markDenied(repo, approval.id, reason);

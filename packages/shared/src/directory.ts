@@ -12,7 +12,7 @@ export const X402_KEY = "stenmont.x402";
 export const TOKEN_KEY = "stenmont.token";
 export const REFUND_KEY = "stenmont.refund";
 export const LIMITS_KEY = "stenmont.limits";
-export const DIRECTORY_KEYS = [PAY_KEY, X402_KEY, TOKEN_KEY, REFUND_KEY, LIMITS_KEY] as const;
+export const DIRECTORY_KEYS = [PAY_KEY, X402_KEY, TOKEN_KEY, REFUND_KEY, LIMITS_KEY, "stenmont.collections"] as const;
 export type DirectoryKey = (typeof DIRECTORY_KEYS)[number];
 
 /** The accepted token, as `eip155:<chain>/erc20:<address>`. Always derived from our chain config, never typed by a person. */
