@@ -8,6 +8,7 @@ import { clientIp } from "../lib/request";
 import { randomHex, sha256Hex, hmacSha256Hex, timingSafeEqual } from "../lib/crypto";
 import { hitRateLimit } from "../relayer/caps";
 import { deliverEmail, renderEmail } from "../email/transactional";
+import { recordIdentityFacts } from "../identity/verification";
 import { establishIdentity, openIdentity } from "../identity/sessions";
 import { createOidcVerifier } from "../world/oidc";
 export const identitySigninRoutes = new Hono<AppEnv>();
@@ -45,6 +46,7 @@ identitySigninRoutes.post("/email/verify",async(c)=>{
   const used=await c.env.DB.prepare("UPDATE identity_email_codes SET used_at=? WHERE id=? AND used_at IS NULL RETURNING id").bind(c.var.now().toISOString(),b.id).first();
   if(!used) return fail(c,401,"invalid_code","The code is incorrect or expired.");
   const identity=await establishIdentity(c,"email",row.email,row.email);
+  await recordIdentityFacts(c,identity);
   return c.json({verified:true,linked:!!identity.merchant_id});
 });
 identitySigninRoutes.get("/identity",async(c)=>{
@@ -57,6 +59,7 @@ identitySigninRoutes.post("/identity/link",async(c)=>{
   if(identity.merchant_id && identity.merchant_id!==ctx.merchant.id) return fail(c,409,"already_linked","This identity belongs to another business.");
   const linked=await c.env.DB.prepare("UPDATE identity_subjects SET merchant_id=? WHERE id=? AND (merchant_id IS NULL OR merchant_id=?) RETURNING id").bind(ctx.merchant.id,identity.id,ctx.merchant.id).first();
   if(!linked) return fail(c,409,"already_linked","This identity belongs to another business.");
+  await recordIdentityFacts(c,{...identity,merchant_id:ctx.merchant.id});
   return c.json({linked:true});
 });
 const flowCookie="stenmont_google_flow";
@@ -86,7 +89,12 @@ identitySigninRoutes.get("/google/callback",async(c)=>{
     const result=await verify(tokens.id_token??"",{nonce:flow.nonce});
     if(!result.ok || result.claims.email_verified!==true || typeof result.claims.email!=="string" || !z.email().safeParse(result.claims.email).success) throw Error();
     // Provider + sub is the identity key. Matching email never links two accounts.
-    await establishIdentity(c,"google",result.claims.sub,result.claims.email);
+    const identity=await establishIdentity(c,"google",result.claims.sub,result.claims.email);
+    const hd=result.claims.hd;
+    if(typeof hd === "string" && hd.length <= 253 && hd.includes(".") && hd.split(".").every(label=>/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label))) {
+      await c.env.DB.prepare("INSERT INTO identity_google_domains(identity_id,domain,verified_at) VALUES(?,?,?) ON CONFLICT(identity_id) DO UPDATE SET domain=excluded.domain,verified_at=excluded.verified_at").bind(identity.id,hd.toLowerCase(),c.var.now().toISOString()).run();
+    } else await c.env.DB.prepare("DELETE FROM identity_google_domains WHERE identity_id=?").bind(identity.id).run();
+    await recordIdentityFacts(c,identity);
     return c.redirect(`${c.env.APP_URL}/login?identity=verified`);
   } catch { return fail(c,401,"invalid_login","Google sign-in could not be verified."); }
 });

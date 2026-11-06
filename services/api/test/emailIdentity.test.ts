@@ -48,6 +48,8 @@ it("links only with an existing passkey session; recovered dashboard access cann
   const session = "a".repeat(64);
   await t.db.prepare("INSERT INTO sessions(token_hash,merchant_id,passkey_id,expires_at,created_at) VALUES(?,?,?,?,?)").bind(await sha256Hex(session),"m_1","fixture-passkey","2027-01-01T00:00:00Z",t.clock.now.toISOString()).run();
   expect((await t.req("/auth/identity/link", { method:"POST", headers:{origin:t.env.APP_URL,cookie:`${identityCookie}; __Secure-stenmont_test=${session}`} })).status).toBe(200);
+  const emailFact = await t.db.prepare("SELECT method, decision FROM verification_records WHERE merchant_id='m_1' AND method='email'").first();
+  expect(emailFact).toMatchObject({method:"email",decision:"approved"});
   expect((await t.req("/v1/me", {headers:{cookie:identityCookie}})).status).toBe(200);
   // A revoked/expired passkey cookie must not shadow a freshly verified recovery identity.
   expect((await t.req("/v1/me", {headers:{cookie:`${identityCookie}; __Secure-stenmont_test=${"b".repeat(64)}`}})).status).toBe(200);

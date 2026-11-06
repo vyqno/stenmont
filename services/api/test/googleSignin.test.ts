@@ -1,5 +1,6 @@
 import { beforeAll, expect, it } from "vitest";
-import { setup } from "./helpers/app";
+import { sha256Hex } from "../src/lib/crypto";
+import { seedMerchant, setup } from "./helpers/app";
 import { rsaKey, signJwt } from "./world/helpers";
 let key: Awaited<ReturnType<typeof rsaKey>>;
 beforeAll(async()=>{key=await rsaKey();});
@@ -9,7 +10,7 @@ it("uses PKCE/state/nonce, accepts both Google issuers without auth_time and ref
     const t=setup({}, {GOOGLE_CLIENT_ID:"fixture-client",GOOGLE_CLIENT_SECRET:"fixture-only"},{fetch:(async(input,init)=>{
       if(String(input).includes("/token")) {
         verifierSent=new URLSearchParams(init?.body as URLSearchParams).has("code_verifier");
-        return Response.json({id_token:await signJwt(key.priv,{iss:issuer,sub:"google-sub",aud:"fixture-client",exp:Math.floor(t.clock.now.getTime()/1000)+300,nonce,email:"same@example.invalid",email_verified:true})});
+        return Response.json({id_token:await signJwt(key.priv,{iss:issuer,sub:"google-sub",aud:"fixture-client",exp:Math.floor(t.clock.now.getTime()/1000)+300,nonce,email:"same@example.invalid",email_verified:true,hd:"workspace.example.invalid"})});
       }
       return Response.json(key.jwks);
     }) as typeof fetch});
@@ -21,11 +22,21 @@ it("uses PKCE/state/nonce, accepts both Google issuers without auth_time and ref
     const cookie=start.headers.get("set-cookie")!.split(";")[0]!;
     const callback=`/auth/google/callback?state=${url.searchParams.get("state")}&code=fixture-code`;
     expect((await t.req(callback,{headers:{cookie:"wrong=browser"}})).status).toBe(401);
-    expect((await t.req(callback,{headers:{cookie}})).status).toBe(302);
+    const signed=await t.req(callback,{headers:{cookie}});
+    expect(signed.status).toBe(302);
     expect(verifierSent).toBe(true);
     expect((await t.req(callback,{headers:{cookie}})).status).toBe(401);
     const identity=await t.db.prepare("SELECT provider,subject,merchant_id FROM identity_subjects WHERE provider='google'").first();
     expect(identity).toEqual({provider:"google",subject:"google-sub",merchant_id:null});
+    await seedMerchant(t.db);
+    const session="c".repeat(64);
+    await t.db.prepare("INSERT INTO sessions(token_hash,merchant_id,passkey_id,expires_at,created_at) VALUES(?,?,?,?,?)").bind(await sha256Hex(session),"m_1","fixture-passkey","2027-01-01T00:00:00Z",t.clock.now.toISOString()).run();
+    const identityCookie=signed.headers.get("set-cookie")!.match(/__Secure-stenmont_identity_test=([a-f0-9]{64})/)![0];
+    const headers={origin:t.env.APP_URL,cookie:`${identityCookie}; __Secure-stenmont_test=${session}`};
+    expect((await t.req("/auth/identity/link",{method:"POST",headers})).status).toBe(200);
+    expect((await t.req("/auth/identity/link",{method:"POST",headers})).status).toBe(200);
+    const domain=await t.db.prepare("SELECT method,decision,expires_at FROM verification_records WHERE merchant_id='m_1' AND method='domain'").first();
+    expect(domain).toMatchObject({method:"domain",decision:"approved",expires_at:new Date(t.clock.now.getTime()+86400_000).toISOString()});
   }
 });
 it("refuses unverified Google email",async()=>{
