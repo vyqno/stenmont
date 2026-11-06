@@ -5,6 +5,7 @@ import { createMiddleware } from "hono/factory";
 import type { AppEnv, Merchant } from "./app";
 import { fail } from "./errors";
 import { apiKeys, merchants, sessions } from "./db/schema";
+import { clearIdentity, openIdentity } from "./identity/sessions";
 import { randomHex, sha256Hex, timingSafeEqual } from "./lib/crypto";
 import type { Env } from "./env";
 import { isOAuthBearer, requireOAuth } from "./oauth/bearer";
@@ -73,13 +74,20 @@ const sessionToken = (c: Context<AppEnv>) => {
 };
 
 export async function sessionMerchant(c: Context<AppEnv>): Promise<Merchant | null> {
-  return (await sessionContext(c))?.merchant ?? null;
+  const session = await sessionContext(c);
+  // OAuth consent and other direct session-authorized actions still require a passkey login.
+  return session?.passkeyId ? session.merchant : null;
 }
 
 /** The signed-in business and the passkey this session was started with. */
 export async function sessionContext(c: Context<AppEnv>): Promise<{ merchant: Merchant; passkeyId: string } | null> {
   const token = sessionToken(c);
-  if (!token) return null;
+  if (!token) {
+    const identity = await openIdentity(c);
+    if (!identity?.merchant_id) return null;
+    const [merchant] = await c.var.db.select().from(merchants).where(eq(merchants.id,identity.merchant_id));
+    return merchant?.status === "active" ? {merchant,passkeyId:""} : null;
+  }
   const [row] = await c.var.db
     .select()
     .from(sessions)
@@ -90,6 +98,7 @@ export async function sessionContext(c: Context<AppEnv>): Promise<{ merchant: Me
 }
 
 export async function endSession(c: Context<AppEnv>): Promise<void> {
+  await clearIdentity(c);
   const token = sessionToken(c);
   if (token) await c.var.db.delete(sessions).where(eq(sessions.tokenHash, await sha256Hex(token)));
   deleteCookie(c, cookieName(c.env), cookieOptions(c.env));
@@ -100,8 +109,10 @@ export const requireAuth = createMiddleware<AppEnv>(async (c, next) => {
   const authorization = c.req.header("authorization");
   if (isOAuthBearer(authorization)) return requireOAuth(c, next);
   if (authorization) return requireApiKey(c, next);
-  const merchant = await sessionMerchant(c);
+  const session = await sessionContext(c);
+  const merchant = session?.merchant;
   if (!merchant) return fail(c, 401, "unauthorized", "Missing or invalid API key");
+  if (!SAFE_METHODS.has(c.req.method) && !session?.passkeyId) return fail(c,403,"passkey_required","Use your business passkey for this action.");
   if (!SAFE_METHODS.has(c.req.method) && !isAppOrigin(c.req.header("origin"), c.env)) {
     return fail(c, 403, "csrf", "This request must come from the Stenmont app");
   }
