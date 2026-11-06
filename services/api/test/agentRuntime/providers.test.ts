@@ -30,3 +30,24 @@ it.each(["gemini","anthropic","openai"] as const)("%s refuses redirect responses
  await expect(complete(provider,"fixture-only","system","prompt",redirected)).rejects.toThrow("Provider request failed. Check the key or try again.");
  expect(calls).toHaveLength(1);expect(calls[0]).not.toContain("untrusted.example");expect(reads).toBe(0);
 });
+
+it.each([undefined,"developer","vertex_express"])("Gemini backend %s selects exactly one fixed endpoint",async backend=>{
+ const calls:{url:string;init?:RequestInit}[]=[];
+ const send=(async(url,init)=>{calls.push({url:String(url),init});return Response.json({candidates:[{content:{parts:[{text:'{"text":"ok"}'}]}}],usageMetadata:{totalTokenCount:7}});}) as typeof fetch;
+ expect(await complete("gemini","fixture-only","system","prompt",send,32,backend)).toEqual({text:'{"text":"ok"}',tokens:7});
+ expect(calls).toHaveLength(1);
+ expect(calls[0]!.url).toBe(backend==="vertex_express"?`https://aiplatform.googleapis.com/v1/publishers/google/models/${MODELS.gemini}:generateContent`:`https://generativelanguage.googleapis.com/v1beta/models/${MODELS.gemini}:generateContent`);
+ expect(calls[0]!.init?.headers).toMatchObject({"x-goog-api-key":"fixture-only"});
+ expect(calls[0]!.init?.redirect).toBe("manual");
+ expect(JSON.parse(String(calls[0]!.init?.body)).generationConfig).toEqual({maxOutputTokens:32,responseMimeType:"application/json"});
+});
+it.each(["", "vertex", "https://untrusted.example"])("invalid Gemini backend %s fails before fetch",async backend=>{
+ let calls=0;const send=(async()=>{calls++;return Response.json({});}) as typeof fetch;
+ await expect(complete("gemini","fixture-only","system","prompt",send,32,backend)).rejects.toThrow("Provider request failed");
+ expect(calls).toBe(0);
+});
+it.each([302,403,429,500])("Vertex Express failure %s never retries another billing backend",async status=>{
+ const calls:string[]=[];const send=(async url=>{calls.push(String(url));return new Response("private vendor detail",{status});}) as typeof fetch;
+ await expect(complete("gemini","fixture-only","system","prompt",send,32,"vertex_express")).rejects.toThrow("Provider request failed");
+ expect(calls).toEqual([`https://aiplatform.googleapis.com/v1/publishers/google/models/${MODELS.gemini}:generateContent`]);
+});

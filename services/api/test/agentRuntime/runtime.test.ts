@@ -72,3 +72,15 @@ it("key validation still refuses exhausted same-day and per-minute budgets befor
  const rate=await world();for(let i=0;i<10;i++)await rate.t.db.prepare("INSERT INTO agent_usage(id,merchant_id,conversation_id,provider,reserved,actual,created_at,status) VALUES(?,?,?,?,?,?,?,?)").bind(`rate-${i}`,"m_1",`rate-${i}`,"openai",1,1,rate.t.clock.now.toISOString(),"settled").run();
  expect((await rate.post("/v1/agent/keys",{provider:"openai",key:"fixture-only"})).status).toBe(429);expect(rate.f.calls).toBe(0);
 });
+
+it("configured Vertex Express backend is shared by chat and key validation",async()=>{
+ const urls:string[]=[];const limits:number[]=[];
+ const send=(async(url,init)=>{urls.push(String(url));limits.push(JSON.parse(String(init?.body)).generationConfig.maxOutputTokens);return Response.json({candidates:[{content:{parts:[{text:'{"text":"cloud response"}'}]}}],usageMetadata:{totalTokenCount:12}});}) as typeof fetch;
+ const t=setup({}, {AGENT_ENABLED:"yes",GEMINI_BACKEND:"vertex_express",GEMINI_API_KEY:"fixture-only",AGENT_KEY_SECRET:"fixture-only seal secret of sufficient length"},{fetch:send});
+ const key=await seedMerchant(t.db);const post=(path:string,body:unknown)=>t.req(path,{key,method:"POST",body:JSON.stringify(body)});
+ expect((await post("/v1/agent/keys",{provider:"gemini",key:"fixture-only"})).status).toBe(200);
+ const {id}=await (await post("/v1/agent/conversations",{tools:[]})).json() as any;
+ expect(await (await post(`/v1/agent/conversations/${id}/messages`,{message:"hello"})).text()).toContain("cloud response");
+ expect(urls).toHaveLength(2);expect(urls.every(url=>url.startsWith("https://aiplatform.googleapis.com/v1/publishers/google/models/"))).toBe(true);
+ expect(limits).toEqual([32,1024]);
+});

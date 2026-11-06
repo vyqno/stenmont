@@ -11,6 +11,7 @@ export type Env = {
   ANCHOR_REGISTRY?: string;
   AGENT_ENABLED?: string;
   GEMINI_API_KEY?: string;
+  GEMINI_BACKEND?: string;
   AGENT_KEY_SECRET?: string;
   /** Dedicated EIP-712 signer for short-lived public business fact observations. */
   A2A_ATTESTER_PRIVATE_KEY?: string;

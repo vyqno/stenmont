@@ -37,7 +37,7 @@ agentRuntimeRoutes.post("/keys",async c=>{
  if(!c.env.AGENT_KEY_SECRET||c.env.AGENT_KEY_SECRET.length<32)return fail(c,503,"agent_unconfigured","Key storage is not configured.");
  const hold=await reserve(c.env.DB,c.var.merchantId,`key-validation:${crypto.randomUUID()}`,p.data.provider,1024,c.var.now());if(!hold)return fail(c,429,"usage_limit_reached","Assistant usage limit reached.");
  try{
-  const result=await complete(p.data.provider,p.data.key,"Reply with JSON only.",'Return {"text":"ok"}',c.var.fetch,32);
+  const result=await complete(p.data.provider,p.data.key,"Reply with JSON only.",'Return {"text":"ok"}',c.var.fetch,32,c.env.GEMINI_BACKEND);
   await settle(c.env.DB,hold,Math.min(1024,result.tokens??1024));
   const sealed=await seal(c.env.AGENT_KEY_SECRET,p.data.key,["agent-key/v1",c.var.merchantId,p.data.provider]);
   await c.env.DB.prepare("INSERT INTO agent_provider_keys(merchant_id,provider,sealed) VALUES(?,?,?) ON CONFLICT(merchant_id,provider) DO UPDATE SET sealed=excluded.sealed").bind(c.var.merchantId,p.data.provider,sealed).run();return c.json({provider:p.data.provider,configured:true});
@@ -76,7 +76,7 @@ agentRuntimeRoutes.post("/conversations/:id/messages",async c=>{
     if(c.env.AGENT_ENABLED!=="yes")throw new Error("agent_disabled");
     const budget=byteTokens(system)+byteTokens(prompt)+1024;
     heldTokens=budget;hold=await reserve(db,merchant,id,p.data.provider,budget,c.var.now());if(!hold)throw new Error("usage_limit_reached");
-    const result=await complete(p.data.provider,key!,system,prompt,c.var.fetch);
+    const result=await complete(p.data.provider,key!,system,prompt,c.var.fetch,1024,c.env.GEMINI_BACKEND);
     await settle(db,hold,result.tokens!==null&&result.tokens<=budget?result.tokens:budget);hold=null;
     let answer:any;try{answer=JSON.parse(result.text);}catch{throw new Error("invalid_provider_response");}
     if(typeof answer.text==="string"){

@@ -2,10 +2,14 @@ export type Provider="gemini"|"anthropic"|"openai";
 export const MODELS={gemini:"gemini-3.5-flash-lite",anthropic:"claude-haiku-5-5",openai:"gpt-5.4-mini-2026-03-17"} as const;
 export const OUTPUT_TOKENS=1024;
 /** Text JSON protocol keeps the executor independent of vendor function-call signatures. No dynamic URLs. */
-export async function complete(provider:Provider,key:string,system:string,prompt:string,send:typeof fetch,maxTokens=OUTPUT_TOKENS):Promise<{text:string;tokens:number|null}>{
+export async function complete(provider:Provider,key:string,system:string,prompt:string,send:typeof fetch,maxTokens=OUTPUT_TOKENS,geminiBackend:string|undefined=undefined):Promise<{text:string;tokens:number|null}>{
  let url:string,body:unknown,headers:Record<string,string>={"content-type":"application/json"};
  if(provider==="gemini"){
-  url=`https://generativelanguage.googleapis.com/v1beta/models/${MODELS.gemini}:generateContent`;
+  const backend=geminiBackend??"developer";
+  if(backend!=="developer"&&backend!=="vertex_express")throw new Error("Provider request failed. Check the key or try again.");
+  url=backend==="vertex_express"
+   ?`https://aiplatform.googleapis.com/v1/publishers/google/models/${MODELS.gemini}:generateContent`
+   :`https://generativelanguage.googleapis.com/v1beta/models/${MODELS.gemini}:generateContent`;
   headers["x-goog-api-key"]=key;
   body={systemInstruction:{parts:[{text:system}]},contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:maxTokens,responseMimeType:"application/json"}};
  }else if(provider==="anthropic"){
