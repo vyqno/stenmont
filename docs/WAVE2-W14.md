@@ -15,7 +15,7 @@
 
 ## Policy
 
-Staging is non-indexable regardless of the index flag. Public indexing requires BOTH an approved public origin and explicit STENMONT_INDEX_PUBLIC_SITE=yes. STENMONT_PUBLIC_ORIGIN defaults to app-staging.stenmont.com; arbitrary origins are refused. These are nonsecret future configuration names, not a production deployment instruction. Private, authentication and dynamic merchant records have no canonical or social URL, use no-referrer and stay outside sitemaps. Social previews contain route titles and descriptions only. Image and Organization-logo metadata are held: the existing raster is a bold system fallback, and a real-font, non-bold wordmark raster is still being prepared. The Adobe project exposes weights 400/700; a specific 500 requirement was an implementation interpretation, not the owner's words. Actual font loading does not prove licence entitlement. No fallback raster is presented as approved artwork. Invoice/customer data never enters preview metadata.
+Staging is non-indexable regardless of the index flag. Public indexing requires BOTH an approved public origin and explicit STENMONT_INDEX_PUBLIC_SITE=yes. STENMONT_PUBLIC_ORIGIN defaults to app-staging.stenmont.com; arbitrary origins are refused. These are nonsecret future configuration names, not a production deployment instruction. Private, authentication and dynamic merchant records have no canonical or social URL, use no-referrer and stay outside sitemaps. Social previews use the shared text-only lowercase wordmark, never invoice/customer data. The owner confirmed moderate size, Regular400, not bold. W6b supplies a new1200×630 raster rendered from the actually loaded All Round Gothic Book font; merge that asset replacement before deploying this metadata. This lane viewed the replacement PNG and read W6b's CDP proof of eight glyphs from AllRoundGothic-Book. Font licence entitlement is separate from successful loading; no font binary is committed.
 
 ## Sources checked
 
@@ -36,7 +36,7 @@ No third-party reference assets, font files, secrets or new dependencies are inc
 
 No deployment, browser screenshot, screen-reader session, 200% zoom audit, Lighthouse/Web Vitals score, search-engine submission, provider call, external account or payment ran in this lane. The 35-page check fetched actual server HTML, including dummy dynamic parameters; it is metadata evidence, not visual or transaction acceptance. W6b owns the visual review. Public marketing/docs routes prerender in the local build; metadata adds no client component or external data request.
 
-Social image acceptance remains pending until a real-font non-bold lowercase wordmark asset is approved and rendered. The old fallback PNG remains in source history but is not advertised in metadata. Root layout deliberately omits the home canonical/og:url so private children do not inherit them.
+Social image references require W6b's actual-font raster replacement in the same release. The old bold fallback must never be deployed with these references. Root layout deliberately omits the home canonical/og:url so private children do not inherit them.
 
 ## Exact final commands
 
@@ -49,3 +49,5 @@ Social image acceptance remains pending until a real-font non-bold lowercase wor
 - `pnpm --filter @stenmont/web start --port 3007` plus an HTTP head parser over every route: 35/35 passed and five discovery/text resources returned 200. Server stopped afterward. No browser was launched.
 
 The full workspace suite was not repeated; the lead owns the final integrated run.
+
+- 18:18 IST: Owner confirmed moderate-size Regular400 wordmark. Viewed W6b's actual-font1200×630 replacement and its CDP glyph evidence, then restored OG/Twitter/logo references. Final32 targeted tests and typecheck passed again; build/35-page HTTP run predate this small reference restoration. Lead must merge the matching W6b asset before final release.

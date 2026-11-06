@@ -23,14 +23,12 @@ describe("public discovery without exposing private billing routes", () => {
       expect(m.openGraph).not.toHaveProperty("url");
     }
   });
-  it("gives each route distinct share metadata without publishing unapproved wordmark artwork", () => {
+  it("gives each route distinct share metadata with the verified non-bold wordmark asset", () => {
     const titles = Object.keys(ROUTES).map(path => pageMetadata(path as keyof typeof ROUTES).title);
     expect(new Set(titles).size).toBe(titles.length);
     const m = pageMetadata("/pay/[id]");
-    expect(m.openGraph).not.toHaveProperty("images");
-    expect(m.twitter).toMatchObject({ card: "summary" });
-    expect(m.twitter).not.toHaveProperty("images");
-    expect(JSON.stringify(m)).not.toContain("wordmark-social.png");
+    expect(m.openGraph).toMatchObject({ images: [{ url: "/brand/wordmark-social.png", width: 1200, height: 630, alt: "stenmont" }] });
+    expect(m.twitter).toMatchObject({ card: "summary_large_image", images: ["/brand/wordmark-social.png"] });
     expect(JSON.stringify(m)).not.toMatch(/\[id\]|token|invoiceId/);
   });
   it("serializes JSON-LD without a script breakout or HTML parser separators", () => {

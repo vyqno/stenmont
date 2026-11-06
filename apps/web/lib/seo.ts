@@ -60,8 +60,8 @@ export function pageMetadata(path: RoutePath, site = siteConfig()): Metadata {
     ...(url ? { alternates: { canonical: url } } : {}),
     robots: { index: isPublic && site.indexPublic, follow: isPublic && site.indexPublic },
     referrer: isPublic ? "strict-origin-when-cross-origin" : "no-referrer",
-    openGraph: { title, description, siteName: "stenmont", locale: "en_US", type: "website", ...(url ? { url } : {}) },
-    twitter: { card: "summary", title, description },
+    openGraph: { title, description, siteName: "stenmont", locale: "en_US", type: "website", ...(url ? { url } : {}), images: [{ url: "/brand/wordmark-social.png", width: 1200, height: 630, alt: "stenmont" }] },
+    twitter: { card: "summary_large_image", title, description, images: ["/brand/wordmark-social.png"] },
   };
 }
 /** Root layout must not pass a home canonical/URL down into private child routes. */
