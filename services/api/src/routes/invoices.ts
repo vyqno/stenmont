@@ -16,6 +16,7 @@ import { d1WorldRepo } from "../world/d1";
 import { assertDifferentHumans } from "../world/samehuman";
 import { ensNames, merchants } from "../db/schema";
 import { emitEvent } from "../webhooks";
+import { isPaused } from "../sites/switch";
 
 const createSchema = z.strictObject({
   amount: amountSchema,
@@ -41,6 +42,8 @@ const listSchema = z.object({
 export const invoiceRoutes = new Hono<AppEnv>();
 
 invoiceRoutes.post("/", async (c) => {
+  // The business can pause payments (dashboard switch): no new invoices or checkout sessions until it resumes.
+  if (await isPaused(c.var.db, c.var.merchantId)) return fail(c, 403, "payments_paused", "Payments are paused for this business. Resume them in the dashboard.");
   const parsed = createSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return invalid(c, parsed.error);
   const input = parsed.data;

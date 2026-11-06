@@ -5,6 +5,7 @@ import type { AppEnv } from "../app";
 import { invoices, merchants, paymentLinks } from "../db/schema";
 import { fail } from "../errors";
 import { idSchema } from "../lib/validation";
+import { isPaused } from "../sites/switch";
 
 export const publicRoutes = new Hono<AppEnv>();
 
@@ -34,6 +35,7 @@ publicRoutes.get("/pay/:id", async (c) => {
     payeeName: row.inv.payeeName,
     successUrl: row.inv.successUrl,
     cancelUrl: row.inv.cancelUrl,
+    paused: await isPaused(c.var.db, row.inv.merchantId),
   });
 });
 
