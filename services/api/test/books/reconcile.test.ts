@@ -262,3 +262,11 @@ describe("determinism", () => {
     expect(a.lines.map((l) => l.seq)).toEqual(a.lines.map((_, i) => i + 1));
   });
 });
+
+it("moves late gas and financing sources out of a locked interim month",()=>{
+ const closedPeriods={"2026-11":"2026-11-06T12:00:00.000Z"};
+ const c:Claim={id:"c_late",invoiceId:ID(1),status:"settled",face:10_000_000n,price:9_000_000n,reserve:1_000_000n,fundTxHash:H(81),closeTxHash:H(82),fundedAt:"2026-11-04T00:00:00.000Z",closedAt:"2026-11-05T00:00:00.000Z",fundRecordedAt:"2026-11-07T00:00:00.000Z",closeRecordedAt:"2026-11-07T00:00:00.000Z"};
+ const r=run({period:"2026-12",closedPeriods,invoices:[inv(1,"10")],claims:[c],gas:[{id:"g_late",txHash:H(83),kind:"pay",wei:1n,at:"2026-11-05T00:00:00.000Z",recordedAt:"2026-11-07T00:00:00.000Z"}]});
+ expect(r.lines.map(l=>l.kind)).toEqual(["advance","reserve_held","financing_discount","reserve_release","gas"]);
+ expect(r.lines.every(l=>l.adjustmentFor==="2026-11")).toBe(true);
+});

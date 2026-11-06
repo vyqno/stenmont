@@ -19,9 +19,10 @@ export type Pay = Event & { payer: string };
 export type Ref = Event & { to: string };
 export type Claim = {
   id: string; invoiceId: string; status: string; face: bigint; price: bigint; reserve: bigint;
+  fundRecordedAt?: string; closeRecordedAt?: string;
   fundTxHash: string | null; closeTxHash: string | null; fundedAt: string | null; closedAt: string | null;
 };
-export type Gas = { id: string; txHash: string | null; kind: string; wei: bigint; at: string };
+export type Gas = { id: string; txHash: string | null; kind: string; wei: bigint; at: string; recordedAt?: string };
 export type Input = {
   period: string; invoices: Inv[]; payments: Pay[]; refunds: Ref[]; claims: Claim[]; gas: Gas[];
   /** Months already closed -> when. An event for a closed month that arrives later is booked in the month it arrived. */
@@ -210,7 +211,10 @@ export function reconcile(input: Input): Result {
   }
 
   // Financing: funding, the reserve coming back, or the reserve lost.
-  for (const c of claimsOf.values()) {
+  for (const original of claimsOf.values()) {
+    const fund = effective(original.fundedAt!, original.fundRecordedAt);
+    const close = original.closedAt ? effective(original.closedAt, original.closeRecordedAt) : null;
+    const c = { ...original, fundedAt: fund.date, closedAt: close?.date ?? null };
     const inv = invById.get(c.invoiceId);
     const num = inv?.number ?? null;
     const base = { invoice: num, invoiceId: c.invoiceId, currency: "USDT" as const, usdtValue: null };
@@ -218,12 +222,12 @@ export function reconcile(input: Input): Result {
     if (inPeriod(c.fundedAt!)) {
       const common = { ...base, txHash: c.fundTxHash!, leafId: source(c.fundTxHash!, c.invoiceId, advance, "advance") };
       const lines: Group["lines"] = ([
-        { ...lineBase(c.fundedAt!, null, `Advance received for ${num ?? c.invoiceId.slice(0, 10)}`), kind: "advance", debit: ACCOUNTS.cash, credit: ACCOUNTS.revenue, amount: advance, ...common },
-        { ...lineBase(c.fundedAt!, null, `Reserve held back on ${num ?? c.invoiceId.slice(0, 10)}`), kind: "reserve_held", debit: ACCOUNTS.reserve, credit: ACCOUNTS.revenue, amount: c.reserve, ...common },
-        { ...lineBase(c.fundedAt!, null, `Financing discount on ${num ?? c.invoiceId.slice(0, 10)}`), kind: "financing_discount", debit: ACCOUNTS.financing, credit: ACCOUNTS.revenue, amount: c.face - c.price, ...common },
+        { ...lineBase(c.fundedAt!, fund.adjustmentFor, `Advance received for ${num ?? c.invoiceId.slice(0, 10)}`), kind: "advance", debit: ACCOUNTS.cash, credit: ACCOUNTS.revenue, amount: advance, ...common },
+        { ...lineBase(c.fundedAt!, fund.adjustmentFor, `Reserve held back on ${num ?? c.invoiceId.slice(0, 10)}`), kind: "reserve_held", debit: ACCOUNTS.reserve, credit: ACCOUNTS.revenue, amount: c.reserve, ...common },
+        { ...lineBase(c.fundedAt!, fund.adjustmentFor, `Financing discount on ${num ?? c.invoiceId.slice(0, 10)}`), kind: "financing_discount", debit: ACCOUNTS.financing, credit: ACCOUNTS.revenue, amount: c.face - c.price, ...common },
       ] satisfies Group["lines"]).filter((l) => l.amount > 0n);
       const tax = inv ? taxIn(c.face, inv.taxRateBps) : 0n;
-      if (tax > 0n) lines.push({ ...lineBase(c.fundedAt!, null, `${inv!.taxLabel ?? "Tax"} included in ${num}`), kind: "tax", debit: ACCOUNTS.revenue, credit: taxAccount(inv!.taxLabel), amount: tax, ...common });
+      if (tax > 0n) lines.push({ ...lineBase(c.fundedAt!, fund.adjustmentFor, `${inv!.taxLabel ?? "Tax"} included in ${num}`), kind: "tax", debit: ACCOUNTS.revenue, credit: taxAccount(inv!.taxLabel), amount: tax, ...common });
       groups.push({ date: c.fundedAt!, rank: 3, key: `fund:${c.id}`, lines });
     }
     if (c.closedAt && c.closeTxHash && inPeriod(c.closedAt) && c.reserve > 0n && (c.status === "settled" || c.status === "defaulted")) {
@@ -234,8 +238,8 @@ export function reconcile(input: Input): Result {
       groups.push({
         date: c.closedAt, rank: 4, key: `close:${c.id}`,
         lines: [settled
-          ? { ...lineBase(c.closedAt, null, `Reserve returned on ${num ?? c.invoiceId.slice(0, 10)}`), kind, debit: ACCOUNTS.cash, credit: ACCOUNTS.reserve, amount: c.reserve, ...common }
-          : { ...lineBase(c.closedAt, null, `Reserve forfeited on ${num ?? c.invoiceId.slice(0, 10)}`), kind, debit: ACCOUNTS.forfeited, credit: ACCOUNTS.reserve, amount: c.reserve, ...common }],
+          ? { ...lineBase(c.closedAt, close?.adjustmentFor ?? null, `Reserve returned on ${num ?? c.invoiceId.slice(0, 10)}`), kind, debit: ACCOUNTS.cash, credit: ACCOUNTS.reserve, amount: c.reserve, ...common }
+          : { ...lineBase(c.closedAt, close?.adjustmentFor ?? null, `Reserve forfeited on ${num ?? c.invoiceId.slice(0, 10)}`), kind, debit: ACCOUNTS.forfeited, credit: ACCOUNTS.reserve, amount: c.reserve, ...common }],
       });
     }
   }
@@ -243,14 +247,16 @@ export function reconcile(input: Input): Result {
   // Gas: a separate expense, in WBT.
   let gasWei = 0n;
   let gasUsdt: bigint | null = input.gasRate ? 0n : null;
-  for (const g of input.gas) {
+  for (const original of input.gas) {
+    const date = effective(original.at, original.recordedAt);
+    const g = { ...original, at: date.date };
     if (!g.txHash || g.wei <= 0n || !inPeriod(g.at)) continue;
     const usdtValue = input.gasRate ? (g.wei * input.gasRate.usdtPerWbt) / WEI : null;
     gasWei += g.wei;
     if (usdtValue !== null) gasUsdt = (gasUsdt ?? 0n) + usdtValue;
     groups.push({
       date: g.at, rank: 5, key: `gas:${g.txHash}:${g.id}`,
-      lines: [{ ...lineBase(g.at, null, `Network fee for ${g.kind.replaceAll("_", " ")}`), kind: "gas", invoice: null, invoiceId: null, debit: ACCOUNTS.gas, credit: ACCOUNTS.tank, amount: g.wei, currency: "WBT", usdtValue, txHash: g.txHash, leafId: source(g.txHash, null, g.wei, "gas") }],
+      lines: [{ ...lineBase(g.at, date.adjustmentFor, `Network fee for ${g.kind.replaceAll("_", " ")}`), kind: "gas", invoice: null, invoiceId: null, debit: ACCOUNTS.gas, credit: ACCOUNTS.tank, amount: g.wei, currency: "WBT", usdtValue, txHash: g.txHash, leafId: source(g.txHash, null, g.wei, "gas") }],
     });
   }
   if (gasWei > 0n && !input.gasRate) flag("gas_unconverted", "info", null, null, "Gas is shown in WBT. No exchange rate was supplied, so it is not converted to dollars.");

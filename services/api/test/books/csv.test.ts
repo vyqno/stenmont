@@ -48,7 +48,7 @@ describe("ledger layout", () => {
   });
 });
 
-describe("Xero layout (unverified against Xero's own template)", () => {
+describe("Xero bank statement layout (fields checked against Xero Central)", () => {
   const lines = rows("xero");
   it("lists only USDT cash movements, signed, with ISO dates", () => {
     expect(lines[0]).toBe("*Date,*Amount,Payee,Description,Reference");
