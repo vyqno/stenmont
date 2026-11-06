@@ -12,7 +12,8 @@
     "spike:p256": "tsx --env-file=../.env spikes/p256.ts",
     "fund-gas-tank": "tsx --env-file=../.env fund-gas-tank.ts",
     "relay-pay": "tsx --env-file=../.env relay-pay.ts",
-    "drain-sim": "tsx --env-file=../.env drain-sim.ts"
+    "drain-sim": "tsx --env-file=../.env drain-sim.ts",
+    "ens-setup": "tsx --env-file=../.env ens-setup.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

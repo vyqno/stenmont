@@ -17,17 +17,30 @@
 
 **Files:** Create `scripts/spikes/ens-v2.mjs`, notes in `BUILDER-NOTES.md`
 
-- [ ] Using the ENS skills and `ens --llms`, plus the Sepolia addresses (ETHRegistrar `0xf633e7fc17e2bbe0d0965d18ec1821dcb754a3d3`, ETHRegistry `0xd4ebcbbdf463c9c45784603db0ddd499bc44a8b4`, UniversalResolver `0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe`, VerifiableFactory `0xda70306c98e97ece36f997a21368e53298572991`, UserRegistry impl `0x9bd8a88719068d09ecee662f36c0e3856708366a`, PermissionedResolver impl `0x115eb53f0c60696633855f90b138178fb40b2b2c`), list the exact function names for: create a subname registry, create a subname, grant a role on one text record, set the resolver, set a text record
-- [ ] Script resolves `stenmont.eth` with viem against Sepolia and prints the owner and resolver
-- [ ] Run `node scripts/spikes/ens-v2.mjs` → prints owner equal to `DEPLOYER`. Fill the function list into this phase before Task 5.2
+- [x] Using the ENS skills and `ens --llms`, plus the Sepolia addresses (ETHRegistrar `0xf633e7fc17e2bbe0d0965d18ec1821dcb754a3d3`, ETHRegistry `0xd4ebcbbdf463c9c45784603db0ddd499bc44a8b4`, UniversalResolver `0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe`, VerifiableFactory `0xda70306c98e97ece36f997a21368e53298572991`, UserRegistry impl `0x9bd8a88719068d09ecee662f36c0e3856708366a`, PermissionedResolver impl `0x115eb53f0c60696633855f90b138178fb40b2b2c`), list the exact function names for: create a subname registry, create a subname, grant a role on one text record, set the resolver, set a text record
+- [x] Script resolves `stenmont.eth` with viem against Sepolia and prints the owner and resolver
+- [x] Run `node scripts/spikes/ens-v2.mjs` → prints owner equal to `DEPLOYER`. Fill the function list into this phase before Task 5.2
+
+**Findings (what is really deployed on Sepolia, which differs from the contracts-v2 main branch):**
+- `stenmont.eth` is owned by the deployer wallet, resolver `0xcE7f94E522d7C5Eedaaf82bb76B80FD6a80eA8D4`, expires 2027-11-05. The Universal Resolver reports ENSv2.
+- Create a subname: `register(label, owner, subregistry, resolver, roleBitmap, expires)` on the PARENT's registry (there is no `createSubname`). Create a subname registry: `VerifiableFactory.deployProxy(UserRegistryImpl, salt, initialize([{account, roleBitmap}]))`, then `setSubregistry(tokenId, registry)` on the parent.
+- Resolver: `initialize(grants[], calls[])`, setters take a DNS-encoded name: `setText(bytes name, key, value)`, `setAddress(bytes name, coinType, bytes)`. Reads go through `resolve(name, data)`; plain `text()` does not exist. Standard viem `getEnsAddress` and `getEnsText` work.
+- Permissions are scoped to a record KEY, not to a name: a text key's resource is `keccak256(key)`. So every name that needs its own permissions needs its own resolver (this matches the prize wording: subnames with their own Permissioned Resolver). Rights are handed out with `grantSetterRoles(setterCall, account)` (plain `grantRoles` is disabled) and taken back with `revokeRoles`. Root rights (admin and edit) apply to every key.
+- The lock: give the registrar only the keys it should keep (`grantSetterRoles`), then `revokeRootRoles` of its root rights. After that nobody can change the payout record or hand the right out again. It is permanent by design, and members who should edit the profile are added before the lock.
+- Live proof: `scripts/spikes/ens-claim.ts` (13 checks pass on Sepolia: the member edits only the profile record, the lock holds, the name resolves).
+- Sepolia gateway note: Tenderly's gateway refuses raw transactions ("request exceeds defined limit"); reads use Tenderly, sends use publicnode.
+
 
 ### Task 5.2: Parent name, subname registry, resolver
 
 **Files:** Create `contracts/script/EnsSetup.s.sol` (or `scripts/ens-setup.mjs` if the CLI route is simpler), `contracts/deployments/11155111.json`
 
-- [ ] Deploy a `UserRegistry` for `stenmont.eth` and a `PermissionedResolver`; set the resolver on the name; record addresses
-- [ ] Verify with viem: `getEnsResolver({name: "stenmont.eth"})` returns the new resolver
-- [ ] Commit line: `feat: set up stenmont.eth subname registry on Sepolia`
+- [x] Deploy a `UserRegistry` for `stenmont.eth` and a `PermissionedResolver`; set the resolver on the name; record addresses
+- [x] Verify with viem: `getEnsResolver({name: "stenmont.eth"})` returns the new resolver
+- [x] Commit line: `feat: set up stenmont.eth subname registry on Sepolia`
+
+**Done:** `scripts/ens-setup.ts` deployed the subname registry `0xE100C72C3BD9781a7AE4d653E0518b54888A5f0c` for `stenmont.eth`, pointed the name at it, and created a registrar wallet `0x96b8b60c0f93D4a2519f0a3d90c9B7eF555196a9` (key in `.env`, to go to Cloudflare as a secret) with all roles on that registry. Addresses in `contracts/deployments/11155111.json`. The existing parent resolver is kept.
+
 
 ### Task 5.3: Business names (`acme.stenmont.eth`)
 

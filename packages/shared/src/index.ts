@@ -7,3 +7,4 @@ export * from "./abis";
 export * from "./addresses";
 export * from "./webauthn";
 export * from "./chainAbis";
+export * from "./ens";

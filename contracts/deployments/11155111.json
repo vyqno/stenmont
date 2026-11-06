@@ -1,0 +1,16 @@
+{
+  "chainId": 11155111,
+  "name": "stenmont.eth",
+  "note": "ENSv2 on Sepolia. The ENS contracts are not ours; these are the ones we use and the ones we created.",
+  "ens": {
+    "ETHRegistry": "0xd4ebcbbdf463c9c45784603db0ddd499bc44a8b4",
+    "VerifiableFactory": "0xDa70306C98E97eCe36F997a21368e53298572991",
+    "UserRegistryImpl": "0x9BD8a88719068D09ecee662f36C0E3856708366a",
+    "UniversalResolver": "0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe"
+  },
+  "stenmont": {
+    "parentResolver": "0xcE7f94E522d7C5Eedaaf82bb76B80FD6a80eA8D4",
+    "subnameRegistry": "0xE100C72C3BD9781a7AE4d653E0518b54888A5f0c",
+    "registrar": "0x96b8b60c0f93D4a2519f0a3d90c9B7eF555196a9"
+  }
+}
