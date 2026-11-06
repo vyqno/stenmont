@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { zeroAddress } from "viem";
 import type { ChainClient } from "../src/chain";
 import { sha256Hex } from "../src/lib/crypto";
+import { cleanupInstallInvoices } from "../../../apps/install-proof/src/cleanup";
 import { requiredScope } from "../src/oauth/scopes";
 import { seedMerchant, setup } from "./helpers/app";
 
@@ -18,6 +19,18 @@ async function fixture(status = "open", chain: Partial<ChainClient> = {}, enviro
 }
 
 describe("isolated install invoice cleanup", () => {
+  it("cleans through the real store-to-API contract", async () => {
+    const t = await fixture(); const data = new Map<string, string>();
+    const orders = { get: async (key: string, type?: string) => { const value = data.get(key); return value ? type === "json" ? JSON.parse(value) : value : null; }, put: async (key: string, value: string) => { data.set(key, value); } } as unknown as KVNamespace;
+    const fetcher: typeof fetch = async (input, init) => {
+      const url = new URL(String(input));
+      return t.req(url.pathname + url.search, { ...init, key: t.key });
+    };
+    const result = await cleanupInstallInvoices({ ORDERS: orders, SHOP_URL: "https://install-proof-staging.stenmont.com", STENMONT_API_KEY: t.key, STENMONT_WEBHOOK_SECRET: "unused-test-value" }, [id], fetcher);
+    expect(result.changed).toMatchObject([{ id, status: "expired" }]);
+    expect(await t.state()).toBe("expired");
+    expect(data.get("retired:proof-order")).toBe("expired");
+  });
   it("expires an old unpaid hosted invoice and keeps the audit record", async () => {
     const t = await fixture();
     const response = await t.clean();

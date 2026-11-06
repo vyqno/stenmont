@@ -17,6 +17,8 @@ export function invoiceView(r: InvoiceRow, env: Pick<Env, "APP_URL">) {
     dueDate: r.dueDate,
     metadata: JSON.parse(r.metadata) as Record<string, string>,
     createTxHash: r.createTxHash,
+    successUrl: r.successUrl,
+    cancelUrl: r.cancelUrl,
     payUrl: `${env.APP_URL}/pay/${r.id}`,
     createdAt: r.createdAt,
   };

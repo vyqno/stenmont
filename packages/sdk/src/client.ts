@@ -26,6 +26,8 @@ export type Invoice = {
   amount: string;
   amountPaid: string;
   amountRefunded: string;
+  successUrl?: string | null;
+  cancelUrl?: string | null;
   currency: string;
   customerEmail: string | null;
   dueDate: string | null;
