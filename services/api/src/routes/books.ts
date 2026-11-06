@@ -28,7 +28,7 @@ booksRoutes.get("/:period",async c=>{
   const snapshot=bundle?.snapshot??JSON.parse(booksJson(reconcile(await loadBooks(c,period))));
   const confirmed=await c.env.DB.prepare("SELECT tx_hash FROM books_anchors WHERE merchant_id=? AND period=?").bind(c.var.merchantId,period).first<{tx_hash:string}>();
   const signer=c.env.BOOKS_SIGNING_KEY?privateKeyToAccount(c.env.BOOKS_SIGNING_KEY as Hex).address:null;
-  return c.json({locked:!!bundle,snapshot,bundle,signer,anchor:{status:confirmed?"anchored":"not_anchored",txHash:confirmed?.tx_hash??null,configured:!!c.env.ANCHOR_REGISTRY}});
+  return c.json({locked:!!bundle,snapshot,bundle,signer,interimStagingAvailable:c.env.ENVIRONMENT==="staging"&&period===c.var.now().toISOString().slice(0,7),anchor:{status:confirmed?"anchored":"not_anchored",txHash:confirmed?.tx_hash??null,configured:!!c.env.ANCHOR_REGISTRY}});
 });
 booksRoutes.post("/:period/close",async c=>{
   const period=c.req.param("period");

@@ -24,7 +24,9 @@ export type BooksFormat = "ledger" | "xero" | "quickbooks";
 export function ledgerCsv(r: Result, format: BooksFormat): string {
   let out: string[];
   if (format === "xero") {
-    // Header names follow third-party descriptions of Xero's statement template; not checked against Xero's own documentation.
+    // Xero Central's CSV statement fields: Date, Amount, Payee, Description, Reference.
+    // https://central.xero.com/0/article/Import-a-CSV-bank-statement (checked 2026-11-06).
+    // Cash movements only; this is a statement import, not a tax or journal integration.
     out = ["*Date,*Amount,Payee,Description,Reference", ...cashMoves(r).map(({ l, signed }) => row([l.date.slice(0, 10), fixed(signed, 6, 2), "", cell(l.description), cell(l.invoice ?? "")]))];
   } else if (format === "quickbooks") {
     out = [
