@@ -14,6 +14,8 @@ type Invoice = {
   amountPaid: string;
   remaining: string;
   merchantName: string;
+  successUrl: string | null;
+  cancelUrl: string | null;
 };
 type View =
   | { kind: "loading" }
@@ -118,6 +120,14 @@ export default function PayClient({ id }: { id: string }) {
     }
   }, []);
 
+  // After paying, the customer goes back to the shop that sent them (a return link only the merchant can set).
+  const returnTo = view.kind === "paid" ? view.invoice.successUrl : null;
+  useEffect(() => {
+    if (!returnTo) return;
+    const t = setTimeout(() => location.assign(returnTo), 3_000);
+    return () => clearTimeout(t);
+  }, [returnTo]);
+
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-12" data-testid="pay-page">
       {view.kind === "loading" && <p role="status">Loading…</p>}
@@ -153,6 +163,11 @@ export default function PayClient({ id }: { id: string }) {
                 Pay {formatAmount(view.invoice.remaining)}
               </button>
               <p className="text-sm text-neutral-500">You&apos;ll confirm with Face ID, your fingerprint or your device PIN. Nothing to install.</p>
+              {view.invoice.cancelUrl && (
+                <a className="text-sm underline" href={view.invoice.cancelUrl} data-testid="cancel-link">
+                  Cancel and go back to {view.invoice.merchantName}
+                </a>
+              )}
             </>
           )}
           {view.kind === "working" && (
@@ -171,6 +186,11 @@ export default function PayClient({ id }: { id: string }) {
           <p className="text-lg">
             Thank you. {view.invoice.merchantName} has your payment of {formatAmount(view.invoice.remaining === "0" ? view.invoice.amount : view.invoice.remaining)}.
           </p>
+          {view.invoice.successUrl && (
+            <a className="underline" href={view.invoice.successUrl} data-testid="return-link">
+              Return to {view.invoice.merchantName}
+            </a>
+          )}
           {view.receipt && (
             <a className="underline" href={view.receipt} target="_blank" rel="noreferrer">
               View receipt

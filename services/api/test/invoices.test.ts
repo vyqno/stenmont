@@ -157,3 +157,39 @@ describe("GET /v1/invoices", () => {
     expect((await t.req("/v1/invoices/0xdeadbeef", { key: a })).status).toBe(404);
   });
 });
+
+describe("checkout return links", () => {
+  it("stores successUrl and cancelUrl and shows them on the public pay page, never in a way the payer could change", async () => {
+    const t = setup();
+    const key = await seedMerchant(t.db);
+    const res = await post(t, key, { amount: "5", successUrl: "https://shop.example/thanks?order=42", cancelUrl: "https://shop.example/cart" });
+    expect(res.status).toBe(201);
+    const { id } = (await res.json()) as { id: string };
+    const pub = (await (await t.req(`/pay/${id}`)).json()) as Record<string, unknown>;
+    expect(pub).toMatchObject({ successUrl: "https://shop.example/thanks?order=42", cancelUrl: "https://shop.example/cart" });
+  });
+  it("rejects return links that are not public https addresses", async () => {
+    const t = setup();
+    const key = await seedMerchant(t.db);
+    let n = 0;
+    for (const bad of ["http://shop.example/x", "javascript:alert(1)", "https://127.0.0.1/x", "https://localhost/x", "ftp://shop.example", "nonsense"]) {
+      expect((await post(t, key, { amount: "5", successUrl: bad }, `bad${n++}`)).status).toBe(400);
+    }
+  });
+  it("allows http://localhost return links outside production only", async () => {
+    const t = setup();
+    const key = await seedMerchant(t.db);
+    expect((await post(t, key, { amount: "5", successUrl: "http://localhost:4000/thanks" }, "l1")).status).toBe(201);
+    const p = setup({}, { ENVIRONMENT: "production" });
+    const pk = await seedMerchant(p.db);
+    expect((await post(p, pk, { amount: "5", successUrl: "http://localhost:4000/thanks" }, "l2")).status).toBe(400);
+  });
+  it("leaves them out when not given", async () => {
+    const t = setup();
+    const key = await seedMerchant(t.db);
+    const { id } = (await (await post(t, key, { amount: "5" })).json()) as { id: string };
+    const pub = (await (await t.req(`/pay/${id}`)).json()) as Record<string, unknown>;
+    expect(pub.successUrl).toBeNull();
+    expect(pub.cancelUrl).toBeNull();
+  });
+});

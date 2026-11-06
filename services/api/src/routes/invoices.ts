@@ -9,7 +9,7 @@ import { invoices } from "../db/schema";
 import { fail } from "../errors";
 import { runIdempotent } from "../idempotency";
 import { randomHex } from "../lib/crypto";
-import { amountSchema, idSchema, invalid } from "../lib/validation";
+import { amountSchema, idSchema, invalid, returnUrlOk } from "../lib/validation";
 import { invoiceView } from "../lib/views";
 import { emitEvent } from "../webhooks";
 
@@ -18,6 +18,8 @@ const createSchema = z.strictObject({
   number: z.string().regex(/^[A-Za-z0-9._-]{1,64}$/).optional(),
   customerEmail: z.email().max(254).optional(),
   dueDate: z.iso.datetime().optional(),
+  successUrl: z.string().max(2048).optional(),
+  cancelUrl: z.string().max(2048).optional(),
   metadata: z
     .record(z.string().max(40), z.string().max(500))
     .refine((m) => Object.keys(m).length <= 10, "at most 10 keys")
@@ -36,6 +38,11 @@ invoiceRoutes.post("/", async (c) => {
   if (!parsed.success) return invalid(c, parsed.error);
   const input = parsed.data;
   const { db, chain, merchant } = c.var;
+  for (const u of [input.successUrl, input.cancelUrl]) {
+    if (u !== undefined && !returnUrlOk(u, c.env.ENVIRONMENT)) {
+      return fail(c, 400, "invalid_request", "successUrl and cancelUrl must be public https addresses");
+    }
+  }
 
   return runIdempotent(c, merchant.id, async () => {
     if (!merchant.address) return fail(c, 409, "merchant_not_ready", "This merchant has no onchain address yet");
@@ -62,6 +69,8 @@ invoiceRoutes.post("/", async (c) => {
       amount: amount.toString(),
       customerEmail: input.customerEmail ?? null,
       dueDate: input.dueDate ?? null,
+      successUrl: input.successUrl ?? null,
+      cancelUrl: input.cancelUrl ?? null,
       metaHash,
       metadata: JSON.stringify(input.metadata ?? {}),
       createdAt: now.toISOString(),

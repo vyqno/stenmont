@@ -42,3 +42,9 @@ export function isPublicHttpsUrl(raw: string): boolean {
   }
   return true;
 }
+
+/** Where a customer may be sent after checkout: a public https address, or http://localhost outside production. */
+export function returnUrlOk(raw: string, environment: string): boolean {
+  if (isPublicHttpsUrl(raw)) return true;
+  return environment !== "production" && /^http:\/\/localhost:\d+(\/|$)/.test(raw) && URL.canParse(raw);
+}

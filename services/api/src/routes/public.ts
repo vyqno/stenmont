@@ -31,6 +31,8 @@ publicRoutes.get("/pay/:id", async (c) => {
     currency: row.inv.currency,
     dueDate: row.inv.dueDate,
     merchantName: row.merchantName,
+    successUrl: row.inv.successUrl,
+    cancelUrl: row.inv.cancelUrl,
   });
 });
 

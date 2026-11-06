@@ -90,6 +90,8 @@ export const invoices = sqliteTable(
     dueDate: text("due_date"),
     metaHash: text("meta_hash").notNull(),
     metadata: text("metadata").notNull().default("{}"),
+    successUrl: text("success_url"), // where the pay page sends the customer after paying (set by the merchant, never by the payer)
+    cancelUrl: text("cancel_url"),
     createTxHash: text("create_tx_hash"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
