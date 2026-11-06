@@ -1,0 +1,14 @@
+{
+  "name": "@stenmont/shopify-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "lint": "tsc --noEmit",
+    "deploy:staging": "wrangler deploy --env staging"
+  },
+  "dependencies": { "@stenmont/sdk": "workspace:*", "hono": "^4.13.16" },
+  "devDependencies": { "@cloudflare/workers-types": "^5.20261104.1", "@types/node": "^26.6.6", "typescript": "^7.0.2", "vitest": "^5.1.0", "wrangler": "^4.157.0" }
+}
