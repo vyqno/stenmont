@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and,eq,isNull,lte,sql } from "drizzle-orm";
 import { fromUnits } from "@stenmont/shared";
 import type { Db } from "./app";
 import type { ChainClient, RouterLog } from "./chain";
@@ -31,6 +31,7 @@ export async function runIndexer(env: Env, db: Db, chain: ChainClient,version:Co
     const last = BigInt(cur?.lastBlock ?? Number(deploy) - 1);
     const head = await chain.getBlockNumber();
     const safe = head - BigInt(env.INDEXER_CONFIRMATIONS ?? "2");
+    await recoverCreations(env,db,chain,version,protocol.router,BigInt(deploy),safe);
     const from = last + 1n;
     if (from > safe) return { status: "idle" };
     const to = safe < from + MAX_WINDOW - 1n ? safe : from + MAX_WINDOW - 1n;
@@ -68,7 +69,9 @@ async function apply(env: Env, db: Db, log: RouterLog,chain:ChainClient,version:
     if(!chain.invoiceDetails)throw Error('Storage read required for invoice terms');
     const d=await chain.invoiceDetails(log.args.id,log.blockNumber);
     if(inv.payout&&inv.payout.toLowerCase()!==d.payout.toLowerCase())throw Error("Payout provenance mismatch");
-    await db.update(invoices).set({routerAddress:inv.routerAddress??protocol.router,claimAddress:inv.claimAddress??(protocol.retired?null:protocol.claim),payout:inv.payout??d.payout,payerLock:d.payerLock,minPayment:d.minPayment.toString(),discountBps:d.discountBps,discountUntil:Number(d.discountUntil),hook:d.hook}).where(eq(invoices.id,inv.id));return;
+    await db.update(invoices).set({routerAddress:inv.routerAddress??protocol.router,claimAddress:inv.claimAddress??(protocol.retired?null:protocol.claim),payout:inv.payout??d.payout,payerLock:d.payerLock,minPayment:d.minPayment.toString(),discountBps:d.discountBps,discountUntil:Number(d.discountUntil),hook:d.hook}).where(eq(invoices.id,inv.id));
+    if(log.eventName==='InvoiceCreated')await confirmCreation(env,db,chain,log,version,sourceRouter);
+    return;
   }
   const now = new Date().toISOString();
 
@@ -141,4 +144,34 @@ async function apply(env: Env, db: Db, log: RouterLog,chain:ChainClient,version:
     type: "invoice.cancelled",
     data: { invoice: invoiceView(fresh!, env) },
   });
+}
+
+/** Confirm only an exact successful creation on the invoice's saved contract. No re-signing or broadcast. */
+async function confirmCreation(env:Env,db:Db,chain:ChainClient,log:RouterLog,version:ContractVersion,sourceRouter:string):Promise<void>{
+  if(log.eventName!=='InvoiceCreated'||!log.address||log.address.toLowerCase()!==sourceRouter.toLowerCase()||!chain.invoiceDetails||!chain.lookupReceipt)return;
+  const [inv]=await db.select().from(invoices).where(and(eq(invoices.id,log.args.id),eq(invoices.status,'creating'),isNull(invoices.createTxHash)));
+  if(!inv||inv.contractVersion!==version||!inv.routerAddress||inv.routerAddress.toLowerCase()!==sourceRouter.toLowerCase())return;
+  invoiceProtocol(env,inv); // do not infer an unassigned or mismatched router
+  const state=await chain.invoiceDetails(log.args.id);
+  if(state.status!==1||state.paid!==0n||state.amount!==BigInt(inv.amount)||!inv.payout||state.payout.toLowerCase()!==inv.payout.toLowerCase())return;
+  const receipt=await chain.lookupReceipt(log.transactionHash);
+  if(!receipt||receipt.status!=='success')return;
+  const updated=await db.update(invoices).set({status:'open',createTxHash:log.transactionHash,updatedAt:new Date().toISOString()})
+    .where(and(eq(invoices.id,inv.id),eq(invoices.status,'creating'),isNull(invoices.createTxHash))).returning();
+  if(updated.length)await emitEvent(db,env.WEBHOOKS,inv.merchantId,{id:`evt_created_${inv.id}`,type:'invoice.created',data:{invoice:invoiceView(updated[0]!,env)}});
+}
+
+/** A journalled event may have outlived its disconnected HTTP request. Revisit at most20 stale rows and2000 confirmed blocks. */
+async function recoverCreations(env:Env,db:Db,chain:ChainClient,version:ContractVersion,router:string,deploy:bigint,safe:bigint):Promise<void>{
+  if(!chain.invoiceDetails||!chain.lookupReceipt||safe<deploy)return;
+  const stale=new Date(Date.now()-60_000).toISOString();
+  const rows=await db.select().from(invoices).where(and(eq(invoices.contractVersion,version),eq(invoices.status,'creating'),isNull(invoices.createTxHash),lte(invoices.updatedAt,stale),sql`lower(${invoices.routerAddress}) = ${router.toLowerCase()}`)).orderBy(invoices.updatedAt).limit(20);
+  if(!rows.length)return;
+  const from=safe-MAX_WINDOW+1n>deploy?safe-MAX_WINDOW+1n:deploy;
+  const logs=await chain.getRouterLogs(from,safe);
+  for(const row of rows){
+    const log=logs.find(l=>l.eventName==='InvoiceCreated'&&l.args.id.toLowerCase()===row.id.toLowerCase()&&l.address?.toLowerCase()===router.toLowerCase()&&l.blockNumber>=from&&l.blockNumber<=safe);
+    if(!log)continue;
+    try{await confirmCreation(env,db,chain,log,version,router);}catch{console.warn('Creation recovery could not confirm a row; leaving it unchanged.');}
+  }
 }

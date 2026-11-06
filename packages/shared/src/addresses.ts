@@ -18,7 +18,8 @@ export const deployments = {
           "refundApprovalThreshold": "100000000"
         },
         "reputation": "0x751165C1E587637aF6EC0ff91b87Fa7Bd08a9ed5",
-        "note": "Threshold lowered to 2 USDT after deploy (owner call setRefundApprovalThreshold) so the World approval step can be shown with small test amounts."
+        "note": "Threshold lowered to 2 USDT after deploy (owner call setRefundApprovalThreshold) so the World approval step can be shown with small test amounts.",
+        "status": "retired for new invoices; retained for existing v1 obligations"
       },
       "PasskeyAccountFactory": {
         "address": "0x5101c37647581c81b462436af2D7ac8ccD08D33A",
@@ -36,7 +37,8 @@ export const deployments = {
           "usdt": "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
           "owner": "0x50c94c3021962047F10c9c58D80C4A7b73182a63",
           "guardian": "0x50c94c3021962047F10c9c58D80C4A7b73182a63"
-        }
+        },
+        "status": "active for existing and new v1 subscription agreements"
       },
       "InvestorRegistry": {
         "address": "0x6B8490a893C860888f65ce410b0b287CA1c9B8fa",
@@ -46,7 +48,8 @@ export const deployments = {
         "constructor": {
           "owner": "0x50c94c3021962047F10c9c58D80C4A7b73182a63",
           "attester": "0xd3887b5A9d79bA55539DF7F07aa933a2b2F41ade"
-        }
+        },
+        "status": "retired for new invoices; retained for existing v1 obligations"
       },
       "InvoiceClaim": {
         "address": "0x2EB9aaF14A2d729BC3F185A144571fCd23454914",
@@ -59,7 +62,8 @@ export const deployments = {
           "registry": "0x6B8490a893C860888f65ce410b0b287CA1c9B8fa",
           "owner": "0x50c94c3021962047F10c9c58D80C4A7b73182a63",
           "guardian": "0x50c94c3021962047F10c9c58D80C4A7b73182a63"
-        }
+        },
+        "status": "retired for new invoices; retained for existing v1 obligations"
       },
       "ReputationRegistry": {
         "address": "0x751165C1E587637aF6EC0ff91b87Fa7Bd08a9ed5",
@@ -69,7 +73,8 @@ export const deployments = {
         "constructor": {
           "owner": "0x50c94c3021962047F10c9c58D80C4A7b73182a63"
         },
-        "note": "The router is registered as a recorder; the router points at this registry."
+        "note": "The router is registered as a recorder; the router points at this registry.",
+        "status": "retired for new invoices; retained for existing v1 obligations"
       }
     },
     "staging_retired": {
@@ -98,6 +103,91 @@ export const deployments = {
           "guardian": "0x50c94c3021962047F10c9c58D80C4A7b73182a63"
         }
       }
+    },
+    "staging_v2": {
+      "status": "deployed; acceptance pending; general invoice creation frozen",
+      "chainId": 1874,
+      "newSubscriptionManagerActivated": false,
+      "InvestorRegistry": {
+        "address": "0x03b5803bb1b65401f8e7130a044e46b00aa0abd6",
+        "deployBlock": 12391118,
+        "txHash": "0xeb53260991072f3b98333c7db56bd8c26397ccaaae3d51be5fa007b0cdcfdb75",
+        "verified": true,
+        "constructorArgs": [
+          "0x50c94c3021962047F10c9c58D80C4A7b73182a63",
+          "0xd3887b5A9d79bA55539DF7F07aa933a2b2F41ade"
+        ]
+      },
+      "PaymentRouterV2": {
+        "address": "0xda4dfa02b95fd14bfac657535cbcac7f339bd8e6",
+        "deployBlock": 12391120,
+        "txHash": "0xbcc8acb301a5f95ee1208754b7ad9bacb4ec82b4baf4e7ebd57a3953fc6d1fc5",
+        "verified": true,
+        "constructorArgs": [
+          "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+          "0x50c94c3021962047F10c9c58D80C4A7b73182a63",
+          "0x50c94c3021962047F10c9c58D80C4A7b73182a63",
+          "0xd3887b5A9d79bA55539DF7F07aa933a2b2F41ade",
+          "2000000"
+        ]
+      },
+      "SubscriptionManager": {
+        "address": "0xc14296d91b8a78e4fd4f03acd139312d2607cac2",
+        "deployBlock": 12391123,
+        "txHash": "0xf4a0bfde1ebc2a4561631090fe12e43223d6cc69c29b8ae2ffe37ae88206c40c",
+        "verified": true,
+        "constructorArgs": [
+          "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+          "0x50c94c3021962047F10c9c58D80C4A7b73182a63",
+          "0x50c94c3021962047F10c9c58D80C4A7b73182a63"
+        ],
+        "status": "deployed but inactive; v1 manager binding retained"
+      },
+      "InvoiceClaimV2": {
+        "address": "0xd994a18962dda95aa23ba2d25ba9cc7c8addaf3d",
+        "deployBlock": 12391125,
+        "txHash": "0x96298c840a064a2cfc82022943e1ae2b7bbd4896f978e29b62f9e0226f5fb716",
+        "verified": true,
+        "constructorArgs": [
+          "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7",
+          "0xDa4dFA02b95fd14bfAC657535cBCAC7f339Bd8e6",
+          "0x03B5803bb1B65401F8e7130A044E46b00aa0aBd6",
+          "0x50c94c3021962047F10c9c58D80C4A7b73182a63",
+          "0x50c94c3021962047F10c9c58D80C4A7b73182a63"
+        ]
+      },
+      "InvoiceAck": {
+        "address": "0xfeccfc30714bb3972a5cffe02371f475570aa011",
+        "deployBlock": 12391128,
+        "txHash": "0x0fe16e8a1691c28f36290e623e822dabb0fdd261b03c8c0359b31ccdd9d3ed48",
+        "verified": true,
+        "constructorArgs": [
+          "0xDa4dFA02b95fd14bfAC657535cBCAC7f339Bd8e6"
+        ]
+      },
+      "ReputationRegistryV2": {
+        "address": "0xffee131f70576cd8bd7742f1a9e93276d1821e05",
+        "deployBlock": 12391130,
+        "txHash": "0xc1de55d76eca835d6ec03b8d452f570ec6f250a63f429cdd5ae8ddcfe6e8bc8e",
+        "verified": true,
+        "constructorArgs": [
+          "0x50c94c3021962047F10c9c58D80C4A7b73182a63"
+        ]
+      },
+      "wiringTransactions": [
+        {
+          "function": "setRecorder(address,bool)",
+          "contract": "ReputationRegistryV2",
+          "txHash": "0xaded068771e32bdc7593e62bae51e46d5e39b50dbd11310c275bc34fe782b796",
+          "block": 12391132
+        },
+        {
+          "function": "setReputation(address)",
+          "contract": "PaymentRouterV2",
+          "txHash": "0xca56033aec706655baf3d94bbb79232a13f500834b1302287dba51a04d28bed8",
+          "block": 12391135
+        }
+      ]
     }
   }
 } as const;

@@ -24,7 +24,7 @@ an approval, a completed verification or transaction evidence.
   isolated merchant; do not repeatedly create accounts or spend abuse allowances.
   Fresh v2 creator delegation must have been signed through the normal UI.
 - Recheck balances immediately before spending. The earlier snapshot showed the
-  existing payer holding **2.49 test USDT**; that is not a promise of today's
+  existing payer holding **2.392 test USDT** after the0.098 v2 payment; that is not a promise of today's
   balance. The investor UI uses an existing **checkout/investor passkey account**
   (`loadPasskey` / `ensureAccount`), not an EOA wallet. A deployer EOA balance
   cannot fund that account automatically, and the merchant's1.00 balance cannot
@@ -79,7 +79,7 @@ no live access-bearing link.
 
 Use a dedicated **2.01 test-USDT** v2 invoice, without early-payment discount,
 financing hook or instalment plan. Confirm its payer owns at least2.01. This
-leaves0.48 from the old2.49 snapshot until the refund is completed.
+leaves0.382 from the latest2.392 snapshot until the refund is completed.
 
 1. From Invoices, create that invoice through the dashboard, then open its public
    pay page. The existing payer signs the2.01 payment with its own funded account.

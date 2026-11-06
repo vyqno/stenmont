@@ -50,7 +50,7 @@ export type RefundRequest = {
 
 export type SubscriptionState = { nextCharge: bigint; charges: number; status: "none" | "active" | "cancelled" | "completed" };
 
-type Base = { transactionHash: Hex; logIndex: number; blockNumber: bigint };
+type Base = { address?: Address; transactionHash: Hex; logIndex: number; blockNumber: bigint };
 export type RouterLog =
   | (Base & {eventName:"InvoiceCreated"|"DiscountTermsSet";args:{id:Hex}})
   | (Base & { eventName: "InvoicePaid"; args: { id: Hex; payer: Address; value: bigint; paidTotal: bigint; fullyPaid: boolean } })
@@ -332,6 +332,7 @@ export function viemChain(env: Env,version:"v1"|"v2"="v1"): ChainClient {
       return logs
         .filter((l) => (WATCHED as readonly string[]).includes(l.eventName as string))
         .map((l) => ({
+          address:l.address,
           eventName: l.eventName,
           args: l.args,
           transactionHash: l.transactionHash,

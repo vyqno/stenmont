@@ -38,6 +38,9 @@ UPDATE invoices SET router_address='0x4c32942616d2bbedd34ba1178bbf5823fdbbddc0',
 UPDATE invoices SET router_address='0x4c32942616d2bbedd34ba1178bbf5823fdbbddc0',claim_address='0x2EB9aaF14A2d729BC3F185A144571fCd23454914' WHERE id='0xd4a49580face3a40c32ca6f4eecde0a6aa6c45f676e560d11fdb9fa68648d350' AND contract_version='v1';
 UPDATE invoices SET router_address='0x4c32942616d2bbedd34ba1178bbf5823fdbbddc0',claim_address='0x2EB9aaF14A2d729BC3F185A144571fCd23454914' WHERE id='0xb296ecb9c1cdb0f371a6ddb7444a0b1f0c0bb56f0904fdbe1c92d0f97eba6636' AND contract_version='v1';
 UPDATE invoices SET router_address='0x4c32942616d2bbedd34ba1178bbf5823fdbbddc0',claim_address='0x2EB9aaF14A2d729BC3F185A144571fCd23454914' WHERE id='0x7bdcc5c7e53450f4643208c233a4f5dc4d4e356f94366cd217ec37078771db80' AND contract_version='v1';
+-- Two cutover-time receipts independently confirmed on current v1 at blocks12390220 and12390585.
+UPDATE invoices SET router_address='0x4c32942616d2bbedd34ba1178bbf5823fdbbddc0',claim_address='0x2EB9aaF14A2d729BC3F185A144571fCd23454914' WHERE id='0xe612f896248ab37ee995ca8dd35b6e12582f1726544eb6d6f3c88f1c7be8b9f8' AND create_tx_hash='0x25ef3e1c2c4baf3e61e031812c2a44af89fc5d0c360d33385e84453aeb9c3ddd' AND contract_version='v1';
+UPDATE invoices SET router_address='0x4c32942616d2bbedd34ba1178bbf5823fdbbddc0',claim_address='0x2EB9aaF14A2d729BC3F185A144571fCd23454914' WHERE id='0x0fc83ac49dd092e51b801619d60d89c4b2338ce17c49f52f9bbc7f3eb3b09cbd' AND create_tx_hash='0x873fe4aa1f85b2c3c814318cf1788b5941ed0c0451f4b68693f94a715e563569' AND contract_version='v1';
 -- Abort if creation raced the receipt inventory or any successful obligation was not classified.
 CREATE TABLE _0071_classification_guard(unclassified INTEGER NOT NULL CHECK(unclassified=0));
 INSERT INTO _0071_classification_guard SELECT count(*) FROM invoices WHERE router_address IS NULL AND (status!='failed' OR create_tx_hash IS NOT NULL);

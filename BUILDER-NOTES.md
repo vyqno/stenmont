@@ -316,3 +316,8 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 - 23:15 Migration preflight:29 receipts classify17 retired/12 current v1; failed uncreated row remains unassigned. Unknown obligations abort migration. World run sheet10 source links and6 public routes checked; real World, investor passkey funds and live v2 regression held.
 
 - 23:36 Cards task: reviewed original and corrected contact sheets plus native collections/capital panels; rerendered12 images and10-page PDF with actual selected font-load checks. Draft/B2B/receipt/Books/Capital claims corrected. One cards merge task; application acceptance is separate.
+
+- 2026-11-07 00:03 IST V2: eight deployment/wiring transactions confirmed on1874; six sources explorer-verified. Owners, guardian, attester,2-USDT threshold, domains and recorder readbacks passed; old v1 bindings and subscriptions retained.
+- 2026-11-07 00:03 IST V2 live: named buyer paid0.098 on0.10, waived0.002; wrong buyer/payout and expired authorization refused. Synthetic buyer acknowledgement reduced advisory quote4.80%→3.80%. Real World listing/funding/settlement remains held; general creation frozen.
+- 2026-11-07 00:03 IST Provenance0071/0072 classified actual old/new receipts, preserving failed uncreated data. Confirmed interrupted creation recovered by normal indexer. One exposed isolated key/session was revoked/refreshed; old401 and replacement200 checked. No new business, wallet funding or main push.
+- 2026-11-07 00:03 IST Release checks:1718 workspace tests, lint/typechecks,486 contracts and27 pinned-fork tests passed. Final API664b5d9d and MCP58ee6d22;40/40 probes passed. Mobile visual checkpoint is recorded separately.
