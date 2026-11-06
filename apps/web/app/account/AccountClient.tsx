@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Hex } from "viem";
+import { PaymentReceipts } from "./PaymentReceipts";
 import FundingHelp from "../../components/FundingHelp";
 import { ACCOUNT_COPY, fetchSummary, loadAccountToken, saveAccountToken, statusLabel, tokenFromHash, type Summary } from "../../lib/account";
 import { loadPasskey, signDigest } from "../../lib/passkey";
@@ -100,20 +101,7 @@ export default function AccountClient() {
           <section aria-labelledby="payments">
             <h2 id="payments" className="mb-2 text-xl font-semibold">Payments</h2>
             {view.summary.payments.length === 0 ? <p className="text-muted">{ACCOUNT_COPY.empty.payments}</p> : (
-              <ul className="divide-y divide-line" data-testid="payments">
-                {view.summary.payments.map((p) => (
-                  <li key={p.receiptUrl} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                    <div>
-                      <p className="font-medium">{p.merchantName}</p>
-                      <p className="text-sm text-muted">Invoice {p.invoiceNumber} · {when(p.at)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p>{formatAmount(p.amount)}</p>
-                      <a className="text-sm underline" href={p.receiptUrl} target="_blank" rel="noreferrer">Receipt</a>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <PaymentReceipts payments={view.summary.payments} />
             )}
           </section>
 

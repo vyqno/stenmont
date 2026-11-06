@@ -1,10 +1,10 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { deployments, fromUnits } from "@stenmont/shared";
 import type { AppEnv } from "../app";
 import { signAccountToken, verifyAccountToken } from "../account/token";
 import type { Env } from "../env";
-import { invoices, merchants, payments, refunds, subscriptions } from "../db/schema";
+import { instalmentCharges, invoices, merchants, payments, refunds, subscriptions } from "../db/schema";
 import { agreementSegments } from "../instalments";
 import { fail } from "../errors";
 
@@ -40,6 +40,14 @@ accountRoutes.get("/summary", async (c) => {
     .where(sql`lower(${payments.payer}) = ${payer}`)
     .orderBy(desc(payments.createdAt), desc(payments.id))
     .limit(100);
+  const replacement = await db
+    .select({ charge: instalmentCharges, number: invoices.number, shop: merchants.name })
+    .from(instalmentCharges)
+    .innerJoin(invoices, and(eq(invoices.id, instalmentCharges.invoiceId), eq(invoices.merchantId, instalmentCharges.merchantId)))
+    .innerJoin(merchants, eq(merchants.id, instalmentCharges.merchantId))
+    .where(sql`lower(${instalmentCharges.payer}) = ${payer}`)
+    .orderBy(desc(instalmentCharges.observedAt), desc(instalmentCharges.id))
+    .limit(100);
   const back = await db
     .select({ r: refunds, number: invoices.number, shop: merchants.name })
     .from(refunds)
@@ -58,7 +66,10 @@ accountRoutes.get("/summary", async (c) => {
 
   return c.json({
     payer,
-    payments: paid.map((x) => ({ invoiceNumber: x.number, merchantName: x.shop, amount: fromUnits(BigInt(x.p.value)), at: x.p.createdAt, receiptUrl: receipt(x.p.txHash) })),
+    payments: [
+      ...paid.map((x) => ({ invoiceNumber: x.number, merchantName: x.shop, amount: fromUnits(BigInt(x.p.value)), at: x.p.createdAt, receiptUrl: receipt(x.p.txHash) })),
+      ...replacement.map((x) => ({ invoiceNumber: x.number, merchantName: x.shop, amount: fromUnits(BigInt(x.charge.amount)), at: x.charge.observedAt, receiptUrl: receipt(x.charge.txHash), rail: "replacement_subscription", timeBasis: "observed" })),
+    ].sort((a, b) => b.at.localeCompare(a.at) || a.receiptUrl.localeCompare(b.receiptUrl)).slice(0, 100),
     refunds: back.map((x) => ({ invoiceNumber: x.number, merchantName: x.shop, amount: fromUnits(BigInt(x.r.value)), at: x.r.createdAt, receiptUrl: receipt(x.r.txHash) })),
     subscriptions: subs.map((x) => ({
       id: x.s.id,

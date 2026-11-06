@@ -37,7 +37,7 @@ export const tokenExpired = (token: string, now: Date) => Number(token.split("."
 
 export type Summary = {
   payer: `0x${string}`;
-  payments: { invoiceNumber: string; merchantName: string; amount: string; at: string; receiptUrl: string }[];
+  payments: { invoiceNumber: string; merchantName: string; amount: string; at: string; receiptUrl: string; rail?: "replacement_subscription"; timeBasis?: "observed" }[];
   refunds: { invoiceNumber: string; merchantName: string; amount: string; at: string; receiptUrl: string }[];
   subscriptions: { id: `0x${string}`; merchantName: string; amount: string; periodSeconds: number; maxCharges: number; charges: number; status: string; nextChargeAt: string | null; manager: `0x${string}`; segmentIds?: `0x${string}`[] }[];
 };
