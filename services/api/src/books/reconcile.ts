@@ -14,8 +14,8 @@ export type Inv = {
   /** Pay `bps` less if the invoice is settled by `until`. Nothing stores this yet; the module is ready for when something does. */
   earlyDiscount?: { bps: number; until: string } | null;
 };
-type Event = { id: string; invoiceId: string; value: bigint; txHash: string; blockNumber: number; at: string; recordedAt?: string };
-export type Pay = Event & { payer: string };
+type Event = { id: string; invoiceId: string; value: bigint; txHash: string; blockNumber?: number; at: string; recordedAt?: string };
+export type Pay = Event & { payer: string; rail?: "replacement_subscription"; agreementId?: string };
 export type Ref = Event & { to: string };
 export type Claim = {
   id: string; invoiceId: string; status: string; face: bigint; price: bigint; reserve: bigint;
@@ -32,7 +32,7 @@ export type Input = {
 };
 
 export type LineKind =
-  | "payment" | "refund" | "tax" | "early_discount" | "advance" | "reserve_held" | "financing_discount"
+  | "payment" | "instalment" | "refund" | "tax" | "early_discount" | "advance" | "reserve_held" | "financing_discount"
   | "reserve_release" | "reserve_forfeit" | "payment_to_investor" | "gas";
 export type Line = {
   seq: number; date: string; kind: LineKind; invoice: string | null; invoiceId: string | null; description: string;
@@ -129,6 +129,7 @@ export function reconcile(input: Input): Result {
   const handle = (invoiceId: string, events: Ev[]) => {
     const inv = invById.get(invoiceId) ?? null;
     const claim = claimsOf.get(invoiceId) ?? null;
+    const replacement = events.some(e => e.kind === "pay" && (e.row as Pay).rail === "replacement_subscription");
     events.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === b.kind ? a.row.id.localeCompare(b.row.id) : a.kind === "pay" ? -1 : 1));
     let paid = 0n, refunded = 0n, paidIn = 0n, refundedIn = 0n, discount = 0n;
     const expectedOf = () => (inv ? inv.amount - discount : 0n);
@@ -139,14 +140,15 @@ export function reconcile(input: Input): Result {
       const inside = inPeriod(e.date);
       if (r.value === 0n) { if (inside) flag("zero_amount", "info", num, r.txHash, `A ${e.kind === "pay" ? "payment" : "refund"} of zero was recorded; it has no ledger line.`); continue; }
       if (e.kind === "pay") {
-        const sold = !!claim && e.date >= claim.fundedAt!;
+        const replacementReceipt = (r as Pay).rail === "replacement_subscription";
+        const sold = !replacementReceipt && !!claim && e.date >= claim.fundedAt!;
         paid += r.value;
         if (inside) { paidIn += r.value; eventInvoices.add(invoiceId); }
         let discountHere = 0n;
         if (inv?.earlyDiscount && earlyOffer > 0n && discount === 0n && paid >= inv.amount - earlyOffer && paid < inv.amount && e.date <= inv.earlyDiscount.until) { discountHere = earlyOffer; discount = earlyOffer; }
         if (!inside) continue;
         const key = `pay:${r.txHash}:${r.id}`;
-        const leaf = source(r.txHash, invoiceId, r.value, "payment");
+        const leaf = source(r.txHash, invoiceId, r.value, replacementReceipt ? "instalment" : "payment");
         const common = { invoice: num, invoiceId, txHash: r.txHash, leafId: leaf, currency: "USDT" as const, usdtValue: null };
         const lines: Group["lines"] = [];
         if (sold) {
@@ -155,8 +157,8 @@ export function reconcile(input: Input): Result {
           flag("payment_without_invoice", "warn", null, r.txHash, `A payment of ${r.value} base units arrived for an invoice we have no record of (${invoiceId.slice(0, 10)}…). Booked to suspense.`);
           lines.push({ ...lineBase(e.date, e.adj, `Unmatched payment from ${(r as Pay).payer}`), kind: "payment", debit: ACCOUNTS.cash, credit: ACCOUNTS.suspense, amount: r.value, ...common });
         } else {
-          if (INACTIVE.has(inv.status)) flag("payment_on_inactive_invoice", "warn", num, r.txHash, `Invoice ${num} is ${inv.status} but a payment arrived.`);
-          lines.push({ ...lineBase(e.date, e.adj, `Payment ${num} from ${(r as Pay).payer}`), kind: "payment", debit: ACCOUNTS.cash, credit: ACCOUNTS.revenue, amount: r.value, ...common });
+          if (INACTIVE.has(inv.status) && !replacementReceipt) flag("payment_on_inactive_invoice", "warn", num, r.txHash, `Invoice ${num} is ${inv.status} but a payment arrived.`);
+          lines.push({ ...lineBase(e.date, e.adj, replacementReceipt ? `Replacement instalment ${num} from ${(r as Pay).payer}; agreement ${(r as Pay).agreementId}; date observed, original router invoice cancelled` : `Payment ${num} from ${(r as Pay).payer}`), kind: replacementReceipt ? "instalment" : "payment", debit: ACCOUNTS.cash, credit: ACCOUNTS.revenue, amount: r.value, ...common });
           if (discountHere > 0n) lines.push({ ...lineBase(e.date, e.adj, `Early-payment discount on ${num}`), kind: "early_discount", debit: ACCOUNTS.discounts, credit: ACCOUNTS.revenue, amount: discountHere, ...common });
           const tax = taxIn(r.value + discountHere, inv.taxRateBps);
           if (tax > 0n) lines.push({ ...lineBase(e.date, e.adj, `${inv.taxLabel ?? "Tax"} included in ${num}`), kind: "tax", debit: ACCOUNTS.revenue, credit: taxAccount(inv.taxLabel), amount: tax, ...common });
@@ -183,7 +185,7 @@ export function reconcile(input: Input): Result {
     const excess = paid - refunded > expected ? paid - refunded - expected : 0n;
     const state: InvoiceState = excess > 0n ? "overpaid" : paid >= expected ? "paid" : paid > 0n ? "partial" : "unpaid";
     const dead = INACTIVE.has(inv.status);
-    const open = !dead && !claim && paid < expected ? expected - paid : 0n;
+    const open = (!dead || replacement) && !claim && paid < expected ? expected - paid : 0n;
     rows.push({
       invoiceId, number: inv.number, amount: inv.amount, expected, status: inv.status, state, sold: !!claim, paidToDate: paid, refundedToDate: refunded,
       paidInPeriod: paidIn, refundedInPeriod: refundedIn, open, overpaid: excess, taxRateBps: inv.taxRateBps, taxLabel: inv.taxLabel,
