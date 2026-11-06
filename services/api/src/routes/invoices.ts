@@ -16,6 +16,8 @@ import { d1WorldRepo } from "../world/d1";
 import { assertDifferentHumans } from "../world/samehuman";
 import { ensNames, merchants } from "../db/schema";
 import { emitEvent } from "../webhooks";
+import { DEFAULT_PERIOD_SECONDS, createInstalmentPlan, splitInstalments } from "../instalments";
+import { subscriptionView } from "./subscriptions";
 import { isPaused } from "../sites/switch";
 import { loadLimits, merchantTier, refused, tierLimitResponse, volumeToday } from "../verification/store";
 import { checkInvoice } from "../verification/tiers";
@@ -34,6 +36,14 @@ const createSchema = z.strictObject({
     .record(z.string().max(40), z.string().max(500))
     .refine((m) => Object.keys(m).length <= 10, "at most 10 keys")
     .optional(),
+  /** Pay in 2 or 3 parts. Business to business only: see docs/INSTALMENTS.md. Needs `b2b: true` and the buying business's name. */
+  instalments: z.number().int().min(2).max(3).optional(),
+  b2b: z.literal(true).optional(),
+  payerBusinessName: z.string().trim().min(2).max(120).regex(/^[^\u0000-\u001f\u007f]+$/, "no control characters").optional(),
+  instalmentPeriodSeconds: z.number().int().min(60).max(180 * 86_400).optional(),
+}).refine((v) => (v.instalments === undefined) === (v.b2b === undefined && v.payerBusinessName === undefined && v.instalmentPeriodSeconds === undefined) && (v.instalments === undefined || (v.b2b === true && v.payerBusinessName !== undefined)), {
+  message: "instalments are for business-to-business invoices only: send instalments with b2b: true and payerBusinessName",
+  path: ["instalments"],
 });
 
 const listSchema = z.object({
@@ -48,10 +58,22 @@ invoiceRoutes.post("/", async (c) => {
   if (await isPaused(c.var.db, c.var.merchantId)) return fail(c, 403, "payments_paused", "Payments are paused for this business. Resume them in the dashboard.");
   const parsed = createSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return invalid(c, parsed.error);
-  return runIdempotent(c, c.var.merchant.id, () => createInvoice(c, parsed.data));
+  const { instalments, b2b: _b2b, payerBusinessName, instalmentPeriodSeconds, ...invoiceInput } = parsed.data;
+  return runIdempotent(c, c.var.merchant.id, async () => {
+    if (instalments === undefined) return createInvoice(c, invoiceInput);
+    // Refuse a total that cannot be split before anything is created onchain.
+    if (splitInstalments(toUnits(invoiceInput.amount), instalments).each <= 0n) return fail(c, 422, "too_small_to_split", "This amount is too small to split into parts.");
+    const made = await createInvoice(c, invoiceInput);
+    if (made instanceof Response || made.status !== 201) return made;
+    const [inv] = await c.var.db.select().from(invoices).where(eq(invoices.id, (made.body as { id: string }).id));
+    const plan = await createInstalmentPlan(c.var.db, c.var.now(), { invoice: inv!, count: instalments, periodSeconds: instalmentPeriodSeconds ?? DEFAULT_PERIOD_SECONDS, payerBusinessName: payerBusinessName! });
+    if (!plan.ok) return fail(c, 422, "too_small_to_split", "This amount is too small to split into parts.");
+    await audit(c.var.db, { merchantId: c.var.merchantId, actor: `merchant:${c.var.merchantId}`, action: "instalment.offered", payload: { invoiceId: inv!.id, planId: plan.row.id, count: instalments } });
+    return { status: 201 as const, body: { ...(made.body as object), instalmentPlan: subscriptionView(plan.row, c.env.APP_URL) } };
+  });
 });
 
-export type CreateInvoiceInput = z.infer<typeof createSchema>;
+export type CreateInvoiceInput = Omit<z.infer<typeof createSchema>, "instalments" | "b2b" | "payerBusinessName" | "instalmentPeriodSeconds">;
 
 /** The one way an invoice is made (the API route and the store checkout both come through here): limits, payee rules, onchain creation, audit, webhook. */
 export async function createInvoice(c: Context<AppEnv>, input: CreateInvoiceInput): Promise<IdempotentResult | Response> {

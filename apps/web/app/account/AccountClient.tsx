@@ -42,21 +42,29 @@ export default function AccountClient() {
       try {
         const base = apiBase(location.hostname);
         const deadline = BigInt(Math.floor(Date.now() / 1000) + 3_600);
+        const ids = sub.segmentIds ?? [sub.id];
         const terms = { id: sub.id, manager: sub.manager };
+        const segmentSignatures: Hex[] = [];
         let payerSig: Hex | null = null;
         const key = loadPasskey();
         if (key) {
           const res = await fetch(`${base}/relay/account`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ qx: key.qx, qy: key.qy, salt: ZERO_SALT }) });
           const mine = res.ok ? ((await res.json()) as { address: string }).address : null;
-          if (mine && mine.toLowerCase() === payer.toLowerCase()) payerSig = await signDigest(key, cancelDigest(terms, deadline));
+          if (mine && mine.toLowerCase() === payer.toLowerCase()) {
+            for (const id of ids) segmentSignatures.push(await signDigest(key, cancelDigest({ ...terms, id }, deadline)));
+            payerSig = segmentSignatures[0]!;
+          }
         }
         const eth = injectedProvider(window);
-        if (!payerSig && eth) payerSig = await signWalletCancel(eth, payer, { ...terms, deadline });
+        if (!payerSig && eth) {
+          for (const id of ids) segmentSignatures.push(await signWalletCancel(eth, payer, { ...terms, id, deadline }));
+          payerSig = segmentSignatures[0]!;
+        }
         if (!payerSig) {
           setNotice(ACCOUNT_COPY.cancelOtherDevice);
           return;
         }
-        const out = await fetch(`${base}/relay/subscription-cancel`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: sub.id, deadline: deadline.toString(), payerSig }) });
+        const out = await fetch(`${base}/relay/subscription-cancel`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: sub.id, deadline: deadline.toString(), payerSig, segmentSignatures }) });
         if (!out.ok) {
           const code = ((await out.json().catch(() => ({}))) as { error?: { code?: string } }).error?.code ?? "unknown";
           setNotice(friendly(code));

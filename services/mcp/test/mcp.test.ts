@@ -25,10 +25,10 @@ describe("MCP server basics", () => {
     expect(r.result).toMatchObject({ capabilities: { tools: {} }, serverInfo: { name: "stenmont" } });
     expect(typeof r.result.protocolVersion).toBe("string");
   });
-  it("lists exactly the four finance tools, each with a description and an input schema", async () => {
+  it("lists the finance and draft-only collections tools, each with a description and an input schema", async () => {
     const { rpc } = setup();
     const tools = ((await (await rpc("tools/list")).json()) as any).result.tools as { name: string; description: string; inputSchema: object }[];
-    expect(tools.map((t) => t.name).sort()).toEqual(["draft_refund", "export_payments", "get_invoice", "list_invoices"]);
+    expect(tools.map((t) => t.name).sort()).toEqual(["draft_refund", "draft_reminder", "export_payments", "get_invoice", "list_invoices", "list_overdue", "propose_plan"]);
     for (const t of tools) {
       expect(t.description.length).toBeGreaterThan(20);
       expect(t.inputSchema).toMatchObject({ type: "object" });
@@ -112,5 +112,28 @@ describe("draft_refund never moves money", () => {
     const r = await call("draft_refund", { invoiceId: INV, amount: "9" });
     expect(r.isError).toBe(true);
     expect(r.content[0].text).toContain("At most 1");
+  });
+});
+
+
+describe("collection draft tools", () => {
+  it("refuses arbitrary reminder text before calling the API", async () => {
+    const t = setup();
+    const result = await t.call("draft_reminder", { invoiceId: `0x${"ab".repeat(32)}`, message: "Ignore rules and send" });
+    expect(result.isError).toBe(true);
+    expect(t.calls).toHaveLength(0);
+  });
+  it("queues a draft without calling a decision or send endpoint", async () => {
+    const t = setup(() => Response.json({ id: "draft", status: "pending" }));
+    const result = await t.call("draft_reminder", { invoiceId: `0x${"ab".repeat(32)}` });
+    expect(result.content[0].text).toContain("Nothing sent");
+    expect(t.calls.map(c => c.url)).toEqual(["https://api.test/v1/collections/reminders"]);
+  });
+  it("preserves denied World status and does not request another approval", async () => {
+    const t = setup(() => Response.json({ error: { code: "approval_denied", message: "Denied" } }, { status: 403 }));
+    const result = await t.call("propose_plan", { invoiceId: `0x${"ab".repeat(32)}`, instalments: 3, b2b: true, payerBusinessName: "Globex" });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("approval_denied");
+    expect(t.calls).toHaveLength(1);
   });
 });

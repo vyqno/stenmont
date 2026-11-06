@@ -5,6 +5,7 @@ import type { AppEnv } from "../app";
 import { signAccountToken, verifyAccountToken } from "../account/token";
 import type { Env } from "../env";
 import { invoices, merchants, payments, refunds, subscriptions } from "../db/schema";
+import { agreementSegments } from "../instalments";
 import { fail } from "../errors";
 
 const PURPOSE = "receipts";
@@ -69,6 +70,7 @@ accountRoutes.get("/summary", async (c) => {
       status: x.s.status,
       nextChargeAt: x.s.status === "active" || x.s.status === "past_due" ? new Date(x.s.nextChargeAt * 1000).toISOString() : null,
       manager: c.env.SUBSCRIPTION_MANAGER_ADDRESS,
+      ...(x.s.kind === "instalment" ? { segmentIds: agreementSegments(x.s).map(s => s.id) } : {}),
     })),
   });
 });

@@ -5,6 +5,7 @@ import { runClaimIndexer, runDefaults } from "./claims";
 import { handleQueue } from "./delivery";
 import type { Env, WebhookJob } from "./env";
 import { runIndexer } from "./indexer";
+import { runPreflight } from "./preflight";
 import { runReminders } from "./reminders";
 import { runRenewals } from "./renewals";
 import { purgeShopifyOauth } from "./shopifyOauth/store";
@@ -31,6 +32,7 @@ export default {
     const at = new Date(_event.scheduledTime);
     if (at.getUTCMinutes() === 0) {
       ctx.waitUntil(runReminders(env, db, at)); // hourly
+      ctx.waitUntil(runPreflight(env, db, chain, at)); // hourly: warns a day ahead of a charge the payer cannot cover
       ctx.waitUntil(runDefaults(env, db, chain, at));
       ctx.waitUntil(purgeShopifyOauth(db, at));
       ctx.waitUntil(runTierBadges({ db, ens: viemEns(env), now: at }));

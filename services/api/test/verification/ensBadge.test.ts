@@ -1,6 +1,6 @@
 import { decodeFunctionData, type Address, type Hex } from "viem";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AGENT_CONTEXT_KEY, BUSINESS_GRANTED_KEYS, DIRECTORY_KEYS, PAY_KEY, PROFILE_KEY, TIER_KEY, TOKEN_KEY, dnsName, permissionedResolverAbi } from "@stenmont/shared";
+import { AGENT_CONTEXT_KEY, BUSINESS_GRANTED_KEYS, COLLECTIONS_KEY, REGISTRAR_KEYS, DIRECTORY_KEYS, PAY_KEY, PROFILE_KEY, TIER_KEY, TOKEN_KEY, dnsName, permissionedResolverAbi } from "@stenmont/shared";
 import type { Env } from "../../src/env";
 
 // The real ENS client, with the chain reads and the single sender stubbed: we look at exactly what it would send.
@@ -102,7 +102,7 @@ describe("lockPayout keeps the tier record writable by the registrar", () => {
     const multi = calls.find((c) => c.fn === "multicall");
     expect(multi).toBeTruthy();
     const order = calls.filter((c) => c.fn !== "multicall").map((c) => (c.fn === "grantSetterRoles" ? `grant:${grantedKey(c)}` : c.fn));
-    expect(order).toEqual([`grant:${PROFILE_KEY}`, `grant:${TIER_KEY}`, ...DIRECTORY_KEYS.map((k) => `grant:${k}`), "revokeRootRoles"]);
+    expect(order).toEqual([`grant:${PROFILE_KEY}`, `grant:${TIER_KEY}`, ...REGISTRAR_KEYS.map((k) => `grant:${k}`), "revokeRootRoles"]);
   });
 });
 
@@ -143,5 +143,14 @@ describe("directory records are platform-only", () => {
     await viemEns(env).lockPayout({ name: NAME, resolver: RESOLVER });
     const granted = decoded().filter((c) => c.fn === "grantSetterRoles").map(grantedKey);
     for (const k of DIRECTORY_KEYS) expect(granted).toContain(k);
+  });
+});
+
+
+describe("collections policy registrar rights", () => {
+  it("writes only the allowed policy key through the registrar resolver", async () => {
+    await viemEns(env).setTextRecords({ name: NAME, resolver: RESOLVER, records: { [COLLECTIONS_KEY]: "{\"maxInstalments\":3}" } });
+    expect(decoded().filter(c=>c.fn==="setText")).toEqual([{fn:"setText",args:[dnsName(NAME),COLLECTIONS_KEY,"{\"maxInstalments\":3}"]}]);
+    expect(BUSINESS_GRANTED_KEYS).not.toContain(COLLECTIONS_KEY);
   });
 });
