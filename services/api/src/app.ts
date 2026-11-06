@@ -17,6 +17,7 @@ import { invoiceRoutes } from "./routes/invoices";
 import { gasTankRoutes } from "./routes/gasTank";
 import { linkRoutes } from "./routes/links";
 import { publicRoutes } from "./routes/public";
+import { publicClaimRoutes } from "./routes/publicClaims";
 import { refundRoutes } from "./routes/refunds";
 import { relayRoutes } from "./routes/relay";
 import { subscriptionPublicRoutes, subscriptionRelayRoutes, subscriptionRoutes } from "./routes/subscriptions";
@@ -68,6 +69,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.use("/l/*", publicCors);
   app.use("/relay/*", publicCors);
   app.use("/invest/*", publicCors);
+  app.use("/public/*", publicCors);
 
   app.get("/health", (c) => c.json({ ok: true }));
 
@@ -90,6 +92,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.route("/auth/world", worldAuthRoutes);
   app.route("/auth", authRoutes);
   app.route("/invest", investRoutes);
+  app.route("/public", publicClaimRoutes);
   app.route("/relay", relayRoutes);
   app.route("/relay", subscriptionRelayRoutes);
   app.route("/", subscriptionPublicRoutes);
