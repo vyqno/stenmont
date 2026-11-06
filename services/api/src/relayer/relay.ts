@@ -3,7 +3,7 @@ import { encodeFunctionData, type Address, type Hex } from "viem";
 import { MULTICALL3_ADDRESS, multicall3Abi, passkeyAccountFactoryAbi, payNonce, paymentRouterAbi } from "@stenmont/shared";
 import type { Db } from "../app";
 import { Rejected, type ChainClient } from "../chain";
-import { invoices, relayerTxs } from "../db/schema";
+import { invoices, paymentSwitch, relayerTxs } from "../db/schema";
 import type { Env } from "../env";
 import {
   RATE_LIMIT_PER_MINUTE,
@@ -22,6 +22,7 @@ export type RelayErrorCode =
   | "rate_limited"
   | "invoice_not_found"
   | "invoice_not_payable"
+  | "payments_paused"
   | "gas_tank_empty"
   | "gas_cap_reached"
   | "payer_cap"
@@ -37,10 +38,11 @@ export type RelayErrorCode =
   | "tx_reverted"
   | "timeout";
 
-export const STATUS_OF: Record<RelayErrorCode, 402 | 404 | 409 | 422 | 429 | 502 | 503 | 504> = {
+export const STATUS_OF: Record<RelayErrorCode, 402 | 403 | 404 | 409 | 422 | 429 | 502 | 503 | 504> = {
   rate_limited: 429,
   invoice_not_found: 404,
   invoice_not_payable: 409,
+  payments_paused: 403,
   gas_tank_empty: 402,
   gas_cap_reached: 429,
   payer_cap: 429,
@@ -76,6 +78,7 @@ const MESSAGES: Record<RelayErrorCode, string> = {
   rate_limited: "Too many requests. Try again in a minute.",
   invoice_not_found: "Invoice not found.",
   invoice_not_payable: "This invoice can no longer be paid.",
+  payments_paused: "This business has paused payments for now.",
   gas_tank_empty: "This merchant cannot accept payments right now.",
   gas_cap_reached: "This merchant has reached today's limit. Try again tomorrow.",
   payer_cap: "Daily payment limit reached.",
@@ -119,10 +122,17 @@ export async function relayPay(ctx: { db: Db; chain: ChainClient; env: Env; now:
   if (!byPayer || !byIp) return fail("rate_limited");
 
   // 2. the invoice must exist and still be payable
-  const [inv] = await db.select().from(invoices).where(eq(invoices.id, i.invoiceId));
+  // (the pause switch rides along in the same query, so the payment path gains no extra round trip)
+  const [found] = await db
+    .select({ inv: invoices, paused: paymentSwitch.paused })
+    .from(invoices)
+    .leftJoin(paymentSwitch, eq(paymentSwitch.merchantId, invoices.merchantId))
+    .where(eq(invoices.id, i.invoiceId));
+  const inv = found?.inv;
   if (!inv || inv.status === "creating" || inv.status === "failed") return fail("invoice_not_found");
   if (inv.status !== "open" && inv.status !== "partially_paid") return fail("invoice_not_payable");
   const merchantId = inv.merchantId;
+  if (found!.paused === 1) return fail("payments_paused");
 
   // 3. free pre-check: empty tank or exhausted payer
   const early = await checkCaps(db, merchantId, i.payer, i.value, now);
