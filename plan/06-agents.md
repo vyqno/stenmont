@@ -49,6 +49,6 @@
 **Files:** Create `services/mcp/{package.json,wrangler.jsonc,src/index.ts}`, tests
 **Produces:** MCP over streamable HTTP at `mcp.stenmont.com/mcp`; tools `list_invoices(status?)`, `get_invoice(id)`, `draft_refund(invoiceId, amount?)` (returns `{approvalUrl}`; never executes), `export_payments(from, to, format)`; authenticated with the merchant's API key.
 
-- [ ] Failing tests: tool list contains exactly those four names; `draft_refund` creates a pending approval and no refund row; wrong key → 401
-- [ ] Run → FAIL; implement; run → PASS; deploy
-- [ ] Commit line: `feat: add finance MCP server`
+- [x] Failing tests: tool list contains exactly those four names; `draft_refund` creates a pending approval and no refund row; wrong key → 401
+- [x] Run → FAIL; implement; run → PASS; deploy
+- [x] Commit line: `feat: add finance MCP server`

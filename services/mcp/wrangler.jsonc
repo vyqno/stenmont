@@ -1,0 +1,18 @@
+{
+  // Top level = local development only. Staging is the public testnet deployment. No secrets: the caller's own API key is
+  // passed through on every request and never stored.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "stenmont-mcp-dev",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "vars": { "API_URL": "http://localhost:8787", "APP_URL": "http://localhost:3000" },
+  "env": {
+    "staging": {
+      "name": "stenmont-mcp-staging",
+      "workers_dev": false,
+      "routes": [{ "pattern": "mcp-staging.stenmont.com", "custom_domain": true }],
+      "vars": { "API_URL": "https://api-staging.stenmont.com", "APP_URL": "https://app-staging.stenmont.com" }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@stenmont/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "vitest run", "lint": "tsc --noEmit", "deploy:staging": "wrangler deploy --env staging" },
+  "dependencies": { "hono": "^4.13.16", "zod": "^4.6.7" },
+  "devDependencies": { "@cloudflare/workers-types": "^5.20261104.1", "@types/node": "^26.6.6", "typescript": "^7.0.2", "vitest": "^5.1.0", "wrangler": "^4.157.0" }
+}
