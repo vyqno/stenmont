@@ -97,3 +97,6 @@ export function PageNotice({ kind, children }: { kind: "loading" | "error"; chil
 
 export const actionLink = "inline-flex min-h-11 items-center rounded border border-foreground bg-foreground px-4 text-sm font-medium text-background hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2";
 export const secondaryLink = "inline-flex min-h-11 items-center rounded border border-line px-4 text-sm font-medium hover:border-brand focus-visible:outline-2 focus-visible:outline-offset-2";
+
+/** Colours of a primary button (ink on white, grey when disabled). Callers add their own size. */
+export const primaryButton = "bg-foreground text-background hover:opacity-90 disabled:cursor-not-allowed disabled:bg-grey disabled:text-muted disabled:hover:opacity-100";

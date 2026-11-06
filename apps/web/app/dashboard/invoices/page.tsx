@@ -3,13 +3,13 @@
 import { RouterDelegation } from "../../../components/RouterDelegation";
 import { invoiceTerms } from "../../../lib/v2Invoice";
 import { useState } from "react";
-import { Badge, Card, money, statusOf, units, type Invoice } from "../../../components/ui";
 import { ExportButton } from "../../../components/ExportButton";
 import { RefundButton } from "../../../components/RefundButton";
 import { SellButton } from "../../../components/SellButton";
 import { listingBadge } from "../../../lib/financing";
 import { api } from "../../../lib/auth";
 import { useApi } from "../../../lib/useApi";
+import { Badge, Card, money, statusOf, units, type Invoice, primaryButton } from "../../../components/ui";
 
 export default function Invoices() {
   const { data, error, reload } = useApi<{ data: Invoice[] }>("/v1/invoices?limit=100");
@@ -87,7 +87,7 @@ export default function Invoices() {
           <label className="flex flex-col gap-1 text-sm">Named buyer account (optional)<input value={buyer} onChange={e => setBuyer(e.target.value)} placeholder="0x…" className="rounded border border-line bg-transparent px-3 py-2" /></label>
           <label className="flex flex-col gap-1 text-sm">Early payment discount (%, up to 30)<input value={discount} onChange={e => setDiscount(e.target.value)} inputMode="decimal" placeholder="Optional" className="rounded border border-line bg-transparent px-3 py-2" /></label>
           <label className="flex flex-col gap-1 text-sm">Discount expires<input value={discountUntil} onChange={e => setDiscountUntil(e.target.value)} type="datetime-local" required={!!discount} className="rounded border border-line bg-transparent px-3 py-2" /></label>
-          <button disabled={busy} className="rounded bg-brand px-4 py-2 font-medium text-on-brand disabled:opacity-50">{busy ? "Creating…" : "Create invoice"}</button>
+          <button disabled={busy} className={`rounded px-4 py-2 font-medium ${primaryButton}`}>{busy ? "Creating…" : "Create invoice"}</button>
         </form>
         <p className="mt-3 text-xs text-muted">Discount offers are locked to the named buyer and cannot be financed, even after expiry. The buyer must already hold USDT.</p>
         {formError && <p role="status" data-testid="form-error" className="mt-2 text-sm text-danger">{formError}</p>}

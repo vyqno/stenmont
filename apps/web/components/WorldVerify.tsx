@@ -3,7 +3,7 @@
 import { IDKitRequestWidget, proofOfHuman, type IDKitResult, type RpContext } from "@worldcoin/idkit";
 import { useCallback, useEffect, useState } from "react";
 import { AuthError, api } from "../lib/auth";
-import { Badge, Card } from "./ui";
+import { Badge, Card, primaryButton } from "./ui";
 
 const ACTION = "enrol-business";
 type Setup = { app_id: string; environment: "staging" | "production"; rp_context: RpContext };
@@ -39,7 +39,7 @@ export function WorldVerify() {
       <div className="mt-3 flex flex-wrap items-center gap-3">
         {enrolled === true && <Badge tone="ok">Verified</Badge>}
         {enrolled === false && (
-          <button type="button" onClick={start} className="rounded bg-brand px-4 py-2 text-sm font-medium text-on-brand" data-testid="world-start">
+          <button type="button" onClick={start} className={`rounded px-4 py-2 text-sm font-medium ${primaryButton}`} data-testid="world-start">
             Verify with World ID
           </button>
         )}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Logo } from "../../components/Logo";
 import { currentMerchant, signOut, type Merchant } from "../../lib/auth";
 
@@ -29,10 +29,17 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const router = useRouter();
   const path = usePathname();
   const [merchant, setMerchant] = useState<Merchant | null>(null);
+  const nav = useRef<HTMLElement>(null);
 
   useEffect(() => {
     currentMerchant().then((m) => (m ? setMerchant(m) : router.replace("/login")));
   }, [router]);
+
+  // On a phone the menu scrolls sideways: keep the current page in view.
+  useEffect(() => {
+    const here = nav.current?.querySelector<HTMLElement>('a[aria-current="page"]');
+    if (nav.current && here) nav.current.scrollTo({ left: Math.max(0, here.offsetLeft - 48) });
+  }, [path, merchant]);
 
   if (!merchant) return <main role="status" aria-busy="true" className="flex flex-1 items-center justify-center text-muted">Loading your business…</main>;
   return (
@@ -40,9 +47,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       <header className="workspace-header">
         <div className="workspace-navigation">
           <Link href="/dashboard" className="shrink-0 text-xl"><Logo /></Link>
-          <nav className="order-3 flex w-full flex-wrap gap-x-5 gap-y-1 text-sm lg:order-none lg:w-auto lg:flex-1" aria-label="Main">
+          <nav ref={nav} className="order-3 flex w-full flex-nowrap gap-x-5 overflow-x-auto pr-10 text-sm [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)] lg:order-none lg:w-auto lg:flex-1 lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:overflow-visible lg:pr-0 lg:[mask-image:none]" aria-label="Main">
             {NAV.map((n) => (
-              <Link key={n.href} href={n.href} aria-current={path === n.href ? "page" : undefined} className={`inline-flex min-h-11 items-center ${path === n.href ? "font-medium underline underline-offset-8" : "text-muted hover:text-foreground"}`}>
+              <Link key={n.href} href={n.href} aria-current={path === n.href ? "page" : undefined} className={`inline-flex min-h-11 shrink-0 items-center whitespace-nowrap ${path === n.href ? "font-medium underline underline-offset-8" : "text-muted hover:text-foreground"}`}>
                 {n.label}
               </Link>
             ))}

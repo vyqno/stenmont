@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
 import { ConnectedApps } from "../../../components/ConnectedApps";
-import { Card } from "../../../components/ui";
 import { AuthError, api } from "../../../lib/auth";
 import { useApi } from "../../../lib/useApi";
+import { Card, primaryButton } from "../../../components/ui";
 export type AgentAccess = { enabled: boolean; skills: string[]; availableSkills: { id: string; scope: string }[]; cardUrl: string; ens: { name: string | null; record: string; status: string; txHash: string | null } };
 export function AgentAccessControls({ data, reload }: { data: AgentAccess; reload: () => void }) {
   const [enabled, setEnabled] = useState(data.enabled);
@@ -33,7 +33,7 @@ export function AgentAccessControls({ data, reload }: { data: AgentAccess; reloa
         <legend className="mb-2 font-medium">Allowed skills</legend>
         {data.availableSkills.map(s => <label key={s.id} className="flex items-center gap-3"><input type="checkbox" checked={skills.includes(s.id)} onChange={e => setSkills(e.target.checked ? [...skills, s.id] : skills.filter(v => v !== s.id))} /><span>{s.id.replaceAll("_", " ")} <span className="text-sm text-muted">({s.scope} permission)</span></span></label>)}
       </fieldset>
-      <div className="mt-5 flex flex-wrap gap-3"><button disabled={busy} onClick={() => update()} className="rounded bg-brand px-4 py-2 font-medium text-on-brand disabled:opacity-50">{busy ? "Saving…" : "Save access"}</button><button disabled={busy || !data.enabled} onClick={() => update(true)} className="rounded border border-line px-4 py-2 disabled:opacity-50">Revoke all agent access</button></div>
+      <div className="mt-5 flex flex-wrap gap-3"><button disabled={busy} onClick={() => update()} className={`rounded px-4 py-2 font-medium ${primaryButton}`}>{busy ? "Saving…" : "Save access"}</button><button disabled={busy || !data.enabled} onClick={() => update(true)} className="rounded border border-line px-4 py-2 disabled:opacity-50">Revoke all agent access</button></div>
       {message && <p role="status" className="mt-3 text-sm">{message}</p>}
     </Card>
     <Card title="ENS discovery">
