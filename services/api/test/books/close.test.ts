@@ -10,6 +10,7 @@ describe("signed month bundle", () => {
     expect(await verifyMonthBundle(bundle, bundle.signer)).toBe(true);
     expect(await verifyMonthBundle({...bundle, merchantId:"m_2"}, bundle.signer)).toBe(false);
     expect(await verifyMonthBundle({...bundle, closedAt:"2026-11-02"}, bundle.signer)).toBe(false);
+    expect(await verifyMonthBundle({...bundle, sourceCutoffAt:"2026-10-31T00:00:00.000Z"}, bundle.signer)).toBe(false);
   });
   it("binds every ledger field and its merchant and month", () => {
     const line = {seq:1,amount:"100",description:"Payment",currency:"USDT"};

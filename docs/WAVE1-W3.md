@@ -1,6 +1,6 @@
 # Books and verifiable month snapshots
 
-Updated 2026-11-06 17:39 IST. Local implementation; staging and browser verification are still pending.
+Updated 2026-11-06 17:58 IST. Local implementation; staging and browser verification are still pending.
 
 ## What is available
 
@@ -10,7 +10,7 @@ Tax is a per-invoice, tax-inclusive rate/label, with display/export treatment on
 
 A close freezes the reconciliation snapshot and signs the entire bundle with the service key. Later events never rewrite a locked export. Payments, refunds, financing funding/settlement and gas first observed after their source month closes become adjustments in the first eligible later unlocked month. The source month remains identified by `adjustmentFor`. These dates are UTC. The API's existing event timestamps reflect indexed records; the bundle does not attest an independently fetched block timestamp for each line.
 
-Only ended months can be finally closed. On **staging only**, the current month can be explicitly closed with `{"interimStaging":true}`. This is labelled `closeKind: "interim_staging"`, with the real `closedAt` cutoff and only sources before that cutoff. It is a testing snapshot, not a final accounting month. Later arrivals in that month move to a later month. Future months are refused. A second close, including a concurrent request, is refused with 409. The dashboard explicitly labels the staging choice.
+Only ended months can be finally closed. On **staging only**, the current month can be explicitly closed with `{"interimStaging":true}`. This is labelled `closeKind: "interim_staging"`, with a signed `sourceCutoffAt` (exclusive request-start source cutoff), separate actual signing `closedAt`, and only sources before that cutoff. It is a testing snapshot, not a final accounting month. Later arrivals in that month move to a later month. Future months are refused. A second close, including a concurrent request, is refused with 409. The dashboard explicitly labels the staging choice.
 
 ## API
 
@@ -39,7 +39,7 @@ The close root commits **every complete ledger line**, including sequence, descr
 3. Sort the 32-byte leaves ascending. Each parent is `keccak256(min(left,right) || max(left,right))`, concatenating the raw 32-byte hashes. An odd last node is carried unchanged, **not duplicated**. Empty root is 32 zero bytes. A one-leaf tree's root is the leaf itself. Sibling proofs omit levels where an odd node was carried.
 4. `ledger_line_hash` in the generic API CSV is this complete-line hash. The older `leaf_id` column is a **source receipt hash**, which can be shared by several accounting lines; it is not the complete-line root leaf. Use the proof endpoint's full JSON line for verification.
 5. The supplemental source receipt preimage is lower-case `txHash|invoiceId|amount|kind`, UTF-8, amount a nonnegative decimal base-unit string, ids 32-byte hex, kind lower-case letters/underscores. A missing gas invoice uses the zero id. These source hashes provide references; the signed close uses the stronger complete-line encoding above.
-6. The service signs EIP-191 `signMessage({message:{raw:digest}})`, where `digest=keccak256(UTF8(canonicalJSON(bundle excluding signature)))`. The signed fields include version, close kind, merchant id, period, closedAt, root, line count, complete snapshot and signer.
+6. The service signs EIP-191 `signMessage({message:{raw:digest}})`, where `digest=keccak256(UTF8(canonicalJSON(bundle excluding signature)))`. The signed fields include version, close kind, merchant id, period, closedAt, sourceCutoffAt, root, line count, complete snapshot and signer.
 
 `verifyMonthBundle(bundle, expectedSigner)` in `packages/shared` verifies the signature, period/line count and recomputed complete-line root without network access. Pin `expectedSigner` from trusted service configuration; trusting a signer supplied only by an untrusted bundle defeats authentication. `apps/web/lib/booksProof.ts` independently implements line encoding and proof verification without importing the shared encoder/tree. The two implementations use fixed three-line vectors independently calculated with Foundry `cast keccak`, including the odd-node carry case. Changing one amount or merchant fails verification. A valid inclusion proof alone authenticates a line only after its root is trusted through the signed bundle or confirmed registry state.
 
@@ -54,3 +54,8 @@ The bundle signature is a **service attestation**, not a merchant/passkey signat
 `anchorMonth(root, period, lineCount, adapter)` is injectable. The real adapter exists only with `ANCHOR_REGISTRY`, uses `sendFromTank` for cap/reservation enforcement, waits for a successful receipt, then reads the registry's recorded root and line count and compares them before storing/displaying `anchored`. An accepted hash, pending/reverted receipt, mismatch or RPC failure is not an anchored result. A retry after an uncertain receipt may require inspecting the registry; no receipt-timeout recovery claim is made here. No chain transaction has been submitted by this workstream. The dashboard shows anchor status and a confirmed receipt link, but its merchant passkey anchor-signing ceremony remains to be integrated after the contract deployment decision.
 
 Gas coverage is limited to recorded relayer transaction rows with measured `wbtCost`, including reverted transactions. Operations not represented in that table cannot be silently claimed as measured costs. No exchange-rate provider, live Xero/QuickBooks import, browser run, staging migration or onchain anchor has been verified here.
+
+
+## Integration follow-up
+
+Actual `instalment_charges` receipts are included as `instalment` cash lines mapped to their original invoice, clearly labelled replacement SubscriptionManager rail and observed receipt date. The original router invoice stays cancelled and its stored paid amount is not altered. Distinct successful agreement receipts remain distinct cash movements, while measured gas is deduplicated per transaction (including overlap with relayer rows). Unknown gas stays unknown. A matching relayer row finalized later retains the immutable charge receipt's event date, so previously booked gas is not booked again. Source observations and all queries remain merchant-scoped. Existing late adjustments remain assigned to their original eligible month when that month is later closed; they never migrate forward on subsequent previews.

@@ -39,7 +39,7 @@ booksRoutes.post("/:period/close",async c=>{
   if(await locked(c,period)) return c.json({error:"month_already_closed"},409);
   if(!c.env.BOOKS_SIGNING_KEY) return c.json({error:"books_signing_unavailable"},503);
   const result=reconcile(await loadBooks(c,period,interim?now:undefined));
-  const bundle=await createBundle(c.var.merchantId,result,c.var.now().toISOString(),c.env.BOOKS_SIGNING_KEY as Hex,interim?"interim_staging":"final_month");
+  const bundle=await createBundle(c.var.merchantId,result,c.var.now().toISOString(),c.env.BOOKS_SIGNING_KEY as Hex,interim?"interim_staging":"final_month",interim?now:periodBounds(period).end);
   const inserted=await c.env.DB.prepare("INSERT OR IGNORE INTO books_closes(merchant_id,period,closed_at,bundle) VALUES(?,?,?,?)").bind(c.var.merchantId,period,bundle.closedAt,booksJson(bundle)).run();
   if(inserted.meta.changes!==1) return c.json({error:"month_already_closed"},409);
   return c.json({bundle,anchor:{status:"not_anchored",configured:!!c.env.ANCHOR_REGISTRY}},201);

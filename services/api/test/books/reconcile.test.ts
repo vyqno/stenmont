@@ -270,3 +270,10 @@ it("moves late gas and financing sources out of a locked interim month",()=>{
  expect(r.lines.map(l=>l.kind)).toEqual(["advance","reserve_held","financing_discount","reserve_release","gas"]);
  expect(r.lines.every(l=>l.adjustmentFor==="2026-11")).toBe(true);
 });
+
+it("never rebooks a November adjustment in December after November closes",()=>{
+ const source=pay(99,1,"4","2026-10-25T00:00:00.000Z",{recordedAt:"2026-11-03T00:00:00.000Z"});
+ const base={invoices:[inv(1,"10",{createdAt:"2026-10-01T00:00:00.000Z"})],payments:[source],closedPeriods:{"2026-10":"2026-11-01T00:00:00.000Z","2026-11":"2026-12-01T00:00:00.000Z"}};
+ expect(run({...base,period:"2026-11"}).lines).toHaveLength(1);
+ expect(run({...base,period:"2026-12"}).lines).toHaveLength(0);
+});
