@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Terms } from "../lib/subscribe";
 
-const harness = vi.hoisted(() => ({ callbacks: [] as ((...args: any[]) => any)[], view: vi.fn(), sign: vi.fn() }));
-vi.mock("react", async original => ({ ...await original<typeof import("react")>(), useState: (initial: unknown) => [initial, harness.view], useEffect: () => {}, useCallback: (fn: (...args: any[]) => any) => { harness.callbacks.push(fn); return fn; } }));
+const harness = vi.hoisted(() => ({ callbacks: [] as ((terms: Terms) => Promise<void>)[], view: vi.fn(), sign: vi.fn() }));
+vi.mock("react", async original => ({ ...await original<typeof import("react")>(), useState: (initial: unknown) => [initial, harness.view], useEffect: () => {}, useCallback: (fn: (terms: Terms) => Promise<void>) => { harness.callbacks.push(fn); return fn; } }));
 vi.mock("../lib/passkey", () => ({ loadPasskey: () => ({ credentialId: "fixture", qx: `0x${"11".repeat(32)}`, qy: `0x${"22".repeat(32)}` }), createPasskey: vi.fn(), signDigest: harness.sign }));
 import { fund } from "../lib/investor";
 import SubscribeClient from "../app/subscribe/[id]/SubscribeClient";
