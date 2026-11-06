@@ -28,15 +28,18 @@ export async function verifyProof(deps: VerifyDeps, proof: unknown, expectedActi
       body: JSON.stringify(deps.environment ? { ...(proof as object), environment: deps.environment } : proof),
       signal: AbortSignal.timeout(10_000),
     });
-  } catch {
+  } catch (e) {
+    console.error("world verify: request failed", e instanceof Error ? e.name : "error");
     return upstream("World verification is unreachable");
   }
   let body: any;
   try {
     body = await res.json();
   } catch {
+    console.error("world verify: unreadable answer", res.status, res.headers.get("content-type"));
     return upstream("World returned an unreadable answer");
   }
+  if (res.status >= 500 || res.status === 429) console.error("world verify: upstream status", res.status);
   if (res.status >= 500 || res.status === 429) return upstream(`World verification failed (${res.status})`);
   if (res.status >= 400) {
     const code = typeof body?.code === "string" ? body.code : "verification_failed";

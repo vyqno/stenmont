@@ -93,9 +93,12 @@
 **Files:** Create `services/api/src/world/{rp.ts,verify.ts,routes.ts}`, `services/api/migrations/0007_world.sql`, `apps/web/app/onboarding/WorldStep.tsx`, tests
 **Produces:** `POST /v1/world/rp-signature {action}` → signed request context (server signs with `WORLD_RP_SIGNING_KEY`); `POST /v1/world/verify {action, proof}` → forwards to `https://developer.world.org/api/v4/verify/{WORLD_RP_ID}`, on success inserts `world_enrollments(id, merchant_id, action, nullifier, verified_at, UNIQUE(action, nullifier))`. Follow the installed `world-idkit` skill for the widget and request shape.
 
-- [ ] Failing tests with a mocked verify endpoint: success enrols; replay of the same nullifier for `enrol-business` → 409; upstream failure → 502 and no row; cancelled flow in the UI leaves onboarding blocked with a clear message
-- [ ] Run → FAIL; implement; run → PASS; live check with a (mock) proof from World's test mode
-- [ ] Commit line: `feat: add World ID business enrolment`
+- [x] Failing tests with a mocked verify endpoint: success enrols; replay of the same nullifier for `enrol-business` → 409; upstream failure → 502 and no row; cancelled flow in the UI leaves onboarding blocked with a clear message
+- [x] Run → FAIL; implement; run → PASS; live check with a (mock) proof from World's test mode
+- [x] Commit line: `feat: add World ID business enrolment`
+
+**Live:** `apps/web/e2e/world-enrol.spec.ts` drives the real widget and World's simulator on staging: verified, persisted after reload, and a second business of the same person refused.
+
 
 ### Task 5.8: Two different humans (anti fake invoices)
 

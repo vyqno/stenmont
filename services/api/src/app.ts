@@ -23,6 +23,13 @@ import { subscriptionPublicRoutes, subscriptionRelayRoutes, subscriptionRoutes }
 import { approvalRoutes, worldAuthRoutes, worldRoutes } from "./routes/world";
 import { webhookEndpointRoutes } from "./routes/webhookEndpoints";
 
+const USER_AGENT = "stenmont-api/1.0 (+https://stenmont.com)";
+function withUserAgent(h?: HeadersInit): Headers {
+  const headers = new Headers(h);
+  if (!headers.has("user-agent")) headers.set("user-agent", USER_AGENT);
+  return headers;
+}
+
 export type Db = DrizzleD1Database;
 export type Merchant = typeof merchants.$inferSelect;
 export type AppEnv = {
@@ -39,7 +46,8 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
     c.set("chain", deps.chain(c.env));
     c.set("ens", (deps.ens ?? viemEns)(c.env));
     c.set("now", deps.now);
-    c.set("fetch", deps.fetch ?? ((...a) => fetch(...a)));
+    // Outbound calls (World's verifier and sign-in) identify themselves; services behind bot protection refuse anonymous requests.
+    c.set("fetch", deps.fetch ?? ((input, init) => fetch(input, { ...init, headers: withUserAgent(init?.headers) })));
     await next();
   });
 
