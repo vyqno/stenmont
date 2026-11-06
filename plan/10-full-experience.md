@@ -12,7 +12,7 @@
 
 ## Global constraints
 
-- Work on `chatgpt-work`, based on `recovery/before-chatgpt-handoff`; no worktrees, destructive Git, push or merge to main.
+- Work on `chatgpt-work-2`, descended from `integration/clean`; no worktrees, destructive Git, push or merge to main.
 - Staging only. No production deployment, production migration or production-confirmation variable.
 - Leave `.gitignore`, `brand-guidelines/dev-docs-ui-ref/` and `brand-guidelines/landing-page-ref/` untouched; stage explicit paths only.
 - Keep private handoff material, `.env`, secrets and `commits.md` out of commits. Never print secret values or put them in browser screenshots.
@@ -223,3 +223,14 @@ Each section is a set of staging slices, using the same test-first and completio
 - Live browser specs: `cd apps/web && pnpm e2e e2e/identity.spec.ts` (and the corresponding later spec); run Aside afterward with secret-free screenshots and an evidence list.
 - Local UI integration: start the web app on port 3100, then run `IDENTITY_UI_APP_URL=http://127.0.0.1:3100 pnpm --filter @stenmont/web exec playwright test e2e/identity-ui.spec.ts`. This API-double suite is opt-in and does not count as real-service acceptance.
 - Append actual local/staging commands and results to progress notes. A planned test, prior-session report, skipped spec or simulated World identity is never described as a new real-human success.
+
+## Part V takeover checkpoints
+
+- [x] Preserve own in-progress work in small commits.
+- [x] Replay own missing commits onto integration/clean, preserving dates, and report the clean-line branch.
+- [x] Reconcile identity migration numbering and connect verified sign-in facts to the integrated tier store.
+- [x] Run the combined full suite, lint and web typecheck.
+- [ ] Deploy only from the clean-line descendant, API then web then MCP, with the owner informed before each deployment.
+- [ ] Pass every Part V D smoke probe after each deployment.
+- [ ] Prove Connect/prompt installation in a real browser and OAuth with the real MCP inspector.
+- [ ] Follow Part V F in order after that acceptance gate.

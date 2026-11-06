@@ -299,3 +299,11 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 - 15:52 Local checkpoint: test(auth): add isolated signup deployment diagnostics. Staging/live evidence is recorded separately; no push.
 
 - 15:53 Pre-realignment checkpoint: integration/agents was fast-forwarded locally; its full baseline passed 850 tests. Added email/Google/Turnstile fixtures and read-only recovery; the resulting full local suite passed 868 tests, lint exited 0 with one existing warning, and the web build/typecheck passed. Two staging signup attempts produced one active test business; live browser acceptance failed while API/web deployments changed. No payer funding, real email delivery or third-party accounts. Further staging deploys are stopped under Part V until the clean-line realignment is reported.
+
+- 15:56 Local checkpoint: fix(migrations): reconcile identity schema with clean integration. Staging/live evidence is recorded separately; no push.
+
+- 15:56 Local checkpoint: feat(auth): publish linked email and Workspace verification facts. Staging/live evidence is recorded separately; no push.
+
+- 15:58 Clean-line realignment complete on chatgpt-work-2, descended from integration/clean: 16 own commits replayed with original dates; protected local files retained; reachable-history vendor-token scan passed. Resolved additive auth-route/env-example conflicts without removing Shopify/SIWE routes. Identity migration moved to 0023 with idempotent creation for staging compatibility. Linked email and Google Workspace proofs now feed the integrated verification store. Combined full suite: 1137 passed; lint exits 0 with one existing warning; web typecheck passes. No deployment performed during realignment.
+
+- 15:58 Local checkpoint: docs(auth): define payout recovery boundaries and design gates. Staging/live evidence is recorded separately; no push.
