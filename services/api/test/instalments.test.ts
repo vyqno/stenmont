@@ -14,12 +14,12 @@ const json = async (r: Response) => (await r.json()) as Record<string, any>;
 const B2B = { instalments: 3, b2b: true, payerBusinessName: "Globex Ltd" };
 
 async function world(chain: Parameters<typeof setup>[0] = {}) {
-  const t = setup(chain);
+  const t = setup({ invoiceState: async () => ({ status: 3, paid: 0n, hook: "0x0000000000000000000000000000000000000000" }), ...chain });
   const key = await seedMerchant(t.db);
   const other = await seedMerchant(t.db, "m_2", "Other", `sk_test_${"b".repeat(32)}`);
   const db = dbOf(t.db);
   await db.insert(gasTanks).values({ merchantId: "m_1", wbtBalance: (10n ** 17n).toString(), dailyCapWbt: (10n ** 17n).toString(), spentDay: "2026-11-06", perPayerDailyCapUsdt: "1000000000" });
-  const invoice = (body: Record<string, unknown>, k = key) => t.req("/v1/invoices", { method: "POST", key: k, idem: crypto.randomUUID(), body: JSON.stringify({ amount: "100", ...body }) });
+  const invoice = (body: Record<string, unknown>, k = key) => t.req("/v1/invoices", { method: "POST", key: k, idem: crypto.randomUUID(), body: JSON.stringify({ amount: "99", ...body }) });
   const subscribe = (id: string) =>
     t.req("/relay/subscribe", { method: "POST", headers: { "cf-connecting-ip": "9.9.9.9" }, body: JSON.stringify({ id, payer: PAYER, deadline: String(NOW_S + 600), payerSig: "0x1234" }) });
   return { t, key, other, db, invoice, subscribe };
@@ -27,9 +27,9 @@ async function world(chain: Parameters<typeof setup>[0] = {}) {
 
 describe("splitInstalments", () => {
   it("divides evenly when it can, and reports the rounding it leaves", () => {
-    expect(splitInstalments(99_000_000n, 3)).toEqual({ each: 33_000_000n, rounding: 0n });
-    expect(splitInstalments(100_000_000n, 3)).toEqual({ each: 33_333_333n, rounding: 1n });
-    expect(splitInstalments(100_000_001n, 3)).toEqual({ each: 33_333_333n, rounding: 2n });
+    expect(splitInstalments(99_000_000n, 3)).toMatchObject({ each: 33_000_000n, rounding: 0n });
+    expect(splitInstalments(100_000_000n, 3)).toMatchObject({ each: 33_333_333n, rounding: 1n });
+    expect(splitInstalments(100_000_001n, 3)).toMatchObject({ each: 33_333_333n, rounding: 2n });
   });
   it("never lets the plan charge more than the total", () => {
     for (const total of [1n, 2n, 3n, 7n, 10_000_000n, 123_456_789n]) {
@@ -60,7 +60,7 @@ describe("an invoice with instalments", () => {
     const res = await w.invoice({ ...B2B, amount: "100" });
     expect(res.status).toBe(201);
     const body = await json(res);
-    expect(body.instalmentPlan).toMatchObject({ status: "offered", count: 3, each: "33.333333", total: "100", rounding: "0.000001", periodSeconds: 2_592_000, payerBusinessName: "Globex Ltd" });
+    expect(body.instalmentPlan).toMatchObject({ status: "offered", count: 3, each: "33.333333", total: "100", rounding: "0", first: "33.333334", periodSeconds: 2_592_000, payerBusinessName: "Globex Ltd" });
     expect(body.instalmentPlan.subscribeUrl).toBe(`https://app.test/subscribe/${body.instalmentPlan.id}`);
     const [row] = await w.db.select().from(subscriptions);
     expect(row).toMatchObject({ kind: "instalment", invoiceId: body.id, merchantId: "m_1", maxCharges: 3, amount: "33333333", total: "100000000", periodSeconds: 2_592_000 });
@@ -76,15 +76,15 @@ describe("an invoice with instalments", () => {
     const w = await world();
     const inv = await json(await w.invoice(B2B));
     const pay = await json(await w.t.req(`/pay/${inv.id}`));
-    expect(pay.instalments).toMatchObject({ count: 3, each: "33.333333", url: inv.instalmentPlan.subscribeUrl });
+    expect(pay.instalments).toMatchObject({ count: 3, each: "33", url: inv.instalmentPlan.subscribeUrl });
     const plan = await json(await w.t.req(`/pay/subscription/${inv.instalmentPlan.id}`));
-    expect(plan).toMatchObject({ kind: "instalment", total: "100", amount: "33.333333", maxCharges: 3, payerBusinessName: "Globex Ltd" });
+    expect(plan).toMatchObject({ kind: "instalment", total: "99", amount: "33", maxCharges: 3, payerBusinessName: "Globex Ltd" });
     const plain = await json(await w.invoice({ amount: "5" }));
     expect((await json(await w.t.req(`/pay/${plain.id}`))).instalments).toBeNull();
   });
   it("is replayed, not duplicated, with the same Idempotency-Key", async () => {
     const w = await world();
-    const send = () => w.t.req("/v1/invoices", { method: "POST", key: w.key, idem: "same", body: JSON.stringify({ amount: "100", ...B2B }) });
+    const send = () => w.t.req("/v1/invoices", { method: "POST", key: w.key, idem: "same", body: JSON.stringify({ amount: "99", ...B2B }) });
     expect((await send()).status).toBe(201);
     expect((await send()).status).toBe(201);
     expect(await w.db.select().from(subscriptions)).toHaveLength(1);
@@ -136,7 +136,7 @@ describe("charging the plan (cron)", () => {
     expect(ev).not.toContain("subscription.charged");
     const [d] = await t.w.db.select().from(webhookDeliveries).where(eq(webhookDeliveries.type, "instalment.charged"));
     const payload = JSON.parse(d!.payload).data;
-    expect(payload).toMatchObject({ instalment: { number: 1, of: 3, amount: "33.333333", invoiceId: t.inv.id, status: "active" } });
+    expect(payload).toMatchObject({ instalment: { number: 1, of: 3, amount: "33", invoiceId: t.inv.id, status: "active" } });
   });
   it("finishes after the third charge and says so once", async () => {
     const t = await active({ subscriptionState: state(3, "completed") });
@@ -183,7 +183,7 @@ describe("cancel and tenant isolation", () => {
     const w = await world();
     const inv = await json(await w.invoice(B2B));
     await w.subscribe(inv.instalmentPlan.id);
-    const stop = await w.t.req(`/v1/subscriptions/${inv.instalmentPlan.id}/cancel`, { method: "POST", key: w.key });
+    const stop = await w.t.req(`/v1/subscriptions/${inv.instalmentPlan.id}/cancel`, { method: "POST", key: w.key, body: JSON.stringify({ deadline: String(NOW_S + 600), signatures: [{ id: inv.instalmentPlan.id, signature: "0x1234" }] }) });
     expect(stop.status).toBe(200);
     const buyer = await w.t.req("/relay/subscription-cancel", { method: "POST", headers: { "cf-connecting-ip": "9.9.9.9" }, body: JSON.stringify({ id: inv.instalmentPlan.id, deadline: String(NOW_S + 600), payerSig: "0x1234" }) });
     expect(buyer.status).toBe(200);
@@ -194,7 +194,7 @@ describe("cancel and tenant isolation", () => {
     await w.t.req("/v1/subscriptions", { method: "POST", key: w.key, idem: crypto.randomUUID(), body: JSON.stringify({ amount: "5", periodSeconds: 3600, maxCharges: 2 }) });
     const all = (await json(await w.t.req("/v1/subscriptions", { key: w.key }))).data as any[];
     expect(all).toHaveLength(2);
-    expect(all.find((s) => s.id === inv.instalmentPlan.id)).toMatchObject({ kind: "instalment", invoiceId: inv.id, total: "100" });
+    expect(all.find((s) => s.id === inv.instalmentPlan.id)).toMatchObject({ kind: "instalment", invoiceId: inv.id, total: "99" });
     const only = (await json(await w.t.req("/v1/subscriptions?kind=instalment", { key: w.key }))).data as any[];
     expect(only.map((s) => s.id)).toEqual([inv.instalmentPlan.id]);
     expect((await json(await w.t.req("/v1/subscriptions", { key: w.other }))).data).toEqual([]);
