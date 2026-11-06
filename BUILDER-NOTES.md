@@ -343,3 +343,7 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 - 16:37 Local checkpoint: docs(install): mark the operator proof complete. Staging/live evidence is recorded separately; no push.
 
 - 16:37 Local checkpoint: docs(financing): record completed testnet lifecycle honestly. Staging/live evidence is recorded separately; no push.
+
+- 16:37 Local checkpoint: chore(integration): merge latest install fixes into combined line. Staging/live evidence is recorded separately; no push.
+
+- 16:38 Combined branch: chatgpt-work-3 created from integration/next; 355512b preserves missing commits with a normal merge. Local .gitignore preserved in a named stash; protected reference folders untouched. Full suite 1359 passed (API 908, web 215, MCP 17, agent 26, shared 46, scripts 22+15 node tests); lint/typecheck passed with the existing warning.

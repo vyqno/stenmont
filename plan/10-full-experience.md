@@ -12,7 +12,7 @@
 
 ## Global constraints
 
-- Work on `chatgpt-work-2`, descended from `integration/clean`; no worktrees, destructive Git, push or merge to main.
+- Work on `chatgpt-work-3`, descended from `integration/next` and `integration/clean`; no worktrees, destructive Git, push or merge to main.
 - Staging only. No production deployment, production migration or production-confirmation variable.
 - Leave `.gitignore`, `brand-guidelines/dev-docs-ui-ref/` and `brand-guidelines/landing-page-ref/` untouched; stage explicit paths only.
 - Keep private handoff material, `.env`, secrets and `commits.md` out of commits. Never print secret values or put them in browser screenshots.
@@ -237,3 +237,12 @@ Each section is a set of staging slices, using the same test-first and completio
 - [x] Real Inspector OAuth consent/read, wrong PKCE and redirect refusal, revoke denial.
 - [x] Sir added the site DNS TXT record; real browser shows Ready, all four checks Passed. See `docs/INSTALL-ACCEPTANCE.md`.
 - [ ] Follow Part V F in order after that acceptance gate.
+
+## Combined branch acceptance — 2026-11-06
+
+- [x] Move to chatgpt-work-3 from integration/next and preserve missing fixes by merge.
+- [x] Combined full suite, lint and web typecheck.
+- [ ] Apply staging migrations 0031/0032, set ACCOUNT_LINK_SECRET and deploy API/web/MCP with smoke checks.
+- [ ] Browser: catalogue store/cart/checkout, receipts link, verified badge and wallet-option absence.
+- [ ] Condense builder notes; test abandoned-record cleanup and clean the leftover test records.
+- [ ] Repeat lifecycle dry-run after these steps; stop before another real run.
