@@ -1,4 +1,5 @@
 import { pageMetadata } from "../../../lib/seo";
+import { notFoundIfMissing } from "../../../lib/serverLookup";
 import Link from "next/link";
 import { Logo } from "../../../components/Logo";
 import CertificateClient from "./CertificateClient";
@@ -9,6 +10,7 @@ export const metadata = pageMetadata("/claim/[id]");
 
 export default async function ClaimCertificatePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await notFoundIfMissing(`/public/claims/${encodeURIComponent(id)}`);
   return (
     <div className="public-record-page">
       <header className="mb-8 flex items-center justify-between">
