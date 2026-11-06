@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import { collectionTools } from "./collections";
 
 export type McpConfig = { apiUrl: string; appUrl: string; fetch: typeof fetch };
 type Out = { content: { type: "text"; text: string }[]; isError?: boolean };
@@ -9,7 +10,7 @@ const id = z.string().regex(/^0x[0-9a-fA-F]{64}$/, "an invoice id is 0x followed
 const amount = z.string().regex(/^\d{1,12}(\.\d{1,6})?$/, "an amount like 12.50");
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "a date like 2026-11-30");
 
-type Tool = { name: string; description: string; inputSchema: object; schema: z.ZodType; run: (a: any, api: Api) => Promise<Out> };
+export type Tool = { name: string; description: string; inputSchema: object; schema: z.ZodType; run: (a: any, api: Api) => Promise<Out> };
 type Api = (path: string, init?: RequestInit) => Promise<Response>;
 
 const apiError = async (res: Response) => {
@@ -22,6 +23,7 @@ const fmt = (v: unknown) => JSON.stringify(v, null, 2);
 
 export function createTools(cfg: McpConfig): Tool[] {
   return [
+    ...collectionTools(cfg.appUrl),
     {
       name: "list_invoices",
       description: "List the business's invoices, newest first. Optionally filter by status (open, partially_paid, paid, cancelled, failed).",

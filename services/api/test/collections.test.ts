@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collectionsActions, sessions, subscriptions } from "../src/db/schema";
+import { collectionsActions, ensNames, sessions, subscriptions } from "../src/db/schema";
 import { sha256Hex } from "../src/lib/crypto";
 import { createApproval, markDenied } from "../src/world/approvals";
 import { d1ApprovalRepo } from "../src/world/d1";
@@ -72,4 +72,33 @@ describe("draft-only collections", () => {
     expect(await w.db.select().from(subscriptions)).toHaveLength(0);
     expect(w.t.chain.sent).toHaveLength(0);
   });
+});
+
+
+it("does not let a foreign human session change another API-key tenant's policy", async () => {
+  const w = await fixture();
+  const token = "c".repeat(64);
+  for (const path of ["policy", "policy/publish"]) {
+    const r = await w.t.req(`/v1/collections/${path}`, { key: w.other, headers: { cookie: `__Secure-stenmont_test=${token}`, origin: "https://app.test" }, method: "POST", body: JSON.stringify({ maxDiscountBps: 0, maxInstalments: 3, maxExtensionDays: 10 }) });
+    expect(r.status).toBe(403);
+  }
+});
+
+
+it("publishes saved policy through the named ENS record and excludes agent decision tools", async () => {
+  const w = await fixture();
+  await w.db.insert(ensNames).values({ merchantId: "m_1", label: "acme", name: "acme.stenmont.eth", resolver: "0x4444444444444444444444444444444444444444", agentRegistry: "0x5555555555555555555555555555555555555555", status: "active", createdAt: w.t.clock.now.toISOString() });
+  await w.post("policy", { maxDiscountBps: 0, maxInstalments: 3, maxExtensionDays: 5 }, true);
+  const response = await w.post("policy/publish", {}, true);
+  expect(response.status).toBe(200);
+  expect(w.t.ens.textWrites).toHaveLength(1);
+  expect(JSON.parse(w.t.ens.textWrites[0]!.records["stenmont.collections"]!)).toMatchObject({ maxInstalments: 3, maxExtensionDays: 5, merchantApprovalRequired: true, deliveryMode: "draft_only" });
+});
+it("refuses policy changes and draft decisions from a read-only recovery session", async () => {
+  const w = await fixture();
+  const action = await w.post("reminders", { invoiceId: w.invoice.id }).then(r => r.json()) as any;
+  await w.t.db.prepare("update sessions set passkey_id = ''").run();
+  expect((await w.post("policy", { maxDiscountBps: 0, maxInstalments: 3, maxExtensionDays: 5 }, true)).status).toBe(403);
+  expect((await w.post(`actions/${action.id}/decide`, { decision: "approve" }, true)).status).toBe(403);
+  expect((await w.db.select().from(collectionsActions))[0]!.status).toBe("pending");
 });

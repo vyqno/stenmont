@@ -27,7 +27,8 @@ collectionsRoutes.get("/policy", async c => {
   return c.json(row ?? defaultPolicy);
 });
 collectionsRoutes.post("/policy", async c => {
-  if (!(await sessionMerchant(c))) return fail(c, 403, "human_required", "Sign in with a passkey to change collections policy.");
+  const person = await sessionMerchant(c);
+  if (!person || person.id !== c.var.merchantId) return fail(c, 403, "human_required", "Sign in with a passkey to change collections policy.");
   const parsed = policyBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return invalid(c, parsed.error);
   const row = { merchantId: c.var.merchantId, ...parsed.data, updatedAt: c.var.now().toISOString() };
@@ -35,7 +36,8 @@ collectionsRoutes.post("/policy", async c => {
   return c.json(row);
 });
 collectionsRoutes.post("/policy/publish", async c => {
-  if (!(await sessionMerchant(c))) return fail(c, 403, "human_required", "Sign in with a passkey to publish policy.");
+  const person = await sessionMerchant(c);
+  if (!person || person.id !== c.var.merchantId) return fail(c, 403, "human_required", "Sign in with a passkey to publish policy.");
   const [name] = await c.var.db.select().from(ensNames).where(eq(ensNames.merchantId, c.var.merchantId));
   if (name?.status !== "active") return fail(c, 409, "no_name", "Claim a business name first.");
   const [policy] = await c.var.db.select().from(collectionsPolicy).where(eq(collectionsPolicy.merchantId, c.var.merchantId));

@@ -14,7 +14,7 @@ import {
   PROFILE_KEY,
   ROLE,
   TIER_KEY,
-  DIRECTORY_KEYS,
+  REGISTRAR_KEYS,
   TEXT_RIGHTS,
   textResource,
   dnsName,
@@ -67,7 +67,7 @@ export interface EnsClient {
    */
   setTierRecord(a: { name: string; resolver: Address; tier: number }): Promise<Hex>;
   /**
-   * Writes pay-directory text records (only the `DIRECTORY_KEYS`; any other key is refused) in one transaction. Like the tier
+   * Writes directory and policy text records (only `REGISTRAR_KEYS`; any other key is refused) in one transaction. Like the tier
    * record, only the platform's registrar can write them: the business, its team and its agents hold no right over these keys.
    */
   setTextRecords(a: { name: string; resolver: Address; records: Record<string, string> }): Promise<Hex | null>;
@@ -155,7 +155,7 @@ export function viemEns(env: Env): EnsClient {
       // The registrar keeps the records it must still be able to write (profile, the tier badge and the pay directory) when its root rights go.
       const keep = (key: string) => encodeFunctionData({ abi: permissionedResolverAbi, functionName: "grantSetterRoles", args: [textSetter(name, key), registrar] });
       const dropRoot = encodeFunctionData({ abi: permissionedResolverAbi, functionName: "revokeRootRoles", args: [CALL_ROOT_RIGHTS, registrar] });
-      return run(resolver, encodeFunctionData({ abi: permissionedResolverAbi, functionName: "multicall", args: [[keep(PROFILE_KEY), keep(TIER_KEY), ...DIRECTORY_KEYS.map(keep), dropRoot]] }));
+      return run(resolver, encodeFunctionData({ abi: permissionedResolverAbi, functionName: "multicall", args: [[keep(PROFILE_KEY), keep(TIER_KEY), ...REGISTRAR_KEYS.map(keep), dropRoot]] }));
     },
 
     async setTierRecord({ name, resolver, tier }) {
@@ -164,7 +164,7 @@ export function viemEns(env: Env): EnsClient {
 
     async setTextRecords({ name, resolver, records }) {
       const entries = Object.entries(records);
-      if (entries.some(([k]) => !(DIRECTORY_KEYS as readonly string[]).includes(k))) throw new EnsRejected("only pay directory records can be written here");
+      if (entries.some(([k]) => !(REGISTRAR_KEYS as readonly string[]).includes(k))) throw new EnsRejected("only registrar directory and policy records can be written here");
       if (entries.length === 0) return null;
       const set = ([key, value]: [string, string]) => encodeFunctionData({ abi: permissionedResolverAbi, functionName: "setText", args: [dnsName(name), key, value] });
       return run(resolver, encodeFunctionData({ abi: permissionedResolverAbi, functionName: "multicall", args: [entries.map(set)] }));
