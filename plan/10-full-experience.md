@@ -253,7 +253,7 @@ Each section is a set of staging slices, using the same test-first and completio
 - [x] Dispatch W1–W6 in isolated clones from 08272b6 and preserve salvaged commits with cherry-pick -x.
 - [x] Merge W1–W6 with individual history retained; independently run contract and targeted cross-workstream checks.
 - [ ] Close all material integration findings, then run the complete combined suite, lint, web typecheck and build.
-- [ ] One announced staging release with migrations0040/0041/0050/0060, API→web→MCP and live probes.
+- [x] One announced staging release with migrations 0040/0041/0050/0060, API→web→MCP and live probes. Operational follow-up 0070 also deployed; 40/40 probes after each service.
 - [ ] W7: dashboard Sell this invoice → claim timeline → public certificate; do not repeat the already-settled direct-contract lifecycle.
 - [ ] W6b: replace rejected landing with original reference-led component set; visually inspect1440/390 views and fix.
 - [ ] W13: isolated realistic demo shop, Razorpay test mode, real Connect/OAuth onboarding and webhook/order/dashboard proof. Public GitHub creation requires explicit approval; owner will configure Razorpay staging secrets.
@@ -261,3 +261,10 @@ Each section is a set of staging slices, using the same test-first and completio
 - [ ] W15: inspect deployed Sepolia capabilities, implement supported name/record permissions, and prove through resolve(); document unsupported features.
 - [ ] W16: only after router-v2 approval, auction/acknowledgement/reputation pricing and named certificate; fractional funding is a stretch.
 - [ ] SDK/React @stenmontglobal publication waits for explicit owner approval.
+
+### Wave staging verification checkpoint
+
+- [x] Combined workspace 1636 tests, lint, web typecheck and Cloudflare bundle passed at 9cbe94a.
+- [x] New demo-shop DNS and signed webhook verified; real Inspector OAuth/read/revocation exercised.
+- [ ] Demo-shop paid order, indexed dashboard invoice and Connect4/4; checkout reconciliation remains open.
+- [ ] Deliberately interrupted receipt recovery verified live; local regressions alone do not close this gate.

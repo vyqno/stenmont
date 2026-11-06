@@ -296,4 +296,10 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 
 - 17:10 Link completed abandoned invoice cleanup.
 
-- 18:04 Wave 1: merged six isolated workstreams and reviewed fixes on chatgpt-work-3; preserved individual/salvaged commits. Independent Foundry run 450 passed; combined MCP20 and API integration68 passed. Staging release not run; Books close-race review and new reference-led landing revision remain in progress.
+- 18:04 Wave 1: merged six isolated workstreams and reviewed fixes on chatgpt-work-3; preserved individual/salvaged commits. Independent Foundry run 450 passed; combined MCP 20 and API integration68 passed. Staging release not run; Books close-race review and new reference-led landing revision remain in progress.
+
+- 21:13 Combined verification: 1636 workspace tests, lint and web typecheck passed; Cloudflare web bundle built. Foundry 450 passed before formatting-only contract changes; ten targeted contract tests and formatting passed afterwards.
+- 21:13 Staging migrations 0040/0041/0050/0060/0070 applied. Final API72481fd2, web57be7f43, MCP2e519ed6; 40/40 probes passed after each operational deploy. Receipt-recovery fault injection not run live.
+- 21:13 Demo shop7c997ed pushed only to its authorized separate public repo and deployed81ee1200. Two isolated test businesses created; current Fieldwork install staging retained, first unused after lost virtual session. No wallet funded and no payment attempted in this stage.
+- 21:13 Demo DNS exact on both public resolvers; Connect3/4 (reachable, DNS, signed webhook). Checkout held pending invoice binding; one1.00USDT invoice created through same-order diagnostic replay, unpaid.
+- 21:13 Real MCP Inspector 2.12 OAuth consent and authenticated invoice read passed; grant revoked and subsequent read refused. Public tool schemas remain discoverable; revocation blocks merchant data.
