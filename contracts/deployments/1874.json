@@ -16,7 +16,8 @@
           "attester": "0xd3887b5A9d79bA55539DF7F07aa933a2b2F41ade",
           "refundApprovalThreshold": "100000000"
         },
-        "reputation": "0x751165C1E587637aF6EC0ff91b87Fa7Bd08a9ed5"
+        "reputation": "0x751165C1E587637aF6EC0ff91b87Fa7Bd08a9ed5",
+        "note": "Threshold lowered to 2 USDT after deploy (owner call setRefundApprovalThreshold) so the World approval step can be shown with small test amounts."
       },
       "PasskeyAccountFactory": {
         "address": "0x5101c37647581c81b462436af2D7ac8ccD08D33A",

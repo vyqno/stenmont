@@ -16,6 +16,11 @@ export default function Invoices() {
   const [formError, setFormError] = useState("");
   const [copied, setCopied] = useState("");
   const [now] = useState(() => Date.now());
+  // World sends the person back here after the approval: tell them what happened.
+  const [approvalResult] = useState<"approved" | "denied" | null>(() => {
+    const r = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("result");
+    return r === "approved" || r === "denied" ? r : null;
+  });
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -46,6 +51,12 @@ export default function Invoices() {
         <h1 className="text-3xl font-bold">Invoices</h1>
         <ExportButton />
       </div>
+
+      {approvalResult && (
+        <p role="status" data-testid="approval-result" className={approvalResult === "approved" ? "rounded border border-mint p-3 text-sm" : "rounded border border-danger p-3 text-sm text-danger"}>
+          {approvalResult === "approved" ? "Approved. Press Refund again to finish the refund." : "The approval was not completed, so the refund was not sent."}
+        </p>
+      )}
 
       <Card title="New invoice">
         <form onSubmit={create} className="grid gap-3 md:grid-cols-[1fr_1.5fr_1fr_auto] md:items-end">

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Badge, Card } from "../../../components/ui";
+import { WorldVerify } from "../../../components/WorldVerify";
 import { AuthError, api } from "../../../lib/auth";
 import { useApi } from "../../../lib/useApi";
 import { useMerchant } from "../DashboardShell";
@@ -45,6 +46,8 @@ export default function Settings() {
         <p>{merchant.name}</p>
         <p className="mt-1 break-all font-mono text-xs text-muted" data-testid="account">Account {merchant.account}</p>
       </Card>
+
+      <WorldVerify />
 
       <Card title="API keys">
         {keys.data?.data.length === 0 && <p className="text-muted">No keys.</p>}

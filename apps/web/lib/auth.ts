@@ -6,6 +6,7 @@ export class AuthError extends Error {
   constructor(
     readonly code: string,
     message: string,
+    readonly details?: unknown,
   ) {
     super(message);
   }
@@ -24,7 +25,7 @@ async function call<T>(method: "GET" | "POST", path: string, body?: unknown, as:
   if (res.status === 204) return undefined as T;
   if (res.ok && as === "text") return (await res.text()) as T;
   const json = (await res.json().catch(() => ({}))) as { error?: { code?: string; message?: string } } & Record<string, unknown>;
-  if (!res.ok) throw new AuthError(json.error?.code ?? "error", json.error?.message ?? "Something went wrong. Please try again.");
+  if (!res.ok) throw new AuthError(json.error?.code ?? "error", json.error?.message ?? "Something went wrong. Please try again.", (json.error as { details?: unknown } | undefined)?.details);
   return json as T;
 }
 
