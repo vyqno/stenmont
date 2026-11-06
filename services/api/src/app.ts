@@ -9,6 +9,7 @@ import { viemEns, type EnsClient } from "./ens/client";
 import { ensRoutes } from "./routes/ens";
 import { fail } from "./errors";
 import { apiKeyRoutes } from "./routes/apiKeys";
+import { importRoutes } from "./routes/import";
 import { checkoutRoutes } from "./routes/checkout";
 import { catalogRoutes, storePublicRoutes } from "./routes/catalog";
 import { authRoutes } from "./routes/auth";
@@ -91,6 +92,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/financing", financingRoutes);
   v1.route("/", catalogRoutes);
   v1.route("/store", checkoutRoutes);
+  v1.route("/import", importRoutes);
   app.route("/v1", v1);
   app.route("/auth/world", worldAuthRoutes);
   app.route("/auth", authRoutes);
