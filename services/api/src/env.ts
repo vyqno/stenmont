@@ -5,6 +5,10 @@ import type { Relayer } from "./relayer/do";
 
 export type Env = {
   DB: D1Database;
+  /** 32-byte secp256k1 private key (0x hex). Service attestation only. */
+  BOOKS_SIGNING_KEY?: string;
+  /** Optional registry address. Unset until separately deployed and approved. */
+  ANCHOR_REGISTRY?: string;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
   GOOGLE_CLIENT_ID?: string;

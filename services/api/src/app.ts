@@ -17,6 +17,7 @@ import { catalogRoutes, storePublicRoutes } from "./routes/catalog";
 import { storeCheckoutRoutes } from "./routes/storeCheckout";
 import { identitySigninRoutes } from "./routes/identitySignin";
 import { authRoutes } from "./routes/auth";
+import { booksRoutes } from "./routes/books";
 import { exportRoutes } from "./routes/exports";
 import { financingRoutes } from "./routes/financing";
 import { investRoutes } from "./routes/invest";
@@ -96,6 +97,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/webhook-endpoints", webhookEndpointRoutes);
   v1.route("/gas-tank", gasTankRoutes);
   v1.route("/exports", exportRoutes);
+  v1.route("/books", booksRoutes);
   v1.route("/api-keys", apiKeyRoutes);
   v1.route("/refunds", refundRoutes);
   v1.route("/subscriptions", subscriptionRoutes);
