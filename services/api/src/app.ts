@@ -6,6 +6,7 @@ import { viemChain, type ChainClient } from "./chain";
 import type { merchants } from "./db/schema";
 import type { Env } from "./env";
 import { fail } from "./errors";
+import { apiKeyRoutes } from "./routes/apiKeys";
 import { authRoutes } from "./routes/auth";
 import { exportRoutes } from "./routes/exports";
 import { invoiceRoutes } from "./routes/invoices";
@@ -62,6 +63,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/webhook-endpoints", webhookEndpointRoutes);
   v1.route("/gas-tank", gasTankRoutes);
   v1.route("/exports", exportRoutes);
+  v1.route("/api-keys", apiKeyRoutes);
   v1.route("/refunds", refundRoutes);
   v1.route("/subscriptions", subscriptionRoutes);
   app.route("/v1", v1);

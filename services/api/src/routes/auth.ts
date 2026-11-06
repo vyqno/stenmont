@@ -15,7 +15,7 @@ import {
 } from "@stenmont/shared";
 import type { AppEnv, Db } from "../app";
 import { audit } from "../audit";
-import { endSession, isAppOrigin, sessionMerchant, startSession } from "../auth";
+import { endSession, isAppOrigin, sessionContext, startSession } from "../auth";
 import { apiKeys, authChallenges, gasTanks, merchants, passkeys } from "../db/schema";
 import { fail } from "../errors";
 import { randomHex, sha256Hex } from "../lib/crypto";
@@ -36,6 +36,7 @@ const ACCOUNT_SALT = `0x${"00".repeat(32)}` as Hex;
 /** Test environments only: gas set aside for a new business so its first customers can pay without a top-up. */
 const STARTER_TANK_WEI = 10n ** 16n;
 
+const activateLimit = (env: { ACTIVATE_IP_LIMIT?: string }) => Number(env.ACTIVATE_IP_LIMIT) || 5;
 const rpIdOf = (appUrl: string) => new URL(appUrl).hostname;
 const b64 = z.string().regex(/^[A-Za-z0-9_-]{1,4096}$/);
 const businessName = z
@@ -133,7 +134,7 @@ export async function checkAssertion(c: Ctx, challenge: string, b: Omit<Assertio
 
 authRoutes.post("/register/options", async (c) => {
   const now = c.var.now();
-  if (!(await hitRateLimit(c.var.db, `register:ip:${clientIp(c) ?? "unknown"}`, 10, 3_600, now))) return limited(c);
+  if (!(await hitRateLimit(c.var.db, `register:ip:${clientIp(c) ?? "unknown"}`, activateLimit(c.env) * 2, 3_600, now))) return limited(c);
   const parsed = z.strictObject({ businessName }).safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return invalid(c, parsed.error);
   const name = parsed.data.businessName;
@@ -212,7 +213,7 @@ authRoutes.post("/activate", async (c) => {
   const now = c.var.now();
   // Each activation costs the platform gas, so it is limited per address of origin and across the whole platform.
   const ok = [
-    await hitRateLimit(db, `activate:ip:${clientIp(c) ?? "unknown"}`, 5, 3_600, now),
+    await hitRateLimit(db, `activate:ip:${clientIp(c) ?? "unknown"}`, activateLimit(c.env), 3_600, now),
     await hitRateLimit(db, "activate:global", 200, 86_400, now),
   ];
   if (ok.includes(false)) return limited(c);
@@ -312,9 +313,10 @@ authRoutes.post("/login/verify", async (c) => {
 // ---- session --------------------------------------------------------------------------------------------------------
 
 authRoutes.get("/session", async (c) => {
-  const merchant = await sessionMerchant(c);
-  if (!merchant) return fail(c, 401, "unauthorized", "Not signed in");
-  return c.json({ merchant: { id: merchant.id, name: merchant.name, account: merchant.address } });
+  const ctx = await sessionContext(c);
+  if (!ctx) return fail(c, 401, "unauthorized", "Not signed in");
+  const { merchant } = ctx;
+  return c.json({ merchant: { id: merchant.id, name: merchant.name, account: merchant.address }, credentialId: ctx.passkeyId });
 });
 
 authRoutes.post("/logout", async (c) => {

@@ -24,4 +24,8 @@ export type Env = {
   RELAYER_PRIVATE_KEY: string;
   /** Staging only: the wallet that hands out test USDT. Never set in production. */
   FAUCET_PRIVATE_KEY?: string;
+  /** Test environments: claims per IP per day (default 5). */
+  FAUCET_IP_LIMIT?: string;
+  /** Test environments: business sign-ups (activations) per IP per hour (default 5). Each costs the platform gas. */
+  ACTIVATE_IP_LIMIT?: string;
 };

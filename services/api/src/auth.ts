@@ -72,6 +72,11 @@ const sessionToken = (c: Context<AppEnv>) => {
 };
 
 export async function sessionMerchant(c: Context<AppEnv>): Promise<Merchant | null> {
+  return (await sessionContext(c))?.merchant ?? null;
+}
+
+/** The signed-in business and the passkey this session was started with. */
+export async function sessionContext(c: Context<AppEnv>): Promise<{ merchant: Merchant; passkeyId: string } | null> {
   const token = sessionToken(c);
   if (!token) return null;
   const [row] = await c.var.db
@@ -80,7 +85,7 @@ export async function sessionMerchant(c: Context<AppEnv>): Promise<Merchant | nu
     .where(and(eq(sessions.tokenHash, await sha256Hex(token)), gt(sessions.expiresAt, c.var.now().toISOString())));
   if (!row) return null;
   const [merchant] = await c.var.db.select().from(merchants).where(eq(merchants.id, row.merchantId));
-  return merchant?.status === "active" ? merchant : null;
+  return merchant?.status === "active" ? { merchant, passkeyId: row.passkeyId } : null;
 }
 
 export async function endSession(c: Context<AppEnv>): Promise<void> {

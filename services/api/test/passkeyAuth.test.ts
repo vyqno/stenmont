@@ -175,6 +175,16 @@ describe("activation (the second prompt)", () => {
   });
 });
 
+describe("sign-up limits in a test environment", () => {
+  it("can be raised with ACTIVATE_IP_LIMIT, and sign-ups still stop at the new limit", async () => {
+    const t = setup({}, { ACTIVATE_IP_LIMIT: "7" });
+    const codes: number[] = [];
+    for (let i = 0; i < 8; i++) codes.push((await signup(t)).res.status);
+    expect(codes.slice(0, 7).every((c) => c === 200)).toBe(true);
+    expect(codes[7]).toBe(429);
+  });
+});
+
 describe("signing in with a passkey", () => {
   it("signs a returning business in without a username, a password or a code", async () => {
     const t = setup();
@@ -185,7 +195,9 @@ describe("signing in with a passkey", () => {
     const cookie = cookieOf(res);
     const me = await t.req("/auth/session", { headers: { cookie } });
     expect(me.status).toBe(200);
-    expect((await json(me)).merchant.name).toBe("Acme Studio");
+    const body = await json(me);
+    expect(body.merchant.name).toBe("Acme Studio");
+    expect(body.credentialId).toBe(auth.credentialId); // so the page asks for this passkey, not another one on the device
   });
   it("offers a discoverable login: no credential list, user verification required", async () => {
     const t = setup();

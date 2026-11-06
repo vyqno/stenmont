@@ -79,7 +79,7 @@ relayRoutes.post("/faucet", async (c) => {
   const to = parsed.data.address as Address;
   const limits = [
     await hitRateLimit(db, `faucet:addr:${to.toLowerCase()}`, 1, 86_400, now),
-    await hitRateLimit(db, `faucet:ip:${clientIp(c) ?? "unknown"}`, 5, 86_400, now),
+    await hitRateLimit(db, `faucet:ip:${clientIp(c) ?? "unknown"}`, Number(c.env.FAUCET_IP_LIMIT) || 5, 86_400, now),
     await hitRateLimit(db, "faucet:global", 200, 86_400, now),
   ];
   if (limits.includes(false)) return fail(c, 429, "faucet_limit", "Test funds were already claimed. Try again tomorrow.");

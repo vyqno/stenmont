@@ -361,6 +361,11 @@ describe("POST /relay/faucet (non-production only)", () => {
     for (let i = 1; i <= 5; i++) expect((await claim(t, `0x${i.toString(16).padStart(40, "0")}`, "4.4.4.4")).status).toBe(200);
     expect((await claim(t, `0x${"e".repeat(40)}`, "4.4.4.4")).status).toBe(429);
   });
+  it("the per-IP limit can be raised in a test environment, and the global cap still holds", async () => {
+    const t = setup({}, { FAUCET_IP_LIMIT: "8" });
+    for (let i = 1; i <= 8; i++) expect((await claim(t, `0x${i.toString(16).padStart(40, "0")}`, "4.4.4.4")).status).toBe(200);
+    expect((await claim(t, `0x${"e".repeat(40)}`, "4.4.4.4")).status).toBe(429);
+  });
   it("does not exist in production and needs its key configured", async () => {
     const prod = setup({}, { ENVIRONMENT: "production" });
     expect((await claim(prod, PAYER)).status).toBe(404);
