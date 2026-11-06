@@ -638,3 +638,18 @@ export const tierBadges = sqliteTable("tier_badges", {
   txHash: text("tx_hash"),
   publishedAt: text("published_at").notNull(),
 });
+
+/**
+ * What a business told us for its ENS pay directory (see docs/ENS_DIRECTORY.md) and what we last wrote to its name.
+ * A row exists once the business has published; the hourly job then keeps the derived records (token, cap) current.
+ */
+export const ensDirectory = sqliteTable("ens_directory", {
+  merchantId: text("merchant_id").primaryKey(),
+  payUrl: text("pay_url"),
+  x402Url: text("x402_url"),
+  refund: text("refund"),
+  published: text("published").notNull().default("{}"), // JSON: the directory records as last written to ENS
+  txHash: text("tx_hash"),
+  publishedAt: text("published_at"),
+  updatedAt: text("updated_at").notNull(),
+});
