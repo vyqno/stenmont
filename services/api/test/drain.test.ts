@@ -66,11 +66,15 @@ describe("drain: legitimate load plus one hostile payer", () => {
   it("50 honest payers all get through, the replayer costs one transaction, and spend stays under the cap", async () => {
     const cap = 5n * 10n ** 16n; // 0.05 WBT: room for 50 payments (3.75e16)
     const { t, id } = await world(cap);
-    // all 50 arrive at the same instant; a payment that finds the budget held by others is told "busy" and retries
+    // all 50 arrive at the same instant; a payment that finds the budget held by others is told "busy" and retries.
+    // Like the real pay page, it waits a little between tries: the budget frees only as the in-flight payments settle,
+    // and spinning without waiting only measures how fast this machine runs the loop.
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const withRetry = async (i: number) => {
-      for (let attempt = 0; attempt < 10; attempt++) {
+      for (let attempt = 0; attempt < 200; attempt++) {
         const r = await pay(t, id, addr(100 + i), 1_000 + i, `10.0.${i}.1`);
         if (r.status !== 503) return r.status;
+        await wait(2 + (attempt % 5));
       }
       return 503;
     };
@@ -79,7 +83,7 @@ describe("drain: legitimate load plus one hostile payer", () => {
     for (let i = 0; i < 200; i++) await pay(t, id, addr(1), 7, "66.66.66.66"); // the attacker
     expect(t.chain.sent).toHaveLength(51);
     expect(await expectBooksBalance(t, cap)).toBe(51n * COST);
-  });
+  }, 30_000);
 });
 
 describe("drain: fresh authorizations, unlimited supply", () => {
