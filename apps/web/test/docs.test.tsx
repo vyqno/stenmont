@@ -71,7 +71,7 @@ describe("integration sample safety", () => {
   it("binds signed paid events to the stored invoice and amount before fulfilment", async () => {
     const paid: string[] = [];
     const make = new AsyncFunction("verifyWebhook", "process", `${runnable(SAMPLES.sdkWebhook.code)}\nreturn handleWebhook;`);
-    const handle = await make(sdk.verifyWebhook, { env: { STENMONT_WEBHOOK_SECRET: secret } });
+    const handle = await make(sdk.verifyWebhook, { env: { STENMONT_WEBHOOK_SECRET: secret } }) as (...args: unknown[]) => Promise<unknown>;
     const orders = { get: async () => ({ invoiceId: "invoice-right", total: "25" }), markPaidOnce: async (id: string) => paid.push(id) };
     for (const invoice of [{ id: "invoice-wrong", amount: "25", amountPaid: "25" }, { id: "invoice-right", amount: "250", amountPaid: "250" }, { id: "invoice-right", amount: "25", amountPaid: "2" }]) {
       const raw = JSON.stringify({ id: "event", type: "invoice.paid", data: { invoice: { ...invoice, status: "paid", metadata: { order: "1042" } } } });
@@ -91,7 +91,7 @@ describe("SDK samples run against the real SDK", () => {
       return Response.json({ id: "0xabc", payUrl: `${APP_URL}/pay/0xabc` }, { status: 201 });
     });
     const make = new AsyncFunction("Stenmont", "process", `${runnable(SAMPLES.sdkCheckout.code)}\nreturn createCheckout;`);
-    const createCheckout = (await make(sdk.Stenmont, { env: { STENMONT_API_KEY: "sk_test_x", STENMONT_API_URL: API_URL } })) as (o: object) => Promise<string>;
+    const createCheckout = (await make(sdk.Stenmont, { env: { STENMONT_API_KEY: "sk_test_x", STENMONT_API_URL: API_URL } })) as (o: object, saveInvoice: (...args: unknown[]) => Promise<void>) => Promise<string>;
     expect(await createCheckout({ id: "1042", total: "25.00", checkoutKey: "persisted-checkout-key" }, async () => {})).toBe(`${APP_URL}/pay/0xabc`);
     expect(calls[0]!.url).toBe(`${API_URL}/v1/invoices`);
     expect((calls[0]!.init.headers as Record<string, string>).authorization).toBe("Bearer sk_test_x");
@@ -101,7 +101,7 @@ describe("SDK samples run against the real SDK", () => {
   it("the webhook handler (SDK) accepts a signed event and refuses a forged one", async () => {
     const paid: unknown[] = [];
     const make = new AsyncFunction("verifyWebhook", "process", "markOrderPaid", `${runnable(SAMPLES.sdkWebhook.code)}\nreturn handleWebhook;`);
-    const handler = await make(sdk.verifyWebhook, { env: { STENMONT_WEBHOOK_SECRET: secret } }, async () => {});
+    const handler = await make(sdk.verifyWebhook, { env: { STENMONT_WEBHOOK_SECRET: secret } }, async () => {}) as (...args: unknown[]) => Promise<unknown>;
     const handle = (b: string, h: string) => handler(b, h, { get: async () => ({ invoiceId: "invoice-right", total: "25.00" }), markPaidOnce: async (id: string) => paid.push(id) });
     const signed = await sdk.signWebhook(secret, body);
     await handle(body, signed);
@@ -117,7 +117,7 @@ describe("SDK samples run against the real SDK", () => {
       return Response.json({ payUrl: "https://pay.example/x" }, { status: 201 });
     };
     const make = new AsyncFunction("fetch", "process", `${SAMPLES.createInvoiceFetch.code}\nreturn createCheckout;`);
-    const createCheckout = (await make(fakeFetch, { env: { STENMONT_API_KEY: "sk_test_x", STENMONT_API_URL: API_URL } })) as (o: object) => Promise<string>;
+    const createCheckout = (await make(fakeFetch, { env: { STENMONT_API_KEY: "sk_test_x", STENMONT_API_URL: API_URL } })) as (o: object, saveInvoice: (...args: unknown[]) => Promise<void>) => Promise<string>;
     expect(await createCheckout({ id: "7", total: "3.50", checkoutKey: "persisted-checkout-key" }, async () => {})).toBe("https://pay.example/x");
     const h = calls[0]!.init.headers as Record<string, string>;
     expect(h.authorization).toBe("Bearer sk_test_x");

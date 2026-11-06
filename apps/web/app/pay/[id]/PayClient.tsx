@@ -8,7 +8,7 @@ import FundingHelp from "../../../components/FundingHelp";
 import { ACCOUNT_COPY, accountUrl, saveAccountToken } from "../../../lib/account";
 import { createPasskey, loadPasskey, signDigest } from "../../../lib/passkey";
 import { describeTrust, type Trust } from "../../../lib/trust";
-import { ZERO_SALT, apiBase, formatAmount, friendly, isTestEnvironment, payChallenge, payViewKind, routerFor } from "../../../lib/pay";
+import { ZERO_SALT, apiBase, formatAmount, friendly, payChallenge, payViewKind, routerFor } from "../../../lib/pay";
 import { WALLET_COPY, WalletError, injectedProvider, signWalletPayment, walletBalance, type Eip1193 } from "../../../lib/wallet";
 
 type Invoice = {
@@ -98,20 +98,10 @@ export default function PayClient({ id }: { id: string }) {
       const key = loadPasskey() ?? (await createPasskey());
       const need = toUnits(invoice.remaining);
 
-      let account = await post(base, "/relay/account", { qx: key.qx, qy: key.qy, salt: ZERO_SALT });
-      let info = account.json as { address: Hex; balance: string };
-      if (toUnits(info.balance) < need) {
-        if (!isTestEnvironment(host)) throw new PayError("insufficient");
-        step("Adding test funds…");
-        const faucet = await post(base, "/relay/faucet", { address: info.address });
-        if (!faucet.ok && toUnits(info.balance) < need) throw new PayError(faucet.json.error?.code ?? "faucet_limit");
-        for (let i = 0; i < 25 && toUnits(info.balance) < need; i++) {
-          await sleep(2_000);
-          account = await post(base, "/relay/account", { qx: key.qx, qy: key.qy, salt: ZERO_SALT });
-          info = account.json as { address: Hex; balance: string };
-        }
-        if (toUnits(info.balance) < need) throw new PayError("busy");
-      }
+      const account = await post(base, "/relay/account", { qx: key.qx, qy: key.qy, salt: ZERO_SALT });
+      const info = account.json as { address: Hex; balance: string };
+      // A checkout may only spend funds the payer already owns, on every network.
+      if (toUnits(info.balance) < need) throw new PayError("insufficient");
 
       step("Confirm on your device…");
       const salt = random32();
