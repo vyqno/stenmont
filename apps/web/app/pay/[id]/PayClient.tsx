@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import type { Address, Hex } from "viem";
+import { zeroAddress, type Address, type Hex } from "viem";
 import { toUnits } from "@stenmont/shared";
 import { verifyFreshInvoice } from "../../../lib/v2Chain";
 import { InvoiceAcceptance } from "../../../components/InvoiceAcceptance";
@@ -265,7 +265,7 @@ export default function PayClient({ id }: { id: string }) {
           )}
           {view.kind === "ready" && !currentPlan && <p role="alert">The payment details could not be verified. Nothing was charged.</p>}
           {currentPlan?.discounted && <p data-testid="early-discount" className="text-sm text-muted">Early payment discount: {view.invoice.discountBps! / 100}%. Confirm before {new Date(view.invoice.discountUntil! * 1000).toLocaleString()}. A late approval is refused.</p>}
-          {view.invoice.payerLock && <p className="text-sm text-muted">Reserved for buyer {view.invoice.payerLock}.</p>}
+          {view.invoice.payerLock && view.invoice.payerLock.toLowerCase() !== zeroAddress && <p className="text-sm text-muted">Reserved for buyer {view.invoice.payerLock}.</p>}
           {view.invoice.hook && !/^0x0+$/.test(view.invoice.hook) && <p className="text-sm text-muted">Paying the invoice’s current claim holder.</p>}
           {view.kind === "working" && (
             <p role="status" aria-live="polite" className="text-lg" data-testid="step">
