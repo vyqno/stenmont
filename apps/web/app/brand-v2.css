@@ -219,3 +219,21 @@ body:has(.auth-sheet), body:has(.public-record-page), body:has(.customer-store),
 :is(button, a).bg-foreground { color: var(--ink); border-color: var(--blue); transition: background-color .3s ease, color .3s ease, border-color .3s ease, transform .3s var(--rise); }
 :is(button, a).bg-foreground:hover:not(:disabled) { background-color: var(--ink); color: var(--paper); border-color: var(--ink); }
 :is(button, a).bg-foreground:active:not(:disabled) { transform: scale(0.985); }
+
+/* ---------- v2.1: dithered sphere that follows the pointer, transparent navigation, bolder wordmark ---------- */
+.v2-hero-eyebrow { margin: 0; font-size: 14px; letter-spacing: 0.01em; color: var(--text-2); }
+.v2-hero { padding-top: 140px; }
+.v2-hero-art { right: max(24px, calc(50vw - 600px)); bottom: auto; top: 50%; width: min(46vw, 640px); aspect-ratio: 1; transform: translateY(-44%); -webkit-mask-image: none; mask-image: none; }
+.v2-orb { display: block; width: 100%; height: 100%; opacity: 0; animation: v2-orb-in 1.2s .25s var(--rise) forwards; }
+@keyframes v2-orb-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+@media (max-width: 900px) { .v2-hero { padding-top: 112px; } .v2-hero-art { position: relative; right: auto; top: auto; transform: none; width: min(78vw, 420px); margin: 28px auto 0; } }
+@media (prefers-reduced-motion: reduce) { .v2-orb { animation: none; opacity: 1; } }
+
+.v2-nav { position: absolute; top: 0; left: 0; right: 0; margin: 0; padding: 0; }
+.v2-nav-inner { width: min(100% - 64px, 1200px); padding: 22px 0; border-radius: 0; background: transparent; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.v2-brand .logo, .docs-header .logo { font-weight: 700; font-size: 26px; letter-spacing: 0; }
+.docs-shell .docs-header { position: static; width: min(100% - 64px, 1280px); margin: 0 auto; padding: 22px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+@media (max-width: 800px) { .v2-nav-inner { width: min(100% - 40px, 1200px); padding: 16px 0; } }
+@media (max-width: 760px) { .docs-shell .docs-header { width: min(100% - 40px, 1280px); border-radius: 0; padding: 16px 0; } }
+.v2-hero-art { right: max(24px, calc(50vw - 640px)); width: min(37vw, 520px); }
+.v2-hero-copy { position: relative; z-index: 2; }

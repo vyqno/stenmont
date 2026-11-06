@@ -1,6 +1,7 @@
 import { pageMetadata } from "../lib/seo";
 import Link from "next/link";
 import { Logo } from "../components/Logo";
+import { HeroOrb } from "../components/HeroOrb";
 import { ConnectPreview } from "../components/brand/ProductCards";
 import { GreyPanel } from "../components/brand/Surface";
 import { FeatureExplorer } from "../components/brand/FeatureExplorer";
@@ -27,13 +28,13 @@ export default function Home() {
     <main id="content">
       <section className="v2-hero"><div className="v2-glow" aria-hidden="true" /><div className="v2-wrap v2-hero-grid">
         <div className="v2-hero-copy">
-          <p className="v2-pill">The agentic business kit</p>
+          <p className="v2-eyebrow v2-hero-eyebrow">The agentic business kit</p>
           <h1 className="v2-h v2-display" aria-label="Your business, on stablecoins.">Your business, <span className="v2-blue">on stablecoins.</span></h1>
           <p className="v2-lede v2-rv">Sell, get paid, close the books and get funded. One commerce and finance platform, with an agent to connect the work.</p>
           <div className="v2-actions v2-rv"><Link href="/signup" className="v2-btn v2-btn-blue"><span>Create your business</span></Link><Link href="/docs" className="v2-btn v2-btn-line"><span>Explore the docs</span></Link></div>
           <p className="v2-note v2-rv">Storefronts and USDT checkout run on the Whitechain test network. Capital is a financing demonstration: eligibility, human approval and investor funding apply. Funding is not guaranteed.</p>
         </div>
-        <div className="v2-hero-art" aria-hidden="true"><img src="/art/mountain-dither.png" alt="" width="1600" height="900" /></div>
+        <div className="v2-hero-art" aria-hidden="true"><HeroOrb /></div>
       </div></section>
 
       <section id="business-kit" className="v2-wrap v2-section"><p className="v2-eyebrow v2-rv">01 · The business kit</p><h2 className="v2-h v2-title">One platform. <span className="v2-blue">The whole business loop.</span></h2><div className="v2-rv"><FeatureExplorer /></div></section>
