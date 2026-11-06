@@ -12,7 +12,7 @@ export const FUNDING = {
     "From another network: Whitechain's Portal bridge moves USDT over from the networks it supports, such as Ethereum and Tron.",
   ],
   disclaimer: "We don't sell USDT and we don't take cards. Stenmont only sends the payment you approve.",
-  testNote: "This is a test version: test funds are added for you automatically, and they have no value.",
+  testNote: "This is a test network. Use test USDT you already hold; it has no real monetary value.",
 } as const;
 
 export function fundingFor(hostname: string) {
