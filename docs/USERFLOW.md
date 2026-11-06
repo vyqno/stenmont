@@ -132,7 +132,7 @@ sequenceDiagram
 | Merchant's agent reads and drafts | MCP tools: list invoices, get invoice, export payments, draft refund. A draft never moves money; a person confirms with a passkey | ✅ |
 | Agent identity | An ENS agent name has published policy and expiry; scoped permissions depend on resolver support | ✅ real one-day agent name created; expiry readback not yet run |
 | Agent pays an API | x402: the agent pays 0.01 USDT per call through our facilitator, inside its limits | ✅ |
-| Agent finds a business by name | Reads the ENS pay directory for the named business | ✅ directory/profile records read on real Sepolia; a subsequent agent payment is a separate proof |
+| Agent finds a business by name | Reads the ENS pay directory for the named business | ✅ directory records and a profile-only role grant read on real Sepolia; a subsequent agent payment is a separate proof |
 | Large actions | A fresh World sign-in is required | 🟡 real sign-in needs a verified person |
 
 The in-dashboard financial agent has bounded usage, a tool allowlist and draft-only refunds. Gemini's Cloud backend is configurable; no successful live provider reply has been recorded yet. MCP installation proof does not establish a model-backed finance conversation.
