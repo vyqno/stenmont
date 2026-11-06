@@ -39,4 +39,4 @@ This establishes DNS presence at the queried names. It does not establish that E
 
 ## Deployment gate
 
-Apply migration 0020 on staging before deploying code that reads identity tables. Configure a random EMAIL_CODE_SECRET without printing it. Configure staging-only dummy Turnstile keys for automated checks; production keys are never deployed by this task. Keep EMAIL_MODE=sink. Do not deploy incomplete sign-in configuration that would block existing signup. Use fixtures for Google until the owner supplies a client. No production migration, deploy or confirmation variable is permitted.
+Apply migration 0023 on staging before deploying code that reads identity tables. Configure a random EMAIL_CODE_SECRET without printing it. Configure staging-only dummy Turnstile keys for automated checks; production keys are never deployed by this task. Keep EMAIL_MODE=sink. Do not deploy incomplete sign-in configuration that would block existing signup. Use fixtures for Google until the owner supplies a client. No production migration, deploy or confirmation variable is permitted.
