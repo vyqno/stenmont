@@ -73,7 +73,7 @@ export async function markApproved(repo: ApprovalRepo, id: string, claims: Pick<
   if (a.status !== "pending") return { ok: false, code: "not_pending" };
   if (now.getTime() >= Date.parse(a.expiresAt)) return { ok: false, code: "approval_expired" };
   if (claims.nonce !== a.nonce) return { ok: false, code: "nonce_mismatch" };
-  if (now.getTime() / 1000 - claims.auth_time > MAX_AUTH_AGE_SECONDS) return { ok: false, code: "stale_auth" };
+  if (typeof claims.auth_time !== "number" || now.getTime() / 1000 - claims.auth_time > MAX_AUTH_AGE_SECONDS) return { ok: false, code: "stale_auth" };
   const done = await repo.transition(id, "pending", { status: "approved", worldSub: claims.sub, authTime: claims.auth_time });
   return done ? { ok: true } : { ok: false, code: "not_pending" };
 }

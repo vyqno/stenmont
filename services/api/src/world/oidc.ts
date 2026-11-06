@@ -1,9 +1,11 @@
 export type OidcFailure = "bad_signature" | "wrong_issuer" | "wrong_audience" | "expired" | "stale_auth" | "nonce_mismatch" | "malformed";
-export type OidcClaims = { iss: string; sub: string; aud: string | string[]; exp: number; auth_time: number; nonce: string; [k: string]: unknown };
+export type OidcClaims = { iss: string; sub: string; aud: string | string[]; exp: number; auth_time?: number; nonce: string; [k: string]: unknown };
 export type OidcResult = { ok: true; claims: OidcClaims } | { ok: false; reason: OidcFailure };
 
 export type OidcConfig = {
-  issuer: string;
+  issuer: string | string[];
+  requireAuthTime?: boolean;
+  requireAuthorizedParty?: boolean;
   audience: string;
   jwksUrl: string;
   fetch: typeof fetch;
@@ -81,14 +83,15 @@ export function createOidcVerifier(cfg: OidcConfig) {
     if (!valid) return fail("bad_signature");
 
     const now = Math.floor(cfg.now().getTime() / 1000);
-    if (claims.iss !== cfg.issuer) return fail("wrong_issuer");
+    if (!(Array.isArray(cfg.issuer) ? cfg.issuer.includes(claims.iss) : claims.iss === cfg.issuer)) return fail("wrong_issuer");
     const aud = claims.aud;
     if (!(aud === cfg.audience || (Array.isArray(aud) && aud.includes(cfg.audience)))) return fail("wrong_audience");
+    if (cfg.requireAuthorizedParty && ((Array.isArray(aud) && aud.length > 1) || claims.azp !== undefined) && claims.azp !== cfg.audience) return fail("wrong_audience");
     if (typeof claims.exp !== "number" || claims.exp <= now) return fail("expired");
     if (typeof claims.sub !== "string" || !claims.sub) return fail("malformed");
     if (typeof claims.nonce !== "string" || claims.nonce !== expected.nonce) return fail("nonce_mismatch");
     const age = cfg.maxAuthAgeSeconds ?? 300;
-    if (typeof claims.auth_time !== "number" || claims.auth_time > now + SKEW || now - claims.auth_time > age) return fail("stale_auth");
+    if (cfg.requireAuthTime !== false && (typeof claims.auth_time !== "number" || claims.auth_time > now + SKEW || now - claims.auth_time > age)) return fail("stale_auth");
     return { ok: true, claims: claims as OidcClaims };
   };
 }
