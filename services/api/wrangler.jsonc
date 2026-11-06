@@ -47,7 +47,7 @@
         "WORLD_ENVIRONMENT": "production",
         "INVOICE_DEFAULT_VERSION": "2",
         "INVOICE_ACCEPTANCE_MERCHANT_ID": "m_6e8e647cb8f588bd",
-        "INVOICE_ACCEPTANCE_MERCHANT_IDS": "m_6e8e647cb8f588bd,m_59b0e58672a6ba81",
+        "INVOICE_ACCEPTANCE_MERCHANT_IDS": "m_6e8e647cb8f588bd,m_59b0e58672a6ba81,m_b4782d97d9bc77c8",
         "GEMINI_BACKEND": "vertex_express",
         "ROUTER_V2_ADDRESS": "0xda4dfa02b95fd14bfac657535cbcac7f339bd8e6",
         "ROUTER_V2_DEPLOY_BLOCK": "12391120",
