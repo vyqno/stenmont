@@ -390,3 +390,39 @@ export const investorEnrollments = sqliteTable(
   },
   (t) => [uniqueIndex("investor_enrollments_action_nullifier").on(t.action, t.nullifier)],
 );
+
+/** A website a business has told us about, and the token it must publish in DNS to prove the name is theirs. */
+export const sites = sqliteTable(
+  "sites",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id").notNull(),
+    url: text("url").notNull(),
+    host: text("host").notNull(),
+    platform: text("platform"), // what the business says it runs; a label for the dashboard only
+    token: text("token").notNull(), // published as `stenmont-verify=<token>` at `_stenmont.<host>`
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("sites_merchant_host_uq").on(t.merchantId, t.host)],
+);
+
+/** The latest result of each check for a site: reachable | domain | webhook | payment. */
+export const siteChecks = sqliteTable(
+  "site_checks",
+  {
+    siteId: text("site_id").notNull(),
+    kind: text("kind").notNull(),
+    ok: integer("ok").notNull(),
+    detail: text("detail").notNull(),
+    checkedAt: text("checked_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.siteId, t.kind] })],
+);
+
+/** Per business: the live/paused switch, and a test/live label (a stored field only; there is one network). */
+export const paymentSwitch = sqliteTable("payment_switch", {
+  merchantId: text("merchant_id").primaryKey(),
+  paused: integer("paused").notNull().default(0),
+  mode: text("mode").notNull().default("test"),
+  updatedAt: text("updated_at").notNull(),
+});
