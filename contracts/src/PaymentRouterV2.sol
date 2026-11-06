@@ -183,8 +183,12 @@ contract PaymentRouterV2 is IPaymentRouterV2, EIP712, Ownable2Step, Pausable, Re
 
     // ------------------------------------------------------------------ merchant actions
 
+    /// @dev Only the hook itself may attach (InvoiceClaim.list calls this). Otherwise anyone could copy the merchant's
+    ///      SetHook signature out of a pending `list` call and attach the claim to an invoice it never listed, leaving
+    ///      an invoice that can be neither paid (the claim refuses unknown invoices) nor cancelled.
     function setHook(bytes32 id, address hook, uint256 deadline, bytes calldata merchantSig) external whenNotPaused {
         Invoice storage inv = _open(id);
+        if (msg.sender != hook) revert NotHook();
         if (block.timestamp > deadline) revert Expired();
         if (inv.paid != 0 || inv.hook != address(0)) revert HookLocked();
         if (inv.discountBps != 0) revert DiscountActive();

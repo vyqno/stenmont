@@ -133,7 +133,9 @@ contract ClaimV2Regression1Test is ClaimBaseV2 {
     function test_list_invoiceWithOtherHook_reverts() public {
         bytes32 id = _newInvoice(REF, AMOUNT);
         MockHook other = new MockHook();
-        router.setHook(id, address(other), T0 + 1 days, _hookSig(merchantPk, id, address(other), T0 + 1 days));
+        bytes memory hookSig_ = _hookSig(merchantPk, id, address(other), T0 + 1 days);
+        vm.prank(address(other));
+        router.setHook(id, address(other), T0 + 1 days, hookSig_);
         uint256 deadline = T0 + 1 days;
         bytes memory ts = _termsSig(merchantPk, id, DISCOUNT, RESERVE, deadline);
         bytes memory hs = _hookSig(merchantPk, id, address(claim), deadline);

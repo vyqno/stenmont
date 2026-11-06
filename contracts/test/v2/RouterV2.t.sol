@@ -73,6 +73,7 @@ contract RouterV2Test is BaseV2 {
         vm.warp(T0 + 11 days);
         bytes memory sig = _hookSig(merchantPk, id, address(usdt), T0 + 20 days);
         vm.expectRevert(IPaymentRouterV2.DiscountActive.selector);
+        vm.prank(address(usdt));
         router.setHook(id, address(usdt), T0 + 20 days, sig);
     }
 

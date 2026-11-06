@@ -160,7 +160,9 @@ contract RouterV2Regression2Test is RouterV2RegressionBase {
         bytes32 id = _newInvoice(REF1, AMOUNT);
         vm.expectEmit(true, true, false, false, address(router));
         emit IPaymentRouterV2.HookSet(id, address(hook));
-        router.setHook(id, address(hook), T0 + 1 days, _hookSig(merchantPk, id, address(hook), T0 + 1 days));
+        bytes memory hookSig_ = _hookSig(merchantPk, id, address(hook), T0 + 1 days);
+        vm.prank(address(hook));
+        router.setHook(id, address(hook), T0 + 1 days, hookSig_);
 
         _pay(id, 60e6, payerPk, S1);
         assertEq(usdt.balanceOf(address(hook)), 60e6);
@@ -176,7 +178,9 @@ contract RouterV2Regression2Test is RouterV2RegressionBase {
     function test_hook_revertingHook_revertsWholePayment() public {
         MockHookV2 hook = new MockHookV2();
         bytes32 id = _newInvoice(REF1, AMOUNT);
-        router.setHook(id, address(hook), T0 + 1 days, _hookSig(merchantPk, id, address(hook), T0 + 1 days));
+        bytes memory hookSig_ = _hookSig(merchantPk, id, address(hook), T0 + 1 days);
+        vm.prank(address(hook));
+        router.setHook(id, address(hook), T0 + 1 days, hookSig_);
         hook.setShouldRevert(true);
         IPaymentRouterV2.Auth memory a = _payAuth(payerPk, id, AMOUNT, S1);
         vm.expectRevert(bytes("hook reverts"));
@@ -188,7 +192,9 @@ contract RouterV2Regression2Test is RouterV2RegressionBase {
     function test_hook_reentrantHook_isBlocked() public {
         ReentrantHookV2 hook = new ReentrantHookV2(router);
         bytes32 id = _newInvoice(REF1, AMOUNT);
-        router.setHook(id, address(hook), T0 + 1 days, _hookSig(merchantPk, id, address(hook), T0 + 1 days));
+        bytes memory hookSig_ = _hookSig(merchantPk, id, address(hook), T0 + 1 days);
+        vm.prank(address(hook));
+        router.setHook(id, address(hook), T0 + 1 days, hookSig_);
         hook.arm(_payAuth(payer2Pk, id, 10e6, S2));
         IPaymentRouterV2.Auth memory a = _payAuth(payerPk, id, 50e6, S1);
         vm.expectRevert(ReentrancyGuardTransient.ReentrancyGuardReentrantCall.selector);
@@ -200,15 +206,19 @@ contract RouterV2Regression2Test is RouterV2RegressionBase {
         MockHookV2 hook = new MockHookV2();
         MockHookV2 hook2 = new MockHookV2();
         bytes32 id = _newInvoice(REF1, AMOUNT);
-        router.setHook(id, address(hook), T0 + 1 days, _hookSig(merchantPk, id, address(hook), T0 + 1 days));
+        bytes memory hookSig_ = _hookSig(merchantPk, id, address(hook), T0 + 1 days);
+        vm.prank(address(hook));
+        router.setHook(id, address(hook), T0 + 1 days, hookSig_);
         bytes memory sig2 = _hookSig(merchantPk, id, address(hook2), T0 + 1 days);
         vm.expectRevert(IPaymentRouterV2.HookLocked.selector);
+        vm.prank(address(hook2));
         router.setHook(id, address(hook2), T0 + 1 days, sig2);
 
         bytes32 id2 = _newInvoice(REF2, AMOUNT);
         _pay(id2, 10e6, payerPk, S1);
         bytes memory sig3 = _hookSig(merchantPk, id2, address(hook), T0 + 1 days);
         vm.expectRevert(IPaymentRouterV2.HookLocked.selector);
+        vm.prank(address(hook));
         router.setHook(id2, address(hook), T0 + 1 days, sig3);
     }
 
@@ -216,19 +226,23 @@ contract RouterV2Regression2Test is RouterV2RegressionBase {
         bytes32 id = _newInvoice(REF1, AMOUNT);
         bytes memory eoaSig = _hookSig(merchantPk, id, relayer, T0 + 1 days);
         vm.expectRevert(IPaymentRouterV2.NotAContract.selector);
+        vm.prank(relayer);
         router.setHook(id, relayer, T0 + 1 days, eoaSig);
 
         MockHookV2 hook = new MockHookV2();
         bytes memory wrongSigner = _hookSig(payerPk, id, address(hook), T0 + 1 days);
         vm.expectRevert(IPaymentRouterV2.BadSignature.selector);
+        vm.prank(address(hook));
         router.setHook(id, address(hook), T0 + 1 days, wrongSigner);
 
         bytes memory expired = _hookSig(merchantPk, id, address(hook), T0 - 1);
         vm.expectRevert(IPaymentRouterV2.Expired.selector);
+        vm.prank(address(hook));
         router.setHook(id, address(hook), T0 - 1, expired);
 
         bytes memory ok = _hookSig(merchantPk, bytes32(uint256(7)), address(hook), T0 + 1 days);
         vm.expectRevert(IPaymentRouterV2.InvoiceNotFound.selector);
+        vm.prank(address(hook));
         router.setHook(bytes32(uint256(7)), address(hook), T0 + 1 days, ok);
     }
 
