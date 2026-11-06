@@ -1,10 +1,15 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { fundingFor } from "../lib/funding";
+
+const subscribe = () => () => {};
 
 /** Where USDT on Whitechain comes from. Collapsed by default: most customers never need it. Facts only; we run no on-ramp. */
 export default function FundingHelp() {
-  const f = fundingFor(location.hostname);
+  const hostname = useSyncExternalStore<string | null>(subscribe, () => location.hostname, () => null);
+  if (hostname === null) return null;
+  const f = fundingFor(hostname);
   return (
     <details className="text-sm" data-testid="funding-help">
       <summary className="cursor-pointer text-muted underline">{f.title}</summary>
