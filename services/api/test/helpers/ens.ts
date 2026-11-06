@@ -14,8 +14,14 @@ export function fakeEns(overrides: Partial<EnsClient> = {}) {
   const agents: Parameters<EnsClient["createAgent"]>[0][] = [];
   const revoked: Parameters<EnsClient["revokeAgent"]>[0][] = [];
   const primaryNames = new Map<string, string>();
-  const ens: EnsClient & { primaryNames: Map<string, string>; taken: Set<string>; claims: typeof claims; finance: typeof finance; locks: string[]; agents: typeof agents; revoked: typeof revoked } = {
+  const tierWrites: { name: string; resolver: Address; tier: number }[] = [];
+  const ens: EnsClient & { primaryNames: Map<string, string>; tierWrites: typeof tierWrites; taken: Set<string>; claims: typeof claims; finance: typeof finance; locks: string[]; agents: typeof agents; revoked: typeof revoked } = {
     primaryNames,
+    tierWrites,
+    async setTierRecord(a) {
+      tierWrites.push(a);
+      return hash(9500 + tierWrites.length);
+    },
     async primaryName(a) {
       return primaryNames.get(a.toLowerCase()) ?? null;
     },

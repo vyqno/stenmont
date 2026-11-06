@@ -35,6 +35,13 @@ export const PROFILE_KEY = "stenmont.profile";
 export const AGENT_CONTEXT_KEY = "agent-context";
 export const AGENT_ENDPOINT_KEY = "agent-endpoint[mcp]";
 export const AGENT_POLICY_KEY = "stenmont.agent.policy";
+/**
+ * The business's trust tier (0 to 4), written as a decimal string by the platform's registrar and by nobody else.
+ * No role for this record is ever granted to a business, a team member or an agent; see `BUSINESS_GRANTED_KEYS`.
+ */
+export const TIER_KEY = "stenmont.tier";
+/** Every text record a business-side account (team member, agent) is ever given the right to write. `TIER_KEY` must never be in it. */
+export const BUSINESS_GRANTED_KEYS: readonly string[] = [PROFILE_KEY, AGENT_CONTEXT_KEY];
 
 export const ensRegistryAbi = parseAbi([
   "function getState(uint256 anyId) view returns ((uint8 status, uint64 expiry, address latestOwner, uint256 tokenId, uint256 resource))",

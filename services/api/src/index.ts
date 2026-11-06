@@ -7,6 +7,8 @@ import type { Env, WebhookJob } from "./env";
 import { runIndexer } from "./indexer";
 import { runReminders } from "./reminders";
 import { runRenewals } from "./renewals";
+import { viemEns } from "./ens/client";
+import { runTierBadges } from "./verification/badge";
 
 export type { Env } from "./env";
 export { Relayer } from "./relayer/do";
@@ -27,6 +29,7 @@ export default {
     if (at.getUTCMinutes() === 0) {
       ctx.waitUntil(runReminders(env, db, at)); // hourly
       ctx.waitUntil(runDefaults(env, db, chain, at));
+      ctx.waitUntil(runTierBadges({ db, ens: viemEns(env), now: at }));
     }
   },
   /** Queue consumer: signed webhook deliveries with retries. */

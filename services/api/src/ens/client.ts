@@ -13,6 +13,7 @@ import {
   PAYOUT_KEY,
   PROFILE_KEY,
   ROLE,
+  TIER_KEY,
   TEXT_RIGHTS,
   textResource,
   dnsName,
@@ -59,6 +60,11 @@ export interface EnsClient {
   grantProfileRole(a: { name: string; resolver: Address; member: Address }): Promise<Hex>;
   /** Permanently takes the registrar's rights over the payout record (it keeps the profile record). */
   lockPayout(a: { name: string; resolver: Address }): Promise<Hex>;
+  /**
+   * Publishes the business's trust tier as the text record `stenmont.tier`. Only the platform's registrar can write it:
+   * the business, its team members and its agents are never granted a role for this record.
+   */
+  setTierRecord(a: { name: string; resolver: Address; tier: number }): Promise<Hex>;
   /** The ENS primary name an address has set, or null. Read-only and best effort: a lookup failure is the same as no name. */
   primaryName(address: Address): Promise<string | null>;
   /** The address a name points to, or null when it does not resolve. */
@@ -140,9 +146,14 @@ export function viemEns(env: Env): EnsClient {
     },
 
     async lockPayout({ name, resolver }) {
-      const keepProfile = encodeFunctionData({ abi: permissionedResolverAbi, functionName: "grantSetterRoles", args: [textSetter(name, PROFILE_KEY), registrar] });
+      // The registrar keeps the two records it must still be able to write (profile, and the tier badge) when its root rights go.
+      const keep = (key: string) => encodeFunctionData({ abi: permissionedResolverAbi, functionName: "grantSetterRoles", args: [textSetter(name, key), registrar] });
       const dropRoot = encodeFunctionData({ abi: permissionedResolverAbi, functionName: "revokeRootRoles", args: [CALL_ROOT_RIGHTS, registrar] });
-      return run(resolver, encodeFunctionData({ abi: permissionedResolverAbi, functionName: "multicall", args: [[keepProfile, dropRoot]] }));
+      return run(resolver, encodeFunctionData({ abi: permissionedResolverAbi, functionName: "multicall", args: [[keep(PROFILE_KEY), keep(TIER_KEY), dropRoot]] }));
+    },
+
+    async setTierRecord({ name, resolver, tier }) {
+      return run(resolver, encodeFunctionData({ abi: permissionedResolverAbi, functionName: "setText", args: [dnsName(name), TIER_KEY, String(tier)] }));
     },
 
     async agentLabelAvailable({ agentRegistry, label }) {

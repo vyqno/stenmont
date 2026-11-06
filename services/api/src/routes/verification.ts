@@ -4,12 +4,13 @@ import { z } from "zod";
 import { fromUnits } from "@stenmont/shared";
 import type { AppEnv } from "../app";
 import { audit } from "../audit";
-import { kycWebhookEvents, verificationRecords } from "../db/schema";
+import { kycWebhookEvents, tierBadges, ensNames, verificationRecords } from "../db/schema";
 import { fail } from "../errors";
 import { randomHex } from "../lib/crypto";
 import { invalid } from "../lib/validation";
 import { hitRateLimit } from "../relayer/caps";
 import { defaultProvider, kycProvider, type KycDecision, type KycProvider } from "../verification/kyc/provider";
+import { publishTierBadge } from "../verification/badge";
 import { loadFacts, loadLimits, merchantTier, volumeToday } from "../verification/store";
 import { computeTier, nextStepFor } from "../verification/tiers";
 
@@ -37,11 +38,23 @@ verificationRoutes.get("/", async (c) => {
     })),
     facts: { worldEnrolled: facts.worldEnrolled, domainVerified: facts.domainVerified },
     records: facts.records.map((r) => ({ method: r.method, decision: r.decision, decidedAt: r.decidedAt, expiresAt: r.expiresAt })),
+    badge: await (async () => {
+      const [n] = await db.select().from(ensNames).where(eq(ensNames.merchantId, merchantId));
+      const [b] = await db.select().from(tierBadges).where(eq(tierBadges.merchantId, merchantId));
+      return n?.status === "active" ? { name: n.name, publishedTier: b?.publishedTier ?? null, publishedAt: b?.publishedAt ?? null } : null;
+    })(),
     kyc: (() => {
       const p = defaultProvider(c.env);
       return { available: !!p, provider: p?.name ?? null, sandbox: p?.sandbox ?? false };
     })(),
   });
+});
+
+/** Writes the business's current tier to its ENS name now (the hourly job does it too). */
+verificationRoutes.post("/badge/publish", async (c) => {
+  const { db, merchantId } = c.var;
+  if (!(await hitRateLimit(db, `badge:${merchantId}`, 10, 3_600, c.var.now()))) return fail(c, 429, "rate_limited", "Too many requests. Try again later.");
+  return c.json(await publishTierBadge({ db, ens: c.var.ens, now: c.var.now() }, merchantId));
 });
 
 /** Opens a document check at the provider. The business is sent to `url` to complete it; the decision arrives by webhook. */
