@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../lib/seo";
 import { API_URL, APP_URL } from "../../lib/docSamples";
 import { Code, Note } from "./Code";
 
-export const metadata: Metadata = { title: "Quickstart · Stenmont docs", description: "Take your first Stenmont payment." };
+
+export const metadata = pageMetadata("/docs");
 
 export default function Quickstart() {
   return (

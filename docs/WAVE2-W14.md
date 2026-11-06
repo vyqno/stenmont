@@ -4,8 +4,8 @@
 
 - [x] Inventory existing routes and read installed Next metadata conventions.
 - [x] Test staging indexing refusal, public-only sitemaps, private metadata and safe JSON-LD serialization before implementation.
-- [ ] Apply explicit metadata to every route without serializing customer parameters.
-- [ ] Add public/docs sitemaps, robots and a visible FAQ using the same structured data.
+- [x] Apply explicit metadata to every route without serializing customer parameters.
+- [x] Add public/docs sitemaps, robots and a visible FAQ using the same structured data.
 - [ ] Keep agent references current and validate metadata wiring/typechecks.
 - [ ] Lead staging response and visual acceptance; design lane owns screenshots.
 
@@ -25,3 +25,5 @@ Installed Next documentation in node_modules/next/dist/docs/01-app/03-api-refere
 - https://nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap
 
 No third-party reference assets, font files, secrets or new dependencies are included.
+
+- 18:10 IST: All35 pages (34 existing plus FAQ) have explicit distinct metadata. Eight focused tests pass across four files; web typegen/TypeScript passed before final discovery routes. No browser run by this lane.

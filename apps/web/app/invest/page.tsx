@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../lib/seo";
 import Market from "./Market";
 
-export const metadata: Metadata = { title: "Invoices for sale · Stenmont" };
+
+export const metadata = pageMetadata("/invest");
 
 export default function InvestPage() {
   return <Market />;

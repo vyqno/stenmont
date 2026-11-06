@@ -1,11 +1,12 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../../lib/seo";
 import Link from "next/link";
 import { Logo } from "../../../components/Logo";
 import CertificateClient from "./CertificateClient";
 
-export const metadata: Metadata = { title: "Receivable certificate · Stenmont" };
 
 /** Public, no login: anyone with the link can check an invoice claim against the blockchain. */
+export const metadata = pageMetadata("/claim/[id]");
+
 export default async function ClaimCertificatePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   return (

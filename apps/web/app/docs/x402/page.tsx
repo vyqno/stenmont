@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../../lib/seo";
 import { X402_URL } from "../../../lib/docSamples";
 import { Code, Note } from "../Code";
 
-export const metadata: Metadata = { title: "x402 · Stenmont docs", description: "Charge or pay AI agents per request." };
+
+export const metadata = pageMetadata("/docs/x402");
 
 export default function X402() {
   return (

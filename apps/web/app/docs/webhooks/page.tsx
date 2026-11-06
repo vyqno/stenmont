@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "../../../lib/seo";
 import { API_URL } from "../../../lib/docSamples";
 import { Code, Note } from "../Code";
 
-export const metadata: Metadata = { title: "Webhooks · Stenmont docs", description: "Events, retries and how to verify the signature." };
+
+export const metadata = pageMetadata("/docs/webhooks");
 
 export default function Webhooks() {
   return (

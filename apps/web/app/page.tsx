@@ -1,7 +1,10 @@
+import { pageMetadata } from "../lib/seo";
 import Link from "next/link";
 import { Logo } from "../components/Logo";
 import { BrandScene } from "../components/BrandScene";
 import "./marketing.css";
+
+export const metadata = pageMetadata("/");
 
 export default function Home() {
   return (
