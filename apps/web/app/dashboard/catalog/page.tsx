@@ -67,7 +67,7 @@ export default function Catalog() {
       <Card title="Add a product">
         <form onSubmit={create} className="flex flex-wrap items-end gap-3">
           <label className="text-sm">Name<input value={title} onChange={(e) => setTitle(e.target.value)} required className={`${field} block`} /></label>
-          <label className="text-sm">Price (USD)<input value={price} onChange={(e) => setPrice(e.target.value)} required inputMode="decimal" pattern="\d+(\.\d{1,6})?" className={`${field} block w-28`} /></label>
+          <label className="text-sm">Price (USDT)<input value={price} onChange={(e) => setPrice(e.target.value)} required inputMode="decimal" pattern="\d+(\.\d{1,6})?" className={`${field} block w-28`} /></label>
           <label className="text-sm">In stock<input value={stock} onChange={(e) => setStock(e.target.value)} required type="number" min={0} className={`${field} block w-24`} /></label>
           <button className={button}>Add</button>
         </form>
@@ -91,7 +91,7 @@ export default function Catalog() {
                 </div>
                 {open === p.id && (
                   <table className="mt-3 w-full text-sm">
-                    <thead><tr className="text-left text-muted"><th className="py-1">Variant</th><th>Price (USD)</th><th>In stock</th><th /></tr></thead>
+                    <thead><tr className="text-left text-muted"><th className="py-1">Variant</th><th>Price (USDT)</th><th>In stock</th><th /></tr></thead>
                     <tbody>{p.variants.map((v) => <VariantRow key={v.id} v={v} save={(body) => attempt(() => patch(`/v1/variants/${v.id}`, body))} />)}</tbody>
                   </table>
                 )}

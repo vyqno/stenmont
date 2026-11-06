@@ -58,7 +58,7 @@ export default function Settings() {
             <li key={k.id} className="flex items-center justify-between py-2">
               <code className="font-mono text-sm">{k.display}</code>
               <span className="text-sm text-muted">created {k.createdAt.slice(0, 10)}</span>
-              {k.revoked ? <Badge tone="off">Revoked</Badge> : <button type="button" onClick={() => revoke(k.id)} className="rounded border border-line px-3 py-1 text-sm hover:border-danger">Revoke</button>}
+              {k.revoked ? <Badge tone="off">Revoked</Badge> : <button type="button" onClick={() => revoke(k.id)} className="shrink-0 whitespace-nowrap rounded border border-line px-3 py-1 text-sm hover:border-danger">Revoke</button>}
             </li>
           ))}
         </ul>

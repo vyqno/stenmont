@@ -82,7 +82,7 @@ export default function Subscriptions() {
       <Card title="New subscription">
         <form onSubmit={create} className="grid gap-3 md:grid-cols-[1fr_1.5fr_1fr_auto] md:items-end">
           <label className="flex flex-col gap-1 text-sm">
-            Amount each time (USD)
+            Amount each time (USDT)
             <input value={amount} onChange={(e) => setAmount(e.target.value)} required inputMode="decimal" pattern="\d+(\.\d{1,6})?" placeholder="9.99" className="amount rounded border border-line bg-transparent px-3 py-2 text-base" />
           </label>
           <label className="flex flex-col gap-1 text-sm">

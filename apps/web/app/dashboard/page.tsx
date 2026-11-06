@@ -42,8 +42,8 @@ export default function Overview() {
               const s = statusOf(i, now);
               return (
                 <li key={i.id} className="flex items-center justify-between gap-3 py-2">
-                  <span>{i.number}</span>
-                  <span className="amount ml-auto">{money(i.amount)}</span>
+                  <span className="min-w-0 flex-1 truncate" title={i.number}>{i.number}</span>
+                  <span className="amount ml-auto shrink-0 whitespace-nowrap">{money(i.amount)}</span>
                   <Badge tone={s.tone}>{s.label}</Badge>
                 </li>
               );

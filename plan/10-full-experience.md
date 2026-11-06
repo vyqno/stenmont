@@ -279,4 +279,4 @@ Each section is a set of staging slices, using the same test-first and completio
 - [ ] Complete real World and dashboard investor listing/funding/payment/settlement/certificate; general creation remains held until acceptance.
 - [x] World session run sheet source/public-entry links checked and reported ready; actual human session remains not run.
 - [x] agent/cards integrated with corrected public-safe claims; owned cards/source folder committed as one task after independent rerender and visual review.
-- [ ] Final staging visual acceptance after the combined release.
+- [x] Staging visual inspection:35 page templates plus retained v1 pay at1440/390;72 captures,26 affected-route rechecks and final Settings retakes. Mobile money/badge/button wraps corrected; functional World/investor acceptance remains separate.

@@ -43,7 +43,7 @@ const TONES = {
 } as const;
 
 export function Badge({ tone, children }: { tone: keyof typeof TONES; children: React.ReactNode }) {
-  return <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${TONES[tone]}`}>{children}</span>;
+  return <span className={`inline-block shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${TONES[tone]}`}>{children}</span>;
 }
 
 export function Card({ title, children, className = "" }: { title?: string; children: React.ReactNode; className?: string }) {
@@ -59,7 +59,7 @@ export function Stat({ label, value, testId }: { label: string; value: string; t
   return (
     <div className="rounded-2xl border border-line bg-surface p-5">
       <p className="text-sm text-muted">{label}</p>
-      <p data-testid={testId} className="amount mt-1 text-2xl font-bold">{value}</p>
+      <p data-testid={testId} className="amount mt-1 overflow-x-auto whitespace-nowrap text-xl font-bold sm:text-2xl">{value}</p>
     </div>
   );
 }
