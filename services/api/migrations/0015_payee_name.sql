@@ -1,0 +1,1 @@
+ALTER TABLE `invoices` ADD `payee_name` text;

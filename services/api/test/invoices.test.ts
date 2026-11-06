@@ -193,3 +193,51 @@ describe("checkout return links", () => {
     expect(pub.cancelUrl).toBeNull();
   });
 });
+
+describe("payee by ENS name", () => {
+  const RESOLVED = "0x9999999999999999999999999999999999999999";
+  async function withName(name = "acme.stenmont.eth", resolves: string | null = RESOLVED) {
+    const t = setup();
+    const key = await seedMerchant(t.db);
+    await t.db.prepare("insert into ens_names (merchant_id, label, name, resolver, agent_registry, payout_locked, status, tx_hashes, created_at) values ('m_1','acme',?,?,?,0,'active','[]','2026-11-06T00:00:00Z')").bind(name, "0x4444444444444444444444444444444444444444", "0x5555555555555555555555555555555555555555").run();
+    t.ens.resolveAddress = async () => resolves as `0x${string}` | null;
+    return { t, key };
+  }
+  it("resolves the business's own name when the invoice is created and pays out to what it points at", async () => {
+    const { t, key } = await withName();
+    const res = await post(t, key, { amount: "5", payTo: "acme.stenmont.eth" });
+    expect(res.status).toBe(201);
+    expect(t.chain.calls[0]).toMatchObject({ payout: RESOLVED });
+    const { id } = (await res.json()) as { id: string };
+    expect(((await (await t.req(`/pay/${id}`)).json()) as Record<string, unknown>).payeeName).toBe("acme.stenmont.eth");
+  });
+  it("a later change to the record changes later invoices only", async () => {
+    const { t, key } = await withName();
+    await post(t, key, { amount: "5", payTo: "acme.stenmont.eth" }, "a");
+    t.ens.resolveAddress = async () => "0x7777777777777777777777777777777777777777";
+    await post(t, key, { amount: "6", payTo: "acme.stenmont.eth" }, "b");
+    expect(t.chain.calls.map((c) => (c as { payout: string }).payout)).toEqual([RESOLVED, "0x7777777777777777777777777777777777777777"]);
+  });
+  it("answers 422 when the name does not resolve, and creates nothing", async () => {
+    const { t, key } = await withName("acme.stenmont.eth", null);
+    const res = await post(t, key, { amount: "5", payTo: "acme.stenmont.eth" });
+    expect(res.status).toBe(422);
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe("payee_not_found");
+    expect(t.chain.calls).toHaveLength(0);
+  });
+  it("only the business's own name or payout address is allowed, so a stolen key cannot redirect money", async () => {
+    const { t, key } = await withName();
+    for (const bad of ["evil.eth", "other.stenmont.eth", "0x1234567890123456789012345678901234567890", "not a name"]) {
+      const res = await post(t, key, { amount: "5", payTo: bad }, `bad-${bad}`);
+      expect(res.status, bad).toBe(400);
+      expect(((await res.json()) as { error: { code: string } }).error.code).toBe("payee_not_allowed");
+    }
+    expect(t.chain.calls).toHaveLength(0);
+    expect((await post(t, key, { amount: "5", payTo: PAYOUT_ADDRESS }, "ok-addr")).status).toBe(201); // its own payout address is fine
+  });
+  it("a business with no name cannot use a name", async () => {
+    const t = setup();
+    const key = await seedMerchant(t.db);
+    expect((await post(t, key, { amount: "5", payTo: "acme.stenmont.eth" })).status).toBe(400);
+  });
+});

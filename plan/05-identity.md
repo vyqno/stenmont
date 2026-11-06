@@ -81,9 +81,12 @@
 
 **Files:** Modify `apps/web/app/pay/[id]/page.tsx`, `services/api/src/routes/invoices.ts`
 
-- [ ] Failing test: invoice created with `payTo: "acme.stenmont.eth"` resolves the address at creation time; changing the record changes later invoices only; unresolvable name returns 422
-- [ ] Run → FAIL; implement; run → PASS; the pay page shows the name, not the hex address
-- [ ] Commit line: `feat: resolve payee through ENS`
+- [x] Failing test: invoice created with `payTo: "acme.stenmont.eth"` resolves the address at creation time; changing the record changes later invoices only; unresolvable name returns 422
+- [x] Run → FAIL; implement; run → PASS; the pay page shows the name, not the hex address
+- [x] Commit line: `feat: resolve payee through ENS`
+
+**Built (differs from the sketch, for safety):** an invoice can set `payTo` to the business's OWN ENS name, which is resolved through ENS when the invoice is created and becomes the onchain payout; the pay page shows "Paying <name>". `payTo` may also be the business's own payout address. Any other name or address is refused (`payee_not_allowed`), so a stolen API key cannot redirect money; a name that does not resolve is a 422. A later change to the record only affects later invoices. Because the payout comes from ENS, the payout lock makes the destination of every future invoice permanent.
+
 
 ### Task 5.7: World IDKit enrolment (one person, one business)
 

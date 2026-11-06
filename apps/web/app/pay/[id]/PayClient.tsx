@@ -14,6 +14,7 @@ type Invoice = {
   amountPaid: string;
   remaining: string;
   merchantName: string;
+  payeeName?: string | null;
   successUrl: string | null;
   cancelUrl: string | null;
 };
@@ -143,6 +144,11 @@ export default function PayClient({ id }: { id: string }) {
         <>
           <div>
             <p className="text-neutral-500">Pay {view.invoice.merchantName}</p>
+            {view.invoice.payeeName && (
+              <p className="mt-0.5 text-xs text-neutral-500" data-testid="payee-name">
+                Paying {view.invoice.payeeName}
+              </p>
+            )}
             <h1 className="mt-1 text-5xl font-semibold tracking-tight" data-testid="amount">
               {formatAmount(view.invoice.remaining)}
             </h1>

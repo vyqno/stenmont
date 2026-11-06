@@ -91,6 +91,7 @@ export const invoices = sqliteTable(
     dueDate: text("due_date"),
     metaHash: text("meta_hash").notNull(),
     metadata: text("metadata").notNull().default("{}"),
+    payeeName: text("payee_name"), // the ENS name the payee was resolved from, shown on the pay page
     buyerMerchantId: text("buyer_merchant_id"), // set when the buyer is also a Stenmont business (checked against the supplier for the same human)
     successUrl: text("success_url"), // where the pay page sends the customer after paying (set by the merchant, never by the payer)
     cancelUrl: text("cancel_url"),

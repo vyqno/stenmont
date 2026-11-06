@@ -14,7 +14,7 @@ import { invoiceView } from "../lib/views";
 import { hitRateLimit } from "../relayer/caps";
 import { d1WorldRepo } from "../world/d1";
 import { assertDifferentHumans } from "../world/samehuman";
-import { merchants } from "../db/schema";
+import { ensNames, merchants } from "../db/schema";
 import { emitEvent } from "../webhooks";
 
 const createSchema = z.strictObject({
@@ -22,6 +22,8 @@ const createSchema = z.strictObject({
   number: z.string().regex(/^[A-Za-z0-9._-]{1,64}$/).optional(),
   customerEmail: z.email().max(254).optional(),
   dueDate: z.iso.datetime().optional(),
+  /** Who gets paid: the business's own ENS name (resolved now) or its own payout address. Anything else is refused. */
+  payTo: z.string().max(100).optional(),
   buyerMerchantId: z.string().max(80).optional(),
   successUrl: z.string().max(2048).optional(),
   cancelUrl: z.string().max(2048).optional(),
@@ -65,6 +67,23 @@ invoiceRoutes.post("/", async (c) => {
       const same = await assertDifferentHumans(d1WorldRepo(db), buyer.id, merchant.id);
       if (!same.ok) return fail(c, 422, "same_human", "The buyer and the supplier are the same person, so this invoice cannot be created.");
     }
+    // Payee: default is the business's payout. A name must be the business's own, and is resolved now, so later changes to the
+    // record only affect later invoices. Nothing a caller sends can point the money at an address that is not already theirs.
+    let payout = (merchant.payoutAddress ?? merchant.address) as Address | null;
+    let payeeName: string | null = null;
+    if (input.payTo !== undefined) {
+      const mine = (merchant.payoutAddress ?? "").toLowerCase();
+      if (/^0x[0-9a-fA-F]{40}$/.test(input.payTo)) {
+        if (input.payTo.toLowerCase() !== mine) return fail(c, 400, "payee_not_allowed", "payTo must be your own name or payout address");
+      } else {
+        const [own] = await db.select().from(ensNames).where(eq(ensNames.merchantId, merchant.id));
+        if (!own || own.status !== "active" || own.name !== input.payTo) return fail(c, 400, "payee_not_allowed", "payTo must be your own name or payout address");
+        const resolved = await c.var.ens.resolveAddress(own.name);
+        if (!resolved) return fail(c, 422, "payee_not_found", `${own.name} does not resolve to an address right now`);
+        payout = resolved;
+        payeeName = own.name;
+      }
+    }
     if (!merchant.address) return fail(c, 409, "merchant_not_ready", "This merchant has no onchain address yet");
     const merchantAddress = merchant.address as Address;
     const number = input.number ?? `INV-${Date.now().toString(36).toUpperCase()}${randomHex(2).toUpperCase()}`;
@@ -89,6 +108,7 @@ invoiceRoutes.post("/", async (c) => {
       amount: amount.toString(),
       customerEmail: input.customerEmail ?? null,
       dueDate: input.dueDate ?? null,
+      payeeName,
       buyerMerchantId: input.buyerMerchantId ?? null,
       successUrl: input.successUrl ?? null,
       cancelUrl: input.cancelUrl ?? null,
@@ -103,7 +123,7 @@ invoiceRoutes.post("/", async (c) => {
       ({ txHash } = await chain.createInvoice({
         merchant: merchantAddress,
         ref: invoiceRef(number),
-        payout: (merchant.payoutAddress ?? merchant.address) as Address,
+        payout: payout as Address,
         payerLock: zeroAddress,
         amount,
         minPayment: 0n,
