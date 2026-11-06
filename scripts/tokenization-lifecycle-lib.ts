@@ -9,6 +9,7 @@ const EXPLORER = "https://explorer.testnet.whitechain.io";
 const STAGING_API_HOSTS = new Set(["api-staging.stenmont.com", "api-testnet.stenmont.com", "localhost", "127.0.0.1"]);
 
 export const explorerTx = (hash: string) => `${EXPLORER}/tx/${hash}`;
+export const explorerToken = (contract: string, tokenId: bigint | string) => `${EXPLORER}/token/${contract}/instance/${tokenId}`;
 export const explorerAddress = (address: string) => `${EXPLORER}/address/${address}`;
 
 /** The script refuses to run on any other chain, or against any API that is not a staging host. Returns the parsed API URL. */

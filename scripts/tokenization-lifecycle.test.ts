@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  MAX_FACE_UNITS, assertStaging, checkOutcome, defaultPathNotes, explorerAddress, explorerTx, lifecycleMath, planLines, resolveOptions, summaryTable,
+  MAX_FACE_UNITS, assertStaging, checkOutcome, defaultPathNotes, explorerAddress, explorerToken, explorerTx, lifecycleMath, planLines, resolveOptions, summaryTable,
 } from "./tokenization-lifecycle-lib";
 
 const opts = (over: Record<string, string | boolean | undefined> = {}) => resolveOptions({ ...over });
@@ -118,6 +118,7 @@ describe("links and the default path", () => {
   it("builds explorer links", () => {
     assert.equal(explorerTx("0xabc"), "https://explorer.testnet.whitechain.io/tx/0xabc");
     assert.equal(explorerAddress("0xdef"), "https://explorer.testnet.whitechain.io/address/0xdef");
+    assert.equal(explorerToken("0xdef", 7n), "https://explorer.testnet.whitechain.io/token/0xdef/instance/7");
   });
   it("only describes the default path, pointing at the fork test (7-day grace)", () => {
     const text = defaultPathNotes().join("\n");
