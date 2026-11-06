@@ -142,3 +142,13 @@ Could not verify (the pages do not say; test on a development store first):
 - Duplicate-subscription behaviour of `webhookSubscriptionCreate` (the bridge lists first to avoid it).
 - The client credentials grant was read from the docs (request encoding, `access_token`, `scope`, `expires_in` = 86399, same-organization rule); it has not been run against a real store.
 - Everything above has been exercised only against fakes. Nothing has run against a real Shopify store or a real Stenmont API.
+
+## Storefront button (one line in the theme)
+
+The bridge serves `GET /button.js`. In the Shopify admin open **Online Store, Themes, Edit code, layout/theme.liquid** and add this line before `</body>`:
+
+```html
+<script src="https://<your-bridge-host>/button.js" defer></script>
+```
+
+On the cart page it adds **Pay with USDT** under the checkout form. A click reads the cart from the shop's own `/cart.js`, sends only variant ids and quantities to `POST /checkout` (the price is read from Shopify on the server), and sends the customer to the Stenmont pay page. When the customer returns with `?stenmont=paid` the page shows a confirmation and clears the cart. The shop's origin must be in `ALLOWED_ORIGINS` (a custom domain needs adding). Checked in a real browser against a mocked cart and bridge; not yet installed in a live theme, because the app has no theme-write scope.
