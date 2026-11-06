@@ -1,4 +1,4 @@
-# Demo video plan (target 3:30, hard limits 2:00 to 4:00)
+# Demo video plan (target 3:30 to 3:50; hard limits 2:00 to 4:00)
 
 **Rules that can disqualify the entry.** The video must be 2 to 4 minutes. It must be recorded and kept at real speed: no speed-up, no time-lapse, no fast-forward of a wait. Cutting between scenes is fine; accelerating footage is not. Show every party: merchant, customer, investor, agent, and the World path that is denied. Everything runs on staging (`app-staging.stenmont.com`, Whitechain Sepolia 1874) with test tokens. Say "test network, test USDT" once near the start.
 
@@ -38,7 +38,7 @@ Total 3:50 is the ceiling; if the take runs over, drop shot 2's Connect page fir
 
 Staging health (all must answer 200 unless noted):
 
-- [ ] `https://api-staging.stenmont.com/health`, `https://app-staging.stenmont.com/`, `/login`, `/docs`, `/llms.txt`, `https://mcp-staging.stenmont.com/health`, `https://x402-staging.stenmont.com` health, `https://shop-staging.stenmont.com/`
+- [ ] `https://api-staging.stenmont.com/health`, `https://app-staging.stenmont.com/`, `/login`, `/docs`, `/llms.txt`, `https://mcp-staging.stenmont.com/health`, `https://x402-staging.stenmont.com/supported`, `https://shop-staging.stenmont.com/`
 - [ ] `POST https://mcp-staging.stenmont.com/mcp` without a key answers 401 with the `www-authenticate: Bearer resource_metadata=` header
 - [ ] Explorer reachable: `https://explorer.testnet.whitechain.io`
 
