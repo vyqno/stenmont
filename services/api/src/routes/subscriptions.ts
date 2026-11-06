@@ -12,6 +12,7 @@ import { randomHex } from "../lib/crypto";
 import { clientIp } from "../lib/request";
 import { amountSchema, idSchema, invalid } from "../lib/validation";
 import { hitRateLimit } from "../relayer/caps";
+import { issueAccountToken } from "./account";
 import { sendFromTank, type TankSend } from "../relayer/tankSend";
 import { emitEvent } from "../webhooks";
 
@@ -212,7 +213,8 @@ subscriptionRelayRoutes.post("/subscribe", async (c) => {
   await db.update(subscriptions).set({ status: "active", payer: b.payer, subscribeTx: sent.txHash, updatedAt: now.toISOString() }).where(eq(subscriptions.id, sub.id));
   await audit(db, { merchantId: sub.merchantId, actor: `payer:${b.payer}`, action: "subscription.created", payload: { id: sub.id, txHash: sent.txHash } });
   await emitEvent(db, c.env.WEBHOOKS, sub.merchantId, { id: `evt_sub_created_${sub.id}`, type: "subscription.created", data: { subscription: view({ ...sub, status: "active", payer: b.payer }, c.env.APP_URL) } });
-  return c.json({ status: "active", txHash: sent.txHash });
+  const accountToken = await issueAccountToken(c.env, b.payer, now);
+  return c.json({ status: "active", txHash: sent.txHash, ...(accountToken ? { accountToken } : {}) });
 });
 
 subscriptionRelayRoutes.post("/subscription-cancel", async (c) => {

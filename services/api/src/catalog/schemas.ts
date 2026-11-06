@@ -55,4 +55,4 @@ const productFields = {
 export const productInput = z.strictObject({ ...productFields, variants: z.array(variantInput).min(1).max(100) });
 export const productPatch = z.strictObject({ ...productFields }).partial();
 
-export const storeInput = z.strictObject({ slug: slugSchema, name: z.string().min(1).max(120) });
+export const storeInput = z.strictObject({ slug: slugSchema, name: z.string().min(1).max(120), displayNote: z.string().max(200).optional() });

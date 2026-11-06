@@ -440,6 +440,7 @@ export const storeSettings = sqliteTable(
     merchantId: text("merchant_id").primaryKey(),
     slug: text("slug").notNull(),
     name: text("name").notNull(),
+    displayNote: text("display_note").notNull().default(""), // optional line shown under prices, e.g. a local-currency hint
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

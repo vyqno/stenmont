@@ -60,6 +60,7 @@ export default function Catalog() {
           <label className="text-sm">Name<input value={store.name} onChange={(e) => setStore({ ...store, name: e.target.value })} required className={`${field} block`} /></label>
           <label className="text-sm">Address<input value={store.slug} onChange={(e) => setStore({ ...store, slug: e.target.value })} required pattern="[a-z0-9][a-z0-9\-]{1,38}[a-z0-9]" className={`${field} block`} placeholder="my-shop" /></label>
           <button className={button}>Save</button>
+          {store.slug && <a href={`/store/${store.slug}`} target="_blank" rel="noreferrer" className="text-sm underline" data-testid="view-store">View store</a>}
         </form>
       </Card>
 

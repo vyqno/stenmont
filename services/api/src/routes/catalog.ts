@@ -18,7 +18,7 @@ const uniqueViolation = (e: unknown) => /UNIQUE|constraint/i.test(String((e as E
 
 catalogRoutes.get("/store", async (c) => {
   const [s] = await c.var.db.select().from(storeSettings).where(eq(storeSettings.merchantId, c.var.merchantId));
-  return s ? c.json({ slug: s.slug, name: s.name }) : fail(c, 404, "not_found", "No store yet");
+  return s ? c.json({ slug: s.slug, name: s.name, displayNote: s.displayNote }) : fail(c, 404, "not_found", "No store yet");
 });
 
 catalogRoutes.put("/store", async (c) => {
@@ -179,6 +179,8 @@ catalogRoutes.delete("/variants/:id", async (c) => {
 // ---------------------------------------------------------------------------------------------------------------------
 // Public, no key. Only active products of the named store, and only fields a shopper may see.
 
+export const storeView = (s: typeof storeSettings.$inferSelect) => ({ slug: s.slug, name: s.name, ...(s.displayNote ? { displayNote: s.displayNote } : {}) });
+
 export const storePublicRoutes = new Hono<AppEnv>();
 
 async function storeBySlug(c: { var: AppEnv["Variables"] }, slug: string) {
@@ -194,7 +196,7 @@ storePublicRoutes.get("/:slug/products", async (c) => {
   const base = and(eq(products.merchantId, store.merchantId), eq(products.status, "active"));
   const rows = await c.var.db.select().from(products).where(after ? and(base, gt(products.handle, after)) : base).orderBy(asc(products.handle)).limit(limit);
   const full = await withChildren(c.var.db, store.merchantId, rows);
-  return c.json({ store: { slug: store.slug, name: store.name }, data: full.map(publicProduct), next: rows.length === limit ? rows.at(-1)!.handle : null });
+  return c.json({ store: storeView(store), data: full.map(publicProduct), next: rows.length === limit ? rows.at(-1)!.handle : null });
 });
 
 storePublicRoutes.get("/:slug/products/:handle", async (c) => {
@@ -206,5 +208,5 @@ storePublicRoutes.get("/:slug/products/:handle", async (c) => {
     .where(and(eq(products.merchantId, store.merchantId), eq(products.handle, c.req.param("handle")), eq(products.status, "active")));
   if (!row) return fail(c, 404, "not_found", "Product not found");
   const [full] = await withChildren(c.var.db, store.merchantId, [row]);
-  return c.json({ store: { slug: store.slug, name: store.name }, product: publicProduct(full!) });
+  return c.json({ store: storeView(store), product: publicProduct(full!) });
 });

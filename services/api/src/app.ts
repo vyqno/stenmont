@@ -8,11 +8,13 @@ import type { Env } from "./env";
 import { viemEns, type EnsClient } from "./ens/client";
 import { ensRoutes } from "./routes/ens";
 import { fail } from "./errors";
+import { accountRoutes } from "./routes/account";
 import { apiKeyRoutes } from "./routes/apiKeys";
 import { importRoutes } from "./routes/import";
 import { shopifyCallbackRoutes, shopifyConnectRoutes } from "./routes/shopifyOauth";
 import { checkoutRoutes } from "./routes/checkout";
 import { catalogRoutes, storePublicRoutes } from "./routes/catalog";
+import { storeCheckoutRoutes } from "./routes/storeCheckout";
 import { identitySigninRoutes } from "./routes/identitySignin";
 import { authRoutes } from "./routes/auth";
 import { exportRoutes } from "./routes/exports";
@@ -63,7 +65,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
 
   // Browsers may call only the public endpoints, and only from our own app (or localhost outside production).
   const origin = (o: string, c: { env: Env }) => (isAppOrigin(o, c.env) ? o : null);
-  const publicCors = cors({ origin, allowMethods: ["GET", "POST", "OPTIONS"], allowHeaders: ["content-type"], maxAge: 600 });
+  const publicCors = cors({ origin, allowMethods: ["GET", "POST", "OPTIONS"], allowHeaders: ["content-type", "idempotency-key"], maxAge: 600 });
   // The sign-in and merchant API are for our own app only, and may carry the session cookie.
   const appCors = cors({
     origin,
@@ -80,6 +82,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.use("/invest/*", publicCors);
   app.use("/store/*", publicCors);
   app.use("/public/*", publicCors);
+  app.use("/account/*", cors({ origin, allowMethods: ["GET", "OPTIONS"], allowHeaders: ["authorization"], maxAge: 600 }));
 
   app.get("/health", (c) => c.json({ ok: true }));
 
@@ -116,7 +119,9 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   app.route("/auth", authRoutes);
   app.route("/invest", investRoutes);
   app.route("/store", storePublicRoutes);
+  app.route("/store", storeCheckoutRoutes);
   app.route("/public", publicClaimRoutes);
+  app.route("/account", accountRoutes);
   app.route("/relay", relayRoutes);
   app.route("/relay", subscriptionRelayRoutes);
   app.route("/", subscriptionPublicRoutes);
