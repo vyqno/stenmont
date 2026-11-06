@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import { MULTICALL3_ADDRESS, allowInvestorTypes, b64urlDecode, buildReceiveAuth, claimDomain, claimTermsTypes, fundNonce, investorRegistryDomain, routerDomain, setHookTypes } from "@stenmont/shared";
 import { Rejected, type ClaimLog } from "../src/chain";
 import { runClaimIndexer, runDefaults } from "../src/claims";
-import { chainCursor, claims, gasTanks, investorEnrollments, invoices, webhookDeliveries, worldEnrollments } from "../src/db/schema";
+import { chainCursor, claims, gasTanks, investorEnrollments, invoices, merchants, webhookDeliveries, worldEnrollments } from "../src/db/schema";
+import { recordVerification } from "../src/verification/store";
 import { fakeAuthenticator } from "./helpers/authenticator";
 import { setup } from "./helpers/app";
 import { PASSKEY_ADDRESS } from "./helpers/chain";
@@ -112,12 +113,30 @@ describe("POST /v1/financing/listings (ask for the digests to sign)", () => {
     expect(other.id).not.toBe(a.id);
     expect(await b.db.select().from(claims)).toHaveLength(1);
   });
-  it("refuses a business that is not verified with World", async () => {
+  it("refuses a business below tier 3 and says how to get there", async () => {
     const t = setup({}, WORLD_ENV);
     const b = await business(t, { verified: false });
     const res = await b.request();
     expect(res.status).toBe(403);
-    expect((await json(res)).error.code).toBe("not_verified");
+    const body = await json(res);
+    expect(body.error.code).toBe("tier_limit");
+    expect(body.error.details).toMatchObject({ reason: "financing_tier", currentTier: 0, nextTier: 3 });
+    expect(body.error.details.howToReach).toMatch(/World/);
+  });
+  it("accepts a business at tier 4 through documents alone (no World enrolment)", async () => {
+    const t = setup({}, WORLD_ENV);
+    const b = await business(t, { verified: false });
+    await recordVerification(b.db, { merchantId: b.merchantId, method: "kyc", provider: "mock", reference: "k1", decision: "approved", decidedAt: new Date("2026-11-01T00:00:00Z") });
+    expect((await b.request()).status).toBe(201);
+  });
+  it("refuses an invoice above the tier's financing cap", async () => {
+    const t = setup({}, WORLD_ENV);
+    const b = await business(t, { invoice: { amount: "5000000001" } }); // 5,000.000001 USDT, one unit over the tier 3 cap
+    const res = await b.request();
+    expect(res.status).toBe(403);
+    expect((await json(res)).error.details).toMatchObject({ reason: "financing_cap", currentTier: 3, nextTier: 4 });
+    const ok = await business(setup({}, WORLD_ENV), { invoice: { amount: "5000000000" } });
+    expect((await ok.request()).status).toBe(201);
   });
   it("refuses someone else's invoice", async () => {
     const t = setup({}, WORLD_ENV);
@@ -260,7 +279,45 @@ describe("the public market", () => {
 });
 
 describe("the investor allowlist (World ID)", () => {
-  const allow = (t: T, account = INVESTOR, ip = "3.3.3.3") => post(t, "/invest/allow", { account, idkitResponse: { action: "allow-investor", environment: "staging", proof: "p" } }, { "cf-connecting-ip": ip });
+  const raw = (t: T, account = INVESTOR, ip = "3.3.3.3") => post(t, "/invest/allow", { account, idkitResponse: { action: "allow-investor", environment: "staging", proof: "p" } }, { "cf-connecting-ip": ip });
+  /** Investors need tier 4: the account must belong to a business with an approved document check. */
+  const kycBusiness = async (t: T, account: string, decision: "approved" | "rejected" = "approved") => {
+    const id = `m_${account.slice(2, 6)}`;
+    const db = dbOf(t.db);
+    if ((await db.select().from(merchants).where(eq(merchants.id, id))).length === 0) await db.insert(merchants).values({ id, name: "Investor Ltd", address: account, createdAt: "2026-11-01T00:00:00Z" });
+    await recordVerification(db, { merchantId: id, method: "kyc", provider: "mock", reference: `ref_${id}_${Math.random()}`, decision, decidedAt: new Date("2026-11-01T00:00:00Z") });
+  };
+  /** The allowlist call from a document-verified investor (the rest of these tests are about World and the chain). */
+  const allow = async (t: T, account = INVESTOR, ip = "3.3.3.3") => {
+    const have = await dbOf(t.db).select().from(merchants).where(eq(merchants.id, `m_${account.slice(2, 6)}`));
+    if (have.length === 0) await kycBusiness(t, account);
+    return raw(t, account, ip);
+  };
+
+  it("needs tier 4: an account with no business, or a business without documents, is refused before any proof is spent", async () => {
+    const w = fakeWorld();
+    const t = setup({}, WORLD_ENV, { fetch: w.f });
+    const none = await raw(t);
+    expect(none.status).toBe(403);
+    const body = await json(none);
+    expect(body.error.code).toBe("tier_limit");
+    expect(body.error.details).toMatchObject({ reason: "investor_tier", nextTier: 4 });
+    await dbOf(t.db).insert(worldEnrollments).values({ id: "w9", merchantId: "m_4444", action: "enrol-business", nullifier: "9", verifiedAt: "2026-11-01T00:00:00Z" });
+    await dbOf(t.db).insert(merchants).values({ id: "m_4444", name: "Investor Ltd", address: INVESTOR, createdAt: "2026-11-01T00:00:00Z" });
+    expect((await raw(t)).status).toBe(403); // World alone is tier 3: not enough to invest
+    await kycBusiness(t, INVESTOR, "rejected");
+    expect((await raw(t)).status).toBe(403);
+    expect(w.calls).toHaveLength(0);
+    expect(t.chain.allowedSent).toHaveLength(0);
+    await kycBusiness(t, INVESTOR);
+    expect((await raw(t)).status).toBe(200);
+  });
+  it("matches the account case-insensitively", async () => {
+    const mixed = "0xAbCdEf0123456789aBcDeF0123456789AbCdEf01";
+    const t = setup({}, WORLD_ENV, { fetch: fakeWorld().f });
+    await kycBusiness(t, mixed);
+    expect((await raw(t, mixed.toLowerCase())).status).toBe(200);
+  });
 
   it("allow-request returns the IDKit setup for the allow-investor action", async () => {
     const t = setup({}, WORLD_ENV);

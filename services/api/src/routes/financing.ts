@@ -11,7 +11,8 @@ import { claims, invoices } from "../db/schema";
 import { fail } from "../errors";
 import { randomHex } from "../lib/crypto";
 import { idSchema, invalid } from "../lib/validation";
-import { d1WorldRepo } from "../world/d1";
+import { loadLimits, merchantTier, refused, tierLimitResponse } from "../verification/store";
+import { checkFinancing } from "../verification/tiers";
 import { checkAssertion } from "./auth";
 
 const SIGNING_SECONDS = 3_600;
@@ -44,10 +45,13 @@ financingRoutes.post("/listings", async (c) => {
   const { merchant, db, now: clock } = c.var;
   const b = parsed.data;
   if (!merchant.address) return fail(c, 404, "not_found", "Invoice not found");
-  if (!(await d1WorldRepo(db).findByMerchant(merchant.id, "enrol-business"))) return fail(c, 403, "not_verified", "Verify your business with World ID before selling invoices.");
 
   const [inv] = await db.select().from(invoices).where(and(eq(invoices.id, b.invoiceId), eq(invoices.merchantId, merchant.id)));
   if (!inv) return fail(c, 404, "not_found", "Invoice not found");
+  // Selling needs tier 3 (World Proof of Human) or 4 (documents), and the invoice must be within the tier's financing cap.
+  const { tier } = await merchantTier(db, merchant.id, clock());
+  const gate = checkFinancing(await loadLimits(db), tier, BigInt(inv.amount));
+  if (refused(gate)) return tierLimitResponse(c, gate, tier);
   const nowS = Math.floor(clock().getTime() / 1000);
   const due = inv.dueDate ? Math.floor(Date.parse(inv.dueDate) / 1000) : 0;
   if (inv.status !== "open" || BigInt(inv.amountPaid) !== 0n || BigInt(inv.amountRefunded) !== 0n)
