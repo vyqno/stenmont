@@ -81,3 +81,38 @@ describe("example store", () => {
     expect(await partial.status()).toBe(false);
   });
 });
+
+describe("paid API (x402): an AI agent pays per request in USDT", () => {
+  const payEnv = { ...env(), PAY_TO: "0x683059bd0f23Ec06c3BCa7e4c1797351Ac1454c8", X402_FACILITATOR_URL: "https://facilitator.test" };
+  const header = (over: object = {}) =>
+    btoa(JSON.stringify({ x402Version: 2, accepted: {}, payload: { signature: "0x", authorization: { from: "0x2222222222222222222222222222222222222222", to: payEnv.PAY_TO, value: "10000", validAfter: "0", validBefore: "9999999999", nonce: `0x${"1".repeat(64)}` } }, ...over }));
+  function facilitator(answers: { verify?: object; settle?: object } = {}) {
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => {
+      calls.push(new URL(url).pathname);
+      if (url.endsWith("/verify")) return Response.json(answers.verify ?? { isValid: true, payer: "0x2222222222222222222222222222222222222222" });
+      return Response.json(answers.settle ?? { success: true, transaction: `0x${"a".repeat(64)}`, network: "eip155:1874", payer: "0x2222222222222222222222222222222222222222" });
+    });
+    return calls;
+  }
+  it("asks for payment first: 402 with the price, the official USDT and the business as payee", async () => {
+    const res = await app.request("/api/premium/quote", {}, payEnv);
+    expect(res.status).toBe(402);
+    const reqs = ((await res.json()) as { accepts: { amount: string; payTo: string; network: string; asset: string }[] }).accepts[0]!;
+    expect(reqs).toMatchObject({ amount: "10000", payTo: payEnv.PAY_TO, network: "eip155:1874", asset: "0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7" });
+  });
+  it("gives the answer once the payment is verified and settled", async () => {
+    const calls = facilitator();
+    const res = await app.request("/api/premium/quote", { headers: { "payment-signature": header() } }, payEnv);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("payment-response")).toBeTruthy();
+    expect(((await res.json()) as { sku: string }).sku).toBe("tee");
+    expect(calls).toEqual(["/verify", "/settle"]);
+  });
+  it("gives nothing when the payment is not valid", async () => {
+    facilitator({ verify: { isValid: false, invalidReason: "invalid_exact_evm_payload_authorization_value" } });
+    const res = await app.request("/api/premium/quote", { headers: { "payment-signature": header() } }, payEnv);
+    expect(res.status).toBe(402);
+    expect(await res.text()).not.toContain('"sku"');
+  });
+});

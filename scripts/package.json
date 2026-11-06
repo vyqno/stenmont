@@ -13,7 +13,8 @@
     "fund-gas-tank": "tsx --env-file=../.env fund-gas-tank.ts",
     "relay-pay": "tsx --env-file=../.env relay-pay.ts",
     "drain-sim": "tsx --env-file=../.env drain-sim.ts",
-    "ens-setup": "tsx --env-file=../.env ens-setup.ts"
+    "ens-setup": "tsx --env-file=../.env ens-setup.ts",
+    "agent-pays": "tsx --env-file=../.env agent-pays.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
@@ -22,6 +23,7 @@
   },
   "dependencies": {
     "@stenmont/shared": "workspace:*",
-    "viem": "^2.57.16"
+    "viem": "^2.57.16",
+    "@stenmont/agent": "workspace:*"
   }
 }

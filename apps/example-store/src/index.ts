@@ -1,7 +1,8 @@
 import { Stenmont, verifyWebhook } from "@stenmont/sdk";
+import { stenmontPaywall } from "@stenmont/x402";
 import { Hono } from "hono";
 
-type Env = { Bindings: { ORDERS: KVNamespace; SHOP_URL: string; STENMONT_API_KEY: string; STENMONT_API_URL: string; STENMONT_WEBHOOK_SECRET: string } };
+type Env = { Bindings: { ORDERS: KVNamespace; SHOP_URL: string; STENMONT_API_KEY: string; STENMONT_API_URL: string; STENMONT_WEBHOOK_SECRET: string; PAY_TO: string; X402_FACILITATOR_URL: string } };
 type Order = { id: string; sku: string; name: string; amount: string; status: "pending" | "paid" };
 
 export const PRODUCTS = [
@@ -59,5 +60,11 @@ app.get("/orders/:id", async (c) => {
   const refresh = paid ? "" : `<meta http-equiv="refresh" content="4">`;
   return page("Your order", `<h1 data-testid="status">${paid ? "Paid" : "Waiting for payment"}</h1><p>${o.name} · $${o.amount}</p><p>Order ${o.id}</p>`, refresh);
 });
+
+// Pay-per-request API for AI agents: 0.01 USDT per call, settled through the Stenmont x402 facilitator.
+app.use("/api/premium/*", (c, next) =>
+  stenmontPaywall({ amount: "0.01", payTo: c.env.PAY_TO, facilitatorUrl: c.env.X402_FACILITATOR_URL, description: "Shop price quote", fetch: (...a) => fetch(...a) })(c, next),
+);
+app.get("/api/premium/quote", (c) => c.json({ sku: PRODUCTS[0]!.id, name: PRODUCTS[0]!.name, price: PRODUCTS[0]!.price, currency: "USD", asOf: new Date().toISOString() }));
 
 export default app;

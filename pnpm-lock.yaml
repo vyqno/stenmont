@@ -171,6 +171,9 @@ importers:
       '@stenmont/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
+      '@stenmont/x402':
+        specifier: workspace:*
+        version: link:../../packages/x402
       hono:
         specifier: ^4.13.16
         version: 4.13.16
@@ -347,6 +350,9 @@ importers:
 
   scripts:
     dependencies:
+      '@stenmont/agent':
+        specifier: workspace:*
+        version: link:../packages/agent
       '@stenmont/shared':
         specifier: workspace:*
         version: link:../packages/shared

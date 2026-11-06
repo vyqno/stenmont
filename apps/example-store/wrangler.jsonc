@@ -6,13 +6,13 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   "workers_dev": false,
-  "vars": { "SHOP_URL": "http://localhost:8788", "STENMONT_API_URL": "http://localhost:8787" },
+  "vars": { "SHOP_URL": "http://localhost:8788", "STENMONT_API_URL": "http://localhost:8787", "PAY_TO": "0x0000000000000000000000000000000000000001", "X402_FACILITATOR_URL": "http://localhost:8789" },
   "env": {
     "staging": {
       "name": "stenmont-example-store-staging",
       "workers_dev": false,
       "routes": [{ "pattern": "shop-staging.stenmont.com", "custom_domain": true }],
-      "vars": { "SHOP_URL": "https://shop-staging.stenmont.com", "STENMONT_API_URL": "https://api-staging.stenmont.com" },
+      "vars": { "SHOP_URL": "https://shop-staging.stenmont.com", "STENMONT_API_URL": "https://api-staging.stenmont.com", "PAY_TO": "0x683059bd0f23Ec06c3BCa7e4c1797351Ac1454c8", "X402_FACILITATOR_URL": "https://x402-staging.stenmont.com" },
       "kv_namespaces": [{ "binding": "ORDERS", "id": "9b22c1e91aad43d3bd308ddbcaf0202e" }]
     }
   }

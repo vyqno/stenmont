@@ -37,7 +37,7 @@
       "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Sender"] }],
       // database_id is a placeholder until `wrangler d1 create stenmont-facilitator-db-staging` is run (lead's call).
       "d1_databases": [
-        { "binding": "DB", "database_name": "stenmont-facilitator-db-staging", "database_id": "REPLACE_AFTER_D1_CREATE", "migrations_dir": "migrations" }
+        { "binding": "DB", "database_name": "stenmont-facilitator-db-staging", "database_id": "4982bb99-b6e5-41fd-9986-18fa9e14ae14", "migrations_dir": "migrations" }
       ]
     }
   }
