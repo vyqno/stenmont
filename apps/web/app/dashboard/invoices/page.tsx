@@ -4,11 +4,14 @@ import { useState } from "react";
 import { Badge, Card, money, statusOf, units, type Invoice } from "../../../components/ui";
 import { ExportButton } from "../../../components/ExportButton";
 import { RefundButton } from "../../../components/RefundButton";
+import { SellButton } from "../../../components/SellButton";
+import { listingBadge } from "../../../lib/financing";
 import { AuthError, api } from "../../../lib/auth";
 import { useApi } from "../../../lib/useApi";
 
 export default function Invoices() {
   const { data, error, reload } = useApi<{ data: Invoice[] }>("/v1/invoices?limit=100");
+  const { data: listings, reload: reloadListings } = useApi<{ listings: { invoiceId: string; status: string }[] }>("/v1/financing/listings");
   const [amount, setAmount] = useState("");
   const [email, setEmail] = useState("");
   const [due, setDue] = useState("");
@@ -90,16 +93,20 @@ export default function Invoices() {
               <tbody className="divide-y divide-line">
                 {data.data.map((i) => {
                   const s = statusOf(i, now);
+                  const listing = listings?.listings.find((l) => l.invoiceId === i.id);
+                  const badge = listing ? listingBadge(listing.status) : null;
+                  const sellable = !listing && i.status === "open" && !!i.dueDate && units(i.amountPaid) === 0n && units(i.amountRefunded) === 0n && Date.parse(i.dueDate) > now + 3_600_000;
                   const refundable = units(i.amountPaid) > units(i.amountRefunded);
                   return (
                     <tr key={i.id} data-testid="invoice-row">
                       <td className="py-2 pr-3">{i.number}</td>
                       <td className="pr-3 text-muted">{i.customerEmail ?? "—"}</td>
                       <td className="amount pr-3 text-right">{money(i.amount)}</td>
-                      <td className="pr-3"><Badge tone={s.tone}>{s.label}</Badge></td>
+                      <td className="pr-3"><Badge tone={s.tone}>{s.label}</Badge>{badge && <> <Badge tone={badge.tone}>{badge.label}</Badge></>}</td>
                       <td className="pr-3 text-muted">{i.dueDate ? i.dueDate.slice(0, 10) : "—"}</td>
                       <td className="flex items-center justify-end gap-2 py-2">
                         <button type="button" onClick={() => copy(i)} className="rounded border border-line px-3 py-1 hover:border-brand">{copied === i.id ? "Copied" : "Copy link"}</button>
+                        {sellable && <SellButton invoiceId={i.id} face={i.amount} onDone={reloadListings} />}
                         {refundable && <RefundButton invoiceId={i.id} onDone={() => setTimeout(reload, 1000)} />}
                       </td>
                     </tr>

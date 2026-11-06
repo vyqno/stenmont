@@ -75,3 +75,5 @@ function transferClaim(bytes32 invoiceId, address to) external;                 
 **Progress (contracts):** `InvestorRegistry`, `InvoiceClaim` and `ReputationRegistry` are built and tested locally (see BUILDER-NOTES.md, 11:40). Still to do for this phase: the router change (block `cancel` after a sale), reputation wiring, deployment to staging, the API and investor portal, and the live sell, settle and default demo.
 
 **Progress (API):** listing, the public market, the investor allowlist, funding, the claim indexer and the hourly default job are built and tested (330 API tests); see BUILDER-NOTES.md. Still to do: the investor and sell-invoice screens (Task 7.5) and a live run: list, allow, fund, pay, settle and default on the chain.
+
+**Progress (screens):** the sell panel, the public market, the claim page with the verify and fund steps, and the portfolio page are built and deployed to staging (22 web tests). The live end-to-end run is waiting for a person to complete the World step.
