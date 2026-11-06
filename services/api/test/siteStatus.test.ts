@@ -208,7 +208,7 @@ describe("check: webhook", () => {
     const out = (await (await check(t, key, site.id, ["webhook"])).json()) as SiteView;
     expect(out.checks.webhook).toMatchObject({ ok: true, checkedAt: t.clock.now.toISOString() });
     expect(seen).toHaveLength(1);
-    const event = await verifyWebhook<{ siteId: string }>(seen[0]!.body, seen[0]!.sig, "whsec_site_secret");
+    const event = await verifyWebhook<{ siteId: string }>(seen[0]!.body, seen[0]!.sig, "whsec_site_secret", { now: Math.floor(t.clock.now.getTime() / 1000) });
     expect(event).toMatchObject({ type: "site.test", livemode: false, data: { siteId: site.id } });
     expect(JSON.stringify(out)).not.toContain("whsec_site_secret");
     const post = net.log.find((l) => l.method === "POST")!;
