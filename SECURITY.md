@@ -36,3 +36,6 @@ The independent review (see `plan/review-opus-1.md`) found no way to redirect a 
 A public-store reservation expiry could release inventory while its original invoice remained payable. The fix retains inventory until an unpaid, unhooked onchain cancellation is confirmed, with local payment/in-flight guards. Hosted expiry and uncertain states retain inventory for reconciliation. Investor and subscription clients also stop on insufficient owned USDT rather than requesting platform faucet funds. Targeted regressions and typechecks passed; live acceptance remains separate.
 
 The review was partial and sequential. Dependency audit still reports five advisories; contract security, CSP, relayer timeout reconciliation and scheduled cleanup remain open. See [W10 evidence and limitations](docs/WAVE2-W10.md).
+### Response guards
+
+Minimal object/base/frame CSP guards, nosniff and private-route no-referrer rules are implemented and locally HTTP-tested. Broader script/style/connection CSP is explicitly Report-Only pending real identity/wallet/font compatibility proof; it does not block script injection. The install-proof scheduled cleanup handler is already wired. See [header evidence and limitations](docs/WAVE2-W10-HEADERS.md).
