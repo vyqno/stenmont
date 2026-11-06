@@ -50,6 +50,16 @@ ensRoutes.get("/resolution", async (c) => {
   }
 });
 
+/** The name comes only from this tenant's saved registration, never a caller-supplied foreign name. */
+ensRoutes.get("/authority",async c=>{
+ const row=await load(c);if(!row||row.status!=="active")return fail(c,404,"not_found","This business has no name yet.");
+ const parsed=address.safeParse(c.req.query("member")??c.var.merchant.address);if(!parsed.success)return invalid(c,parsed.error);
+ if(!(await hitRateLimit(c.var.db,`ens:authority:${c.var.merchantId}`,10,60,c.var.now())))return fail(c,429,"rate_limited","Try again in a minute.");
+ if(!c.var.ens.inspectAuthority)return fail(c,503,"inspection_unavailable","Authority inspection is unavailable.");
+ try{return c.json(await c.var.ens.inspectAuthority({name:row.name,resolver:row.resolver as Address,member:parsed.data as Address}));}
+ catch{return fail(c,502,"chain_error","Authority could not be read; no permissions were inferred.");}
+});
+
 ensRoutes.post("/claim-name", async (c) => {
   const parsed = z.strictObject({ label }).safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return invalid(c, parsed.error);

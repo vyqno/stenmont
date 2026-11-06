@@ -8,7 +8,7 @@ export function describeEnsAuthority(f:EnsAuthorityFacts){
   transferPermission:(f.ownerRoles&CAN_TRANSFER_ADMIN)!==0n,
   recordAliasingAvailable:(f.linkRoles&(1n<<28n))!==0n,
   financeCanEditProfile:(f.profileRoles&16n)!==0n, collectionsCanEditContext:(f.contextRoles&16n)!==0n,
-  auditorReadOnly:true, invoiceHolderWildcard:false,
+  publicAuditNeedsGrant:false, invoiceHolderWildcard:false,
   warning:"Registry expiry stops normal name resolution; it does not revoke independent direct resolver permissions. Bundle aliasing shares payout records too and is not a policy-only alias.",
  };
 }

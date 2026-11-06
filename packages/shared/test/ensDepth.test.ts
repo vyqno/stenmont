@@ -3,7 +3,7 @@ import { describeEnsAuthority, CAN_TRANSFER_ADMIN } from "../src/ensDepth";
 describe("deployed ENS authority reporting",()=>{
  it("does not confuse owner with record setter or fabricate a transfer grant",()=>{
   const r=describeEnsAuthority({status:2,expiry:2000n,now:1000n,ownerRoles:0n,linkRoles:0n,profileRoles:16n,contextRoles:0n});
-  expect(r).toMatchObject({registered:true,expired:false,transferPermission:false,recordAliasingAvailable:false,financeCanEditProfile:true,collectionsCanEditContext:false,auditorReadOnly:true});
+  expect(r).toMatchObject({registered:true,expired:false,transferPermission:false,recordAliasingAvailable:false,financeCanEditProfile:true,collectionsCanEditContext:false,publicAuditNeedsGrant:false});
  });
  it("keeps expiry separate from direct resolver permissions",()=>{
   const r=describeEnsAuthority({status:1,expiry:999n,now:1000n,ownerRoles:CAN_TRANSFER_ADMIN,linkRoles:1n<<28n,profileRoles:0n,contextRoles:16n});

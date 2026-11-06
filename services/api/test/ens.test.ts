@@ -155,3 +155,19 @@ describe("finance role and payout lock", () => {
   });
 });
 void (null as unknown as T);
+
+describe("read-only ENS authority",()=>{
+ it("pins inspection to this tenant's registered name and refuses missing or failed evidence",async()=>{
+  const {t,key,claim}=await world();await claim("acme");
+  const args:any[]=[];
+  t.ens.inspectAuthority=async a=>{args.push(a);return {name:a.name,blockNumber:"12"} as any;};
+  expect((await t.req("/v1/ens/authority",{})).status).toBe(401);
+  expect((await t.req("/v1/ens/authority?name=foreign.stenmont.eth&member="+MEMBER,{key})).status).toBe(200);
+  expect(args).toEqual([{name:"acme.stenmont.eth",resolver:RESOLVER,member:MEMBER}]);
+  const other=await seedMerchant(t.db,"m_2","Other",`sk_test_${"b".repeat(32)}`);
+  expect((await t.req("/v1/ens/authority?name=acme.stenmont.eth",{key:other})).status).toBe(404);
+  expect((await t.req("/v1/ens/authority?member=wrong",{key})).status).toBe(400);
+  t.ens.inspectAuthority=async()=>{throw Error("RPC unavailable");};
+  expect((await t.req("/v1/ens/authority",{key})).status).toBe(502);
+ });
+});

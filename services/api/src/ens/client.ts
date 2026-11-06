@@ -24,6 +24,7 @@ import {
   verifiableFactoryAbi,
 } from "@stenmont/shared";
 import type { Env } from "../env";
+import { readNameAuthority } from "./authority";
 
 export type ClaimResult = { name: string; resolver: Address; agentRegistry: Address; txHashes: Hex[] };
 
@@ -41,6 +42,8 @@ export type AgentInput = {
 };
 
 export interface EnsClient {
+  /** Pinned read-only report. No role is granted or inferred from a friendly role name. */
+  inspectAuthority?(a: { name:string; resolver:Address; member:Address }): Promise<Awaited<ReturnType<typeof readNameAuthority>>>;
   /** True when the agent label is free in the business's agent registry. */
   agentLabelAvailable(a: { businessName: string; agentRegistry: Address; label: string }): Promise<boolean>;
   /**
@@ -117,6 +120,7 @@ export function viemEns(env: Env): EnsClient {
   };
 
   return {
+    inspectAuthority: a => readNameAuthority(reader,{...a,registry,registrar}),
     async labelAvailable(label) {
       const st = await reader.readContract({ address: registry, abi: ensRegistryAbi, functionName: "getState", args: [BigInt(labelhash(label))] });
       return st.status === 0; // AVAILABLE
