@@ -14,6 +14,7 @@ import {
   PROFILE_KEY,
   ROLE,
   TIER_KEY,
+  DIRECTORY_KEYS,
   TEXT_RIGHTS,
   textResource,
   dnsName,
@@ -65,6 +66,11 @@ export interface EnsClient {
    * the business, its team members and its agents are never granted a role for this record.
    */
   setTierRecord(a: { name: string; resolver: Address; tier: number }): Promise<Hex>;
+  /**
+   * Writes pay-directory text records (only the `DIRECTORY_KEYS`; any other key is refused) in one transaction. Like the tier
+   * record, only the platform's registrar can write them: the business, its team and its agents hold no right over these keys.
+   */
+  setTextRecords(a: { name: string; resolver: Address; records: Record<string, string> }): Promise<Hex | null>;
   /** The ENS primary name an address has set, or null. Read-only and best effort: a lookup failure is the same as no name. */
   primaryName(address: Address): Promise<string | null>;
   /** The address a name points to, or null when it does not resolve. */
@@ -146,14 +152,22 @@ export function viemEns(env: Env): EnsClient {
     },
 
     async lockPayout({ name, resolver }) {
-      // The registrar keeps the two records it must still be able to write (profile, and the tier badge) when its root rights go.
+      // The registrar keeps the records it must still be able to write (profile, the tier badge and the pay directory) when its root rights go.
       const keep = (key: string) => encodeFunctionData({ abi: permissionedResolverAbi, functionName: "grantSetterRoles", args: [textSetter(name, key), registrar] });
       const dropRoot = encodeFunctionData({ abi: permissionedResolverAbi, functionName: "revokeRootRoles", args: [CALL_ROOT_RIGHTS, registrar] });
-      return run(resolver, encodeFunctionData({ abi: permissionedResolverAbi, functionName: "multicall", args: [[keep(PROFILE_KEY), keep(TIER_KEY), dropRoot]] }));
+      return run(resolver, encodeFunctionData({ abi: permissionedResolverAbi, functionName: "multicall", args: [[keep(PROFILE_KEY), keep(TIER_KEY), ...DIRECTORY_KEYS.map(keep), dropRoot]] }));
     },
 
     async setTierRecord({ name, resolver, tier }) {
       return run(resolver, encodeFunctionData({ abi: permissionedResolverAbi, functionName: "setText", args: [dnsName(name), TIER_KEY, String(tier)] }));
+    },
+
+    async setTextRecords({ name, resolver, records }) {
+      const entries = Object.entries(records);
+      if (entries.some(([k]) => !(DIRECTORY_KEYS as readonly string[]).includes(k))) throw new EnsRejected("only pay directory records can be written here");
+      if (entries.length === 0) return null;
+      const set = ([key, value]: [string, string]) => encodeFunctionData({ abi: permissionedResolverAbi, functionName: "setText", args: [dnsName(name), key, value] });
+      return run(resolver, encodeFunctionData({ abi: permissionedResolverAbi, functionName: "multicall", args: [entries.map(set)] }));
     },
 
     async agentLabelAvailable({ agentRegistry, label }) {
