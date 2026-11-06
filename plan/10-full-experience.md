@@ -247,3 +247,17 @@ Each section is a set of staging slices, using the same test-first and completio
 - [x] Condense builder notes; test abandoned-record cleanup and clean only the two unpaid records, preserving the paid receipt.
 - [x] Repeat lifecycle dry-run after these steps; stop before another real run.
 - [ ] Sir approves any further real tokenization lifecycle run.
+
+## Wave build extension — 2026-11-06
+
+- [x] Dispatch W1–W6 in isolated clones from 08272b6 and preserve salvaged commits with cherry-pick -x.
+- [x] Merge W1–W6 with individual history retained; independently run contract and targeted cross-workstream checks.
+- [ ] Close all material integration findings, then run the complete combined suite, lint, web typecheck and build.
+- [ ] One announced staging release with migrations0040/0041/0050/0060, API→web→MCP and live probes.
+- [ ] W7: dashboard Sell this invoice → claim timeline → public certificate; do not repeat the already-settled direct-contract lifecycle.
+- [ ] W6b: replace rejected landing with original reference-led component set; visually inspect1440/390 views and fix.
+- [ ] W13: isolated realistic demo shop, Razorpay test mode, real Connect/OAuth onboarding and webhook/order/dashboard proof. Public GitHub creation requires explicit approval; owner will configure Razorpay staging secrets.
+- [ ] W14: every-page visual inventory, metadata/social images/canonicals/sitemaps/robots/visible JSON-LD and accessibility. Staging must remain non-indexable; private record routes must not enter public sitemaps.
+- [ ] W15: inspect deployed Sepolia capabilities, implement supported name/record permissions, and prove through resolve(); document unsupported features.
+- [ ] W16: only after router-v2 approval, auction/acknowledgement/reputation pricing and named certificate; fractional funding is a stretch.
+- [ ] SDK/React @stenmontglobal publication waits for explicit owner approval.

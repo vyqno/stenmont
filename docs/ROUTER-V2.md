@@ -12,7 +12,7 @@ InvoiceAck signs `InvoiceAck(bytes32 invoiceId,uint128 amount,uint64 dueDate,add
 
 ReputationRegistryV2 distinct counterparties are merchant addresses. Self-payment is excluded and repeated payments to one merchant count once in `onTimeCounterparties`. Other counters retain per-invoice semantics. Distinct addresses are not independent humans: off-chain underwriting must filter for separately verified merchants. The router records only a fully paying single payer; split-payer invoices are excluded to avoid giving the final dust payer a full-invoice credit.
 
-## Exact approved staging redeploy sequence
+## Proposed staging redeploy sequence for owner approval
 
 1. Snapshot v1 deployment JSON, API/web/MCP configuration, indexer cursors and outstanding invoice/subscription/claim inventory. Keep v1 readable/payable; immutable contracts cannot migrate existing balances or authorizations. Pause creation during cutover. Do not pause old repayment/refund paths as a migration shortcut.
 2. Deploy InvestorRegistry with approved owner/guardian/attester and existing eligibility policy. Re-establish investor permissions through the normal approved flow; no blanket allowlist.

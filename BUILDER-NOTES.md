@@ -295,3 +295,5 @@ Committed 02:41 on `phase-3-gasless` (up to `dc9f109`): Phase 3 (passkey account
 - 17:10 Explain tested expiry and retry recovery.
 
 - 17:10 Link completed abandoned invoice cleanup.
+
+- 18:04 Wave 1: merged six isolated workstreams and reviewed fixes on chatgpt-work-3; preserved individual/salvaged commits. Independent Foundry run 450 passed; combined MCP20 and API integration68 passed. Staging release not run; Books close-race review and new reference-led landing revision remain in progress.
