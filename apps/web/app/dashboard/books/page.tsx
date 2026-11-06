@@ -1,0 +1,44 @@
+"use client";
+
+import { useState } from "react";
+import { api } from "../../../lib/auth";
+import { verifyLedgerLine, type LedgerProof } from "../../../lib/booksProof";
+import { verifyMonthBundle, type MonthBundle } from "@stenmont/shared";
+import type { Address } from "viem";
+
+type Line={seq:number;date:string;kind:string;invoice:string|null;amount:string;currency:string;description:string;txHash:string|null;adjustmentFor:string|null};
+type Snapshot={period:string;lines:Line[];flags:{code:string;message:string}[];invoices:{invoiceId:string;number:string;state:string;open:string}[]};
+type Books={locked:boolean;interimStagingAvailable:boolean;snapshot:Snapshot;bundle:MonthBundle|null;signer:Address|null;anchor:{status:string;configured:boolean;txHash?:string|null}};
+function download(text:string,name:string,type:string){const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement("a");a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);}
+const amount=(n:string,currency:string)=>{const v=BigInt(n),decimals=currency==="WBT"?18:6,scale=10n**BigInt(decimals);return `${v/scale}.${(v%scale).toString().padStart(decimals,"0").replace(/0+$/,"")||"00"} ${currency}`;};
+
+export default function BooksPage(){
+  const [period,setPeriod]=useState("");const [books,setBooks]=useState<Books|null>(null);
+  const [interim,setInterim]=useState(false);
+  const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [confirm,setConfirm]=useState(false);
+  const [proofText,setProofText]=useState("");const [verified,setVerified]=useState<string|null>(null);
+  async function run(action:()=>Promise<void>){setBusy(true);setError("");try{await action();}catch(e){setError(e instanceof Error?e.message:"Could not load the books. Try again.");}finally{setBusy(false);}}
+  async function load(){await run(async()=>{setBooks(await api.get<Books>(`/v1/books/${period}`));setConfirm(false);setVerified(null);});}
+  async function close(){await run(async()=>{await api.post(`/v1/books/${period}/close`,{interimStaging:interim});setBooks(await api.get<Books>(`/v1/books/${period}`));setConfirm(false);});}
+  async function exportCsv(format:string){await run(async()=>download(await api.text(`/v1/books/${period}/export/${format}`),`stenmont-${period}-${format}.csv`,"text/csv"));}
+  async function proof(seq:number){await run(async()=>{const p=await api.get<LedgerProof>(`/v1/books/${period}/proof/${seq}`);setProofText(JSON.stringify(p,null,2));setVerified(verifyLedgerLine(p)?"Line matches this root. Check the signed bundle to trust the root.":"Verification failed.");});}
+  async function verifyBundle(){if(!books?.bundle||!books.signer)return;await run(async()=>setVerified(await verifyMonthBundle(books.bundle!,books.signer!)?"Service signature and all ledger lines verified. Anchoring is verified separately.":"Bundle verification failed."));}
+  return <div className="space-y-6">
+    <div><h1 className="text-3xl font-semibold">Books</h1><p className="mt-2 text-muted">Reconcile receipts, refunds, invoice financing and network costs for a UTC month.</p></div>
+    <p className="rounded border border-line p-4 text-sm">Tax and discount lines are display and export records, not tax advice. Network costs stay in WBT unless a rate with a named source is supplied. A proof checks recorded lines; it cannot prove that offchain income is complete.</p>
+    <form onSubmit={e=>{e.preventDefault();void load();}} className="flex flex-wrap items-end gap-3"><label className="grid gap-1">Month (UTC)<input required type="month" value={period} onChange={e=>{setPeriod(e.target.value);setBooks(null);}} className="rounded border border-line p-2" /></label><button disabled={busy||!period} className="rounded border border-line px-4 py-2">{busy?"Working…":"Load month"}</button></form>
+    {error&&<p role="alert" className="text-danger">{error}</p>}
+    {!books&&!busy&&<p className="text-muted">Choose a month to see its reconciliation.</p>}
+    {books&&<>
+      <section className="space-y-3 rounded border border-line p-4"><h2 className="text-xl font-semibold">{books.locked?(books.bundle?.closeKind==="interim_staging"?"Locked interim staging snapshot":"Locked month"):"Open month"}</h2><p>{books.snapshot.lines.length} ledger lines · {books.snapshot.flags.length} items to review</p>
+        <p>Onchain anchor: {books.anchor.status==="anchored"?<a className="underline" target="_blank" rel="noreferrer" href={`https://explorer.testnet.whitechain.io/tx/${books.anchor.txHash}`}>Confirmed transaction</a>:"not anchored"}.{books.anchor.status!=="anchored"&&(books.anchor.configured?" Registry configured; merchant authorization and a confirmed transaction are still required.":" No registry is configured.")}</p>
+        {books.locked?<><p className="break-all text-sm">Root: {books.bundle?.root}</p><p className="break-all text-sm">Service signer: {books.signer}</p><p className="text-sm">Service attestation only. Merchant consent is separate. Pin the signer from a trusted service configuration for offline verification.</p><div className="flex flex-wrap gap-3"><button disabled={busy} onClick={()=>download(JSON.stringify(books.bundle,null,2),`stenmont-${period}-bundle.json`,"application/json")} className="underline">Download signed bundle</button><button disabled={busy} onClick={()=>void verifyBundle()} className="underline">Verify bundle</button></div></>:<>{books.interimStagingAvailable&&<label className="flex gap-2"><input type="checkbox" checked={interim} onChange={e=>setInterim(e.target.checked)} />Create an interim staging snapshot as of now. This is not a final accounting month; later arrivals move to a later month.</label>}<label className="flex gap-2"><input type="checkbox" checked={confirm} onChange={e=>setConfirm(e.target.checked)} />I reviewed the flags. Lock this snapshot permanently; late events become later adjustments.</label><button disabled={busy||!confirm} onClick={()=>void close()} className="rounded border border-line px-4 py-2">{interim?"Close interim staging snapshot":"Close month"}</button><p className="text-sm text-muted">Closing requires service signing configuration and an ended UTC month.</p></>}
+        <div className="flex flex-wrap gap-3">{["ledger","quickbooks","xero"].map(f=><button key={f} disabled={busy} onClick={()=>void exportCsv(f)} className="underline">Export {f}</button>)}</div><p className="text-sm text-muted">QuickBooks and Xero exports contain USDT cash movements only. Keep WBT expenses in the generic ledger; review currency and column mapping before import.</p>
+      </section>
+      {books.snapshot.flags.length>0&&<section><h2 className="text-xl font-semibold">Review</h2><ul className="mt-2 list-disc pl-5">{books.snapshot.flags.map((f,i)=><li key={i}>{f.message}</li>)}</ul></section>}
+      <section><h2 className="text-xl font-semibold">Invoices</h2>{books.snapshot.invoices.length===0?<p className="text-muted">No invoices in this month.</p>:<ul className="mt-2 space-y-1">{books.snapshot.invoices.map(i=><li key={i.invoiceId}>{i.number} · {i.state} · open {amount(i.open,"USDT")}</li>)}</ul>}</section>
+      <section><h2 className="text-xl font-semibold">Ledger</h2>{books.snapshot.lines.length===0?<p className="text-muted">No recorded movements in this month.</p>:<div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr>{["Date","Invoice","Movement","Amount","Receipt","Proof"].map(h=><th key={h} className="p-2">{h}</th>)}</tr></thead><tbody>{books.snapshot.lines.map(l=><tr key={l.seq} className="border-t border-line"><td className="p-2">{l.date.slice(0,10)}</td><td className="p-2">{l.invoice??"—"}</td><td className="p-2">{l.description}{l.adjustmentFor&&` (${l.adjustmentFor} adjustment)`}</td><td className="whitespace-nowrap p-2">{amount(l.amount,l.currency)}</td><td className="p-2">{l.txHash&&<a href={`https://explorer.testnet.whitechain.io/tx/${l.txHash}`} target="_blank" rel="noreferrer" className="underline">Transaction</a>}</td><td className="p-2">{books.locked&&<button disabled={busy} onClick={()=>void proof(l.seq)} className="underline">Verify line {l.seq}</button>}</td></tr>)}</tbody></table></div>}</section>
+    </>}
+    <section className="space-y-2"><h2 className="text-xl font-semibold">Verify a line offline</h2><label className="grid gap-1">Proof JSON<textarea rows={7} value={proofText} onChange={e=>{setProofText(e.target.value);setVerified(null);}} className="w-full rounded border border-line p-2 font-mono text-sm" /></label><button onClick={()=>{try{setVerified(verifyLedgerLine(JSON.parse(proofText))?"Line matches this root. Authenticate the root with the signed bundle or a confirmed anchor.":"Verification failed: line or proof was changed.");}catch{setVerified("Invalid proof JSON.");}}} className="rounded border border-line px-4 py-2">Check proof</button>{verified&&<p role="status">{verified}</p>}</section>
+  </div>;
+}

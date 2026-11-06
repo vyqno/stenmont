@@ -15,6 +15,8 @@ export function invoiceView(r: InvoiceRow, env: Pick<Env, "APP_URL">) {
     currency: r.currency,
     customerEmail: r.customerEmail,
     dueDate: r.dueDate,
+    taxRate: r.taxRateBps,
+    taxLabel: r.taxLabel,
     metadata: JSON.parse(r.metadata) as Record<string, string>,
     createTxHash: r.createTxHash,
     successUrl: r.successUrl,
