@@ -251,11 +251,17 @@ contract PaymentRouterV2 is IPaymentRouterV2, EIP712, Ownable2Step, Pausable, Re
         address rep = reputation;
         if (rep == address(0)) return;
         bool onTime = inv.dueDate == 0 || block.timestamp <= inv.dueDate;
-        // low-level on purpose: a high-level call reverts on an address without code, outside any try/catch
-        // slither-disable-next-line low-level-calls,unchecked-lowlevel -- result deliberately ignored, see above
-        rep.call{gas: REPUTATION_GAS}(
-            abi.encodeCall(IReputationRecorderV2.record, (payer, inv.merchant, paidBy[id][payer], onTime))
-        );
+        bytes memory data =
+            abi.encodeCall(IReputationRecorderV2.record, (payer, inv.merchant, paidBy[id][payer], onTime));
+        bool ok;
+        // Low-level on purpose: a high-level call reverts on an address without code, outside any try/catch. The
+        // result is ignored and no return data is copied, so a hostile registry cannot return-bomb the payer.
+        assembly ("memory-safe") {
+            ok := call(REPUTATION_GAS, rep, 0, add(data, 0x20), mload(data), 0, 0)
+        }
+        // EIP-150 gives the callee at most 63/64 of what is left. A failed call that left this frame under 1/63 of
+        // the budget was starved by the submitter's gas limit, not broken: refuse, so the record cannot be skipped.
+        if (!ok && gasleft() < REPUTATION_GAS / 63) revert ReputationGasTooLow();
     }
 
     // ------------------------------------------------------------------ refund
