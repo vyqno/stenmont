@@ -31,3 +31,19 @@ CREATE TABLE `collections_actions` (
 );--> statement-breakpoint
 CREATE INDEX `collections_actions_merchant` ON `collections_actions` (`merchant_id`,`status`,`created_at`);--> statement-breakpoint
 CREATE INDEX `collections_actions_invoice` ON `collections_actions` (`invoice_id`,`kind`,`status`);
+
+--> statement-breakpoint
+CREATE TABLE `instalment_charges` (
+  `id` text PRIMARY KEY NOT NULL,
+  `merchant_id` text NOT NULL,
+  `invoice_id` text NOT NULL,
+  `subscription_id` text NOT NULL,
+  `agreement_id` text NOT NULL,
+  `payer` text NOT NULL,
+  `amount` text NOT NULL,
+  `tx_hash` text NOT NULL,
+  `observed_at` text NOT NULL,
+  `gas_cost_wbt` text
+);--> statement-breakpoint
+CREATE UNIQUE INDEX `instalment_charges_tx_agreement` ON `instalment_charges` (`tx_hash`,`agreement_id`);--> statement-breakpoint
+CREATE INDEX `instalment_charges_merchant` ON `instalment_charges` (`merchant_id`,`observed_at`);

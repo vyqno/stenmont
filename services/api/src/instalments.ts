@@ -1,7 +1,7 @@
 import type { EventType } from "./events";
 import { randomHex } from "./lib/crypto";
 import type { Db } from "./app";
-import { invoices, subscriptions } from "./db/schema";
+import { instalmentCharges, invoices, subscriptions } from "./db/schema";
 
 export const DEFAULT_PERIOD_SECONDS = 30 * 86_400;
 /** Executable plans are always two or three charges, even if a human approves an exception. */
@@ -82,4 +82,17 @@ export async function readAgreementState(chain: import("./chain").ChainClient, r
   return { charges, paid, status, nextCharge: next < 0 ? 0n : states[next]!.nextCharge, chargeId: segments[Math.max(0, next)]!.id, amount: segments[Math.max(0, next)]!.amount };
 }
 
-
+/** Call only after a successful submitted charge. A state-only resync cannot invent a receipt. */
+export async function recordInstalmentCharge(
+  deps: { db: Db; chain: import("./chain").ChainClient; now: Date },
+  input: { sub: typeof subscriptions.$inferSelect; payer: string; agreementId: string; amount: string; txHash: `0x${string}` },
+) {
+  const { sub, agreementId, txHash } = input;
+  if (!sub.invoiceId) throw new Error("instalment invoice required");
+  let gasCostWbt: string | null = null;
+  try {
+    const receipt = await deps.chain.waitForReceipt(txHash);
+    if (receipt.status === "success") gasCostWbt = (receipt.gasUsed * receipt.effectiveGasPrice).toString();
+  } catch { /* The successful sender receipt is already known; a secondary gas lookup may fail. */ }
+  await deps.db.insert(instalmentCharges).values({ id: `${txHash}:${agreementId}`, merchantId: sub.merchantId, invoiceId: sub.invoiceId, subscriptionId: sub.id, agreementId, payer: input.payer, amount: input.amount, txHash, observedAt: deps.now.toISOString(), gasCostWbt }).onConflictDoNothing();
+}

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { decodeFunctionData } from "viem";
 import { multicall3Abi, subscriptionManagerAbi } from "@stenmont/shared";
+import { runRenewals } from "../src/renewals";
 import { setup, seedMerchant } from "./helpers/app";
 import { dbOf } from "./helpers/fixtures";
 import { gasTanks, subscriptions } from "../src/db/schema";
@@ -36,6 +37,9 @@ describe("bounded remainder-first agreements", () => {
     const terms = decoded.slice(0, 2).map(c => c.args![1] as { amount: bigint; maxCharges: number });
     expect(terms.reduce((n, s) => n + s.amount * BigInt(s.maxCharges), 0n)).toBe(100_000_000n);
     expect(terms.reduce((n, s) => n + s.maxCharges, 0)).toBe(3);
+    const receipts = await t.db.prepare("select amount,tx_hash from instalment_charges").all();
+    expect(receipts.results).toHaveLength(1);
+    expect(receipts.results[0]).toMatchObject({ amount: "33333334", tx_hash: expect.stringMatching(/^0x[0-9a-f]{64}$/) });
   });
   it("guards direct helper callers against consumer plans and a fourth charge", async () => {
     const t = setup(); await seedMerchant(t.db);
@@ -55,6 +59,21 @@ describe("paired cancellation and aggregate state", () => {
     await db.insert(gasTanks).values({ merchantId: "m_1", wbtBalance: "100000000000000000", dailyCapWbt: "100000000000000000", spentDay: "2026-11-06", perPayerDailyCapUsdt: "1000000000" });
     return { t, key, db, row: row!, segments: JSON.parse(row!.segments!) as { id: `0x${string}` }[] };
   }
+  it("records only actual cron charge receipts and never invents a hash during resync", async () => {
+    const w = await active(); const end = w.segments[1]!.id; let sent = false;
+    w.t.chain.subscriptionState = async id => id !== end ? { status: "completed", charges: 1, nextCharge: 0n } : { status: "active", charges: sent ? 1 : 0, nextCharge: sent ? 1799140800n : 0n };
+    const send = w.t.chain.sendTransaction;
+    w.t.chain.sendTransaction = async call => { sent = true; return send(call); };
+    const result = await runRenewals(w.t.env, w.db, w.t.chain, w.t.clock.now);
+    expect(result).toEqual({ charged: 1, failed: 0 });
+    const receipts = await w.t.db.prepare("select amount,agreement_id,tx_hash from instalment_charges").all();
+    expect(receipts.results).toHaveLength(1);
+    expect(receipts.results[0]).toMatchObject({ amount: "33333333", agreement_id: end, tx_hash: expect.stringMatching(/^0x[0-9a-f]{64}$/) });
+    w.t.chain.subscriptionState = async id => ({ status: "completed", charges: id === end ? 2 : 1, nextCharge: 0n });
+    await w.db.update(subscriptions).set({ nextChargeAt: 0 }).where(eq(subscriptions.id, w.row.id));
+    await runRenewals(w.t.env, w.db, w.t.chain, w.t.clock.now);
+    expect((await w.t.db.prepare("select * from instalment_charges").all()).results).toHaveLength(1);
+  });
   it("requires all merchant signatures and cancels both agreements atomically", async () => {
     const w = await active();
     const send = (signatures: unknown[]) => w.t.req(`/v1/subscriptions/${w.row.id}/cancel`, { key: w.key, method: "POST", body: JSON.stringify({ deadline: "1793960000", signatures }) });

@@ -5,7 +5,7 @@ import { subscriptionManagerAbi } from "@stenmont/shared";
 import type { Db } from "./app";
 import type { ChainClient } from "./chain";
 import { invoices, subscriptions } from "./db/schema";
-import { readAgreementState } from "./instalments";
+import { readAgreementState, recordInstalmentCharge } from "./instalments";
 import { audit } from "./audit";
 import type { Env } from "./env";
 import { sendFromTank } from "./relayer/tankSend";
@@ -16,7 +16,7 @@ const MAX_ATTEMPTS = 3;
 /** Most subscriptions one run handles; the rest wait for the next minute. */
 const BATCH = 25;
 
-/** A plan may only charge while its invoice is still unpaid and open. */
+/** A replacement plan requires the original router rail to be closed with the same final outstanding balance. */
 async function invoiceStillOpen(db: Db, chain: ChainClient, sub: typeof subscriptions.$inferSelect): Promise<boolean> {
   const invoiceId = sub.invoiceId;
   if (!invoiceId) return false;
@@ -74,6 +74,7 @@ export async function runRenewals(env: Env, db: Db, chain: ChainClient, now: Dat
     };
 
     if (sent.ok) {
+      if (sub.kind === "instalment" && sub.payer) await recordInstalmentCharge({ db, chain, now }, { sub, payer: sub.payer, agreementId: chargeId, amount: before?.amount ?? sub.amount, txHash: sent.txHash });
       const { st, status } = await resync();
       charged++;
       if (sub.kind === "instalment") {

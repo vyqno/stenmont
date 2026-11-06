@@ -14,7 +14,7 @@ import { amountSchema, idSchema, invalid } from "../lib/validation";
 import { hitRateLimit } from "../relayer/caps";
 import { issueAccountToken } from "./account";
 import { sendFromTank, type TankSend } from "../relayer/tankSend";
-import { agreementSegments, eventType, readAgreementState, splitInstalments } from "../instalments";
+import { agreementSegments, eventType, readAgreementState, recordInstalmentCharge, splitInstalments } from "../instalments";
 import { emitEvent } from "../webhooks";
 
 type Row = typeof subscriptions.$inferSelect;
@@ -325,6 +325,7 @@ subscriptionRelayRoutes.post("/subscribe", async (c) => {
   await audit(db, { merchantId: sub.merchantId, actor: `payer:${b.payer}`, action: "subscription.created", payload: { id: sub.id, txHash: sent.txHash } });
   await emitEvent(db, c.env.WEBHOOKS, sub.merchantId, { id: `evt_sub_created_${sub.id}`, type: eventType(sub.kind, sub.kind === "instalment" ? "started" : "created"), data: { subscription: view({ ...sub, status: "active", payer: b.payer }, c.env.APP_URL) } });
   if (sub.kind === "instalment" && sub.startAt <= Math.floor(now.getTime() / 1000)) {
+    await recordInstalmentCharge({ db, chain, now }, { sub, payer: b.payer, agreementId: segments[0]!.id, amount: segments[0]!.amount, txHash: sent.txHash });
     const state = await readAgreementState(chain, sub);
     await db.update(subscriptions).set({ charges: state.charges, nextChargeAt: Number(state.nextCharge), status: state.status }).where(eq(subscriptions.id, sub.id));
     await emitEvent(db, c.env.WEBHOOKS, sub.merchantId, { id: `evt_inst_${sub.id}_1`, type: "instalment.charged", data: { instalment: { id: sub.id, invoiceId: sub.invoiceId, number: 1, of: sub.maxCharges, amount: fromUnits(BigInt(segments[0]!.amount)) }, txHash: sent.txHash } });

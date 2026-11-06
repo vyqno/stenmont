@@ -171,7 +171,7 @@ export const subscriptions = sqliteTable("subscriptions", {
   invoiceId: text("invoice_id"),
   /** Who is buying, as a business. Required for instalments, which are for business-to-business sales only. */
   payerBusinessName: text("payer_business_name"),
-  /** The invoice amount the plan covers (base units). The contract charges `amount` each time; the difference is rounding. */
+  /** Replacement amount in base units. Remainder-first plans use the fixed agreements in `segments`. */
   total: text("total"),
   /** Fixed-amount agreements for remainder-first plans; null for an evenly split plan. */
   segments: text("segments"),
@@ -181,6 +181,20 @@ export const subscriptions = sqliteTable("subscriptions", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+/** Actual successful manager charges. These are replacement-rail receipts, never fabricated router payments. */
+export const instalmentCharges = sqliteTable("instalment_charges", {
+  id: text("id").primaryKey(),
+  merchantId: text("merchant_id").notNull(),
+  invoiceId: text("invoice_id").notNull(),
+  subscriptionId: text("subscription_id").notNull(),
+  agreementId: text("agreement_id").notNull(),
+  payer: text("payer").notNull(),
+  amount: text("amount").notNull(),
+  txHash: text("tx_hash").notNull(),
+  observedAt: text("observed_at").notNull(),
+  gasCostWbt: text("gas_cost_wbt"),
+}, t => [uniqueIndex("instalment_charges_tx_agreement").on(t.txHash, t.agreementId), index("instalment_charges_merchant").on(t.merchantId, t.observedAt)]);
 
 /** What the collections agent may offer a customer without asking a person. Anything beyond it needs a World approval. */
 export const collectionsPolicy = sqliteTable("collections_policy", {
