@@ -5,7 +5,7 @@ From integrating World ID (IDKit Proof of Human, in the dashboard and the invest
 ## Time to first success
 
 - **IDKit**: a working widget quickly from the docs; about one more hour to the first accepted proof, spent on the verifier's bot protection (below) and on discovering that the simulator needs its Continue button pressed after the proof is "presented".
-- **Agent Pass approval**: the sign-in starts and World accepts the request; it still needs one real sign-in by an Orb-verified person, which we have not completed with the simulator.
+- **Agent Pass approval**: about two hours from the first request to a sign-in that World starts: the redirect URI had to be registered in the portal, and the client then required PKCE. We have not completed the sign-in end to end (a person completing it), so we cannot give a time to first success for that half, and we say so in our README instead of claiming the journey.
 
 ## What worked
 
@@ -20,6 +20,9 @@ From integrating World ID (IDKit Proof of Human, in the dashboard and the invest
 - **PKCE is required** by the OIDC client but the discovery document does not say so. The error arrived as a redirect with `code_challenge must appear exactly once...`.
 - **One error for two causes**: the portal's "Check client_id and the exact redirect_uri" message covers a wrong client, a wrong redirect and a wrong environment.
 - **The simulator is one fixed person**, so "different people" tests (buyer vs supplier) cannot be fully exercised without real accounts.
+
+- **OAuth details from the client side**: the redirect URI must match the registered one exactly and the client must be in the same environment as the issuer; our API now creates a PKCE verifier, sends only its SHA-256 challenge, keeps the verifier server-side, checks the ID token (signature, issuer, audience, expiry, nonce) and requires the sign-in to be under 5 minutes old before it authorises a protected action. A cancelled or denied sign-in leaves the protected refund undone (route tests).
+- **Choosing the credential**: we used Proof of Human because every question we ask is "is this a different human", and a nullifier fits a unique index. The docs made that choice easy; a short "which credential for which question" table would have confirmed it faster.
 
 ## Missing capability
 
