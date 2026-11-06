@@ -30,3 +30,7 @@ The independent review (see `plan/review-opus-1.md`) found no way to redirect a 
 - A lost passkey cannot be recovered yet. Tokens other than USDT sent to a passkey account cannot be moved (the account has no execute function).
 - World ID proofs on the test network are mocked by World and must not be relied on for production.
 - The contracts have not had a professional audit.
+
+### Response guards
+
+Minimal object/base/frame CSP guards, nosniff and private-route no-referrer rules are implemented and locally HTTP-tested. Broader script/style/connection CSP is explicitly Report-Only pending real identity/wallet/font compatibility proof; it does not block script injection. The install-proof scheduled cleanup handler is already wired. See [header evidence and limitations](docs/WAVE2-W10-HEADERS.md).
