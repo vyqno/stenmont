@@ -31,7 +31,7 @@ body { font-family: var(--text); color: var(--ink); -webkit-font-smoothing: anti
 .dark .eyebrow { color: rgba(255,255,255,.66); }
 
 /* headline: two tones, ink then grey */
-.h { font-family: var(--display); font-weight: 700; font-size: 88px; line-height: 1; letter-spacing: -.034em; word-spacing: .07em; margin-top: 22px; }
+.h { font-family: var(--display); font-weight: 700; font-size: 88px; line-height: 1; letter-spacing: -.018em; word-spacing: .07em; margin-top: 22px; }
 .h .a { display: block; color: var(--ink); }
 .h .b { display: block; color: var(--ink-45); }
 .dark .h .a { color: var(--paper); }
@@ -65,3 +65,4 @@ body { font-family: var(--text); color: var(--ink); -webkit-font-smoothing: anti
 .ico { width: 22px; height: 22px; flex: none; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--corn); }
 b, strong, h4 { word-spacing: .07em; }
+.pic { display: block; width: 100%; height: 100%; }
