@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { fromUnits } from "@stenmont/shared";
 import type { AppEnv } from "../app";
@@ -8,12 +8,12 @@ import { RESERVE_MINUTES, reserveStock, restock, settleOrders, type OrderLine } 
 import { MAX_ORDER_UNITS } from "../catalog/schemas";
 import { products, storeOrders, variants } from "../db/schema";
 import { fail } from "../errors";
-import { runIdempotent } from "../idempotency";
+import { runIdempotent, type IdempotentResult } from "../idempotency";
 import { randomHex } from "../lib/crypto";
 import { invalid } from "../lib/validation";
 import { createInvoice } from "./invoices";
 
-const cartSchema = z.strictObject({
+export const cartSchema = z.strictObject({
   items: z.array(z.strictObject({ variantId: z.string().min(1).max(80), quantity: z.number().int().min(1).max(1000) })).min(1).max(50),
   customerEmail: z.email().max(254).optional(),
   successUrl: z.string().max(2048).optional(),
@@ -24,15 +24,12 @@ export const checkoutRoutes = new Hono<AppEnv>();
 
 /**
  * Cart in, invoice out. The cart carries only variant ids and quantities: prices come from our database, stock is taken
- * atomically, and the invoice is made by the same code as POST /v1/invoices.
+ * atomically, and the invoice is made by the same code as POST /v1/invoices. Used by the merchant route below and by the
+ * public shopper route; the caller has already put the business on the context (`c.var.merchant`).
  */
-checkoutRoutes.post("/checkout", async (c) => {
-  const parsed = cartSchema.safeParse(await c.req.json().catch(() => null));
-  if (!parsed.success) return invalid(c, parsed.error);
-  const input = parsed.data;
+export async function placeOrder(c: Context<AppEnv>, input: z.infer<typeof cartSchema>): Promise<IdempotentResult | Response> {
   const { db, merchant } = c.var;
-
-  return runIdempotent(c, merchant.id, async () => {
+  {
     const now = c.var.now();
     await settleOrders(db, merchant.id, now);
 
@@ -100,7 +97,13 @@ checkoutRoutes.post("/checkout", async (c) => {
       status: 201 as const,
       body: { orderId, status: "reserved", total: fromUnits(total), lines: lines.map(({ tracked: _t, ...l }) => l), invoice: made.body },
     };
-  });
+  }
+}
+
+checkoutRoutes.post("/checkout", async (c) => {
+  const parsed = cartSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return invalid(c, parsed.error);
+  return runIdempotent(c, c.var.merchant.id, () => placeOrder(c, parsed.data));
 });
 
 checkoutRoutes.get("/orders", async (c) => {
