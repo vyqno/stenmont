@@ -97,6 +97,11 @@ function PayButton(props: {sessionUrl: string; children?: ReactNode}): JSX.Eleme
 
 **Files:** Create `apps/web/app/dashboard/{invoices,payments,subscriptions,customers,settings}/page.tsx`, `apps/web/components/RefundButton.tsx`
 
-- [ ] Failing Playwright tests: invoice list shows new invoice; Refund button runs the passkey prompt then status shows `refunded`; settings page shows API key prefix, webhook endpoints, gas tank balance; Export button downloads a CSV
-- [ ] Run → FAIL; implement; run → PASS
-- [ ] Commit line: `feat: add merchant dashboard`
+- [x] Failing Playwright tests: invoice list shows new invoice; Refund button runs the passkey prompt then status shows `refunded`; settings page shows API key prefix, webhook endpoints, gas tank balance; Export button downloads a CSV
+- [x] Run → FAIL; implement; run → PASS
+- [x] Commit line: `feat: add merchant dashboard`
+
+**Built:** brand tokens (Whitechain palette, light and dark, Onest standing in for Neue Haas Grotesk until it is licensed, the lowercase wide-tracked logo), a signed-in shell, and four screens: Overview (received, waiting, overdue, latest), Invoices (create, list, copy link, refund, export), Subscriptions (list, stop charging) and Settings (account, API key starts, webhooks, fee money set aside). `RefundButton` runs the merchant passkey prompt. The session now says which passkey it belongs to, so a device that also holds a customer passkey for the site asks for the right one.
+**Live on staging (2.3 minutes):** a new business creates an invoice, a customer in another browser pays the copied link, the dashboard shows it Paid, the business refunds it with its passkey (the first real refund), it shows Refunded, the CSV export lists both the payment and the refund, and Overview shows $0.00 received.
+**Not built:** the Customers screen (it would only repeat invoice data) and creating subscriptions from the dashboard (the customer subscribe page, which needs the USDT permit signature, is still missing; use the SDK or API).
+

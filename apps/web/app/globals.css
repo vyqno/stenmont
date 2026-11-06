@@ -1,26 +1,66 @@
 @import "tailwindcss";
 
+/* Whitechain palette (brand-guidelines/COLORS.md). Add a token there before adding one here. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --bg: #f8faf9;
+  --surface: #ffffff;
+  --line: #c7d0dc;
+  --text: #07081e;
+  --text-2: #4a5567;
+  --mute: #97a2b6;
+  --navy: #080a28;
+  --mint: #68ecbc;
+  --mint-soft: #a4f4d7;
+  --lime: #dcf218;
+  --blue: #0066ff;
+  --error: #e24137;
+  --warning: #ed7536;
+  --background: var(--bg);
+  --foreground: var(--text);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #000722;
+    --surface: #000933;
+    --line: #1e3d80;
+    --text: #ffffff;
+    --text-2: #9fb2cc;
+    --blue: #3385ff;
   }
 }
 
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-muted: var(--text-2);
+  --color-mint: var(--mint);
+  --color-lime: var(--lime);
+  --color-brand: var(--blue);
+  --color-danger: var(--error);
+  --color-warn: var(--warning);
+  --font-sans: "Neue Haas Grotesk Text", var(--font-onest), "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+}
+
+/* Amounts line up in columns and always show two decimals. */
+.amount {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Logo: lowercase, wide tracking. Falls back cleanly until the licensed font is loaded. */
+.logo {
+  font-family: "All Round Gothic", "Avenir Next", Futura, var(--font-onest), sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: lowercase;
+  font-weight: 700;
 }

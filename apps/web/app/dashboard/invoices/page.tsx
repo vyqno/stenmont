@@ -1,0 +1,104 @@
+"use client";
+
+import { useState } from "react";
+import { Badge, Card, money, statusOf, units, type Invoice } from "../../../components/ui";
+import { ExportButton } from "../../../components/ExportButton";
+import { RefundButton } from "../../../components/RefundButton";
+import { AuthError, api } from "../../../lib/auth";
+import { useApi } from "../../../lib/useApi";
+
+export default function Invoices() {
+  const { data, error, reload } = useApi<{ data: Invoice[] }>("/v1/invoices?limit=100");
+  const [amount, setAmount] = useState("");
+  const [email, setEmail] = useState("");
+  const [due, setDue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [copied, setCopied] = useState("");
+  const [now] = useState(() => Date.now());
+
+  async function create(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setFormError("");
+    try {
+      await api.post("/v1/invoices", {
+        amount,
+        ...(email ? { customerEmail: email } : {}),
+        ...(due ? { dueDate: new Date(`${due}T23:59:59Z`).toISOString() } : {}),
+      });
+      setAmount("");
+      setEmail("");
+      setDue("");
+      reload();
+    } catch (err) {
+      setFormError(err instanceof AuthError ? err.message : "The invoice could not be created. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const copy = (i: Invoice) => navigator.clipboard.writeText(i.payUrl).then(() => setCopied(i.id));
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-3xl font-bold">Invoices</h1>
+        <ExportButton />
+      </div>
+
+      <Card title="New invoice">
+        <form onSubmit={create} className="grid gap-3 md:grid-cols-[1fr_1.5fr_1fr_auto] md:items-end">
+          <label className="flex flex-col gap-1 text-sm">
+            Amount (USD)
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} required inputMode="decimal" pattern="\d+(\.\d{1,6})?" placeholder="250.00" className="amount rounded border border-line bg-transparent px-3 py-2 text-base" />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Customer email (optional)
+            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="off" className="rounded border border-line bg-transparent px-3 py-2 text-base" />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Due date (optional)
+            <input value={due} onChange={(e) => setDue(e.target.value)} type="date" className="rounded border border-line bg-transparent px-3 py-2 text-base" />
+          </label>
+          <button disabled={busy} className="rounded bg-brand px-4 py-2 font-medium text-white disabled:opacity-50">{busy ? "Creating…" : "Create invoice"}</button>
+        </form>
+        {formError && <p role="status" data-testid="form-error" className="mt-2 text-sm text-danger">{formError}</p>}
+      </Card>
+
+      <Card>
+        {error && <p role="status" className="text-danger">{error}</p>}
+        {!data && !error && <p className="text-muted">Loading…</p>}
+        {data && data.data.length === 0 && <p className="text-muted">No invoices yet.</p>}
+        {data && data.data.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm" data-testid="invoice-table">
+              <thead className="text-muted">
+                <tr><th className="py-2 pr-3 font-medium">Invoice</th><th className="pr-3 font-medium">Customer</th><th className="pr-3 text-right font-medium">Amount</th><th className="pr-3 font-medium">Status</th><th className="pr-3 font-medium">Due</th><th /></tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {data.data.map((i) => {
+                  const s = statusOf(i, now);
+                  const refundable = units(i.amountPaid) > units(i.amountRefunded);
+                  return (
+                    <tr key={i.id} data-testid="invoice-row">
+                      <td className="py-2 pr-3">{i.number}</td>
+                      <td className="pr-3 text-muted">{i.customerEmail ?? "—"}</td>
+                      <td className="amount pr-3 text-right">{money(i.amount)}</td>
+                      <td className="pr-3"><Badge tone={s.tone}>{s.label}</Badge></td>
+                      <td className="pr-3 text-muted">{i.dueDate ? i.dueDate.slice(0, 10) : "—"}</td>
+                      <td className="flex items-center justify-end gap-2 py-2">
+                        <button type="button" onClick={() => copy(i)} className="rounded border border-line px-3 py-1 hover:border-brand">{copied === i.id ? "Copied" : "Copy link"}</button>
+                        {refundable && <RefundButton invoiceId={i.id} onDone={() => setTimeout(reload, 1000)} />}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}

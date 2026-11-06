@@ -1,6 +1,6 @@
 import { apiBase, b64urlDecode, b64urlEncode } from "./pay";
 
-export type Merchant = { id: string; name: string; account: string };
+export type Merchant = { id: string; name: string; account: string; credentialId?: string };
 
 export class AuthError extends Error {
   constructor(
@@ -11,14 +11,18 @@ export class AuthError extends Error {
   }
 }
 
-async function call<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+async function call<T>(method: "GET" | "POST", path: string, body?: unknown, as: "json" | "text" = "json"): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers["content-type"] = "application/json";
+  if (method === "POST" && path.startsWith("/v1/")) headers["idempotency-key"] = crypto.randomUUID();
   const res = await fetch(apiBase(location.hostname) + path, {
     method,
     credentials: "include", // the session cookie
-    headers: body === undefined ? undefined : { "content-type": "application/json" },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (res.status === 204) return undefined as T;
+  if (res.ok && as === "text") return (await res.text()) as T;
   const json = (await res.json().catch(() => ({}))) as { error?: { code?: string; message?: string } } & Record<string, unknown>;
   if (!res.ok) throw new AuthError(json.error?.code ?? "error", json.error?.message ?? "Something went wrong. Please try again.");
   return json as T;
@@ -113,10 +117,36 @@ export async function signIn(): Promise<Merchant> {
 
 export const currentMerchant = async (): Promise<Merchant | null> => {
   try {
-    return (await call<{ merchant: Merchant }>("GET", "/auth/session")).merchant;
+    const r = await call<{ merchant: Merchant; credentialId: string }>("GET", "/auth/session");
+    return { ...r.merchant, credentialId: r.credentialId };
   } catch {
     return null;
   }
 };
 
 export const signOut = () => call<void>("POST", "/auth/logout");
+
+/** Calls the merchant API with the signed-in session. Throws AuthError with the server's plain-words message. */
+export const api = {
+  get: <T>(path: string) => call<T>("GET", path),
+  post: <T>(path: string, body?: unknown) => call<T>("POST", path, body ?? {}),
+  text: (path: string) => call<string>("GET", path, undefined, "text"),
+};
+
+/** Asks the device to sign a server-made challenge (a refund approval). The same passkey that signed the business up. */
+export async function signChallenge(challenge: string, credentialId?: string) {
+  const cred = await ceremony(
+    () =>
+      navigator.credentials.get({
+        publicKey: {
+          challenge: bytes(challenge),
+          rpId: location.hostname,
+          userVerification: "required",
+          timeout: 60_000,
+          ...(credentialId ? { allowCredentials: [{ type: "public-key" as const, id: bytes(credentialId) }] } : {}),
+        },
+      }) as Promise<PublicKeyCredential | null>,
+  );
+  const r = cred.response as AuthenticatorAssertionResponse;
+  return { credentialId: enc(cred.rawId), authenticatorData: enc(r.authenticatorData), clientDataJSON: enc(r.clientDataJSON), signature: enc(r.signature) };
+}
