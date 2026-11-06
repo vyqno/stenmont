@@ -1,4 +1,4 @@
-import type { Address, Hex, TypedDataDomain } from "viem";
+import { encodeAbiParameters, keccak256, type Address, type Hex, type TypedDataDomain } from "viem";
 import { USDT_ADDRESS } from "./chains";
 
 export const usdtDomain = {
@@ -49,6 +49,19 @@ export const createInvoiceTypes = {
     { name: "deadline", type: "uint256" },
   ],
 } as const;
+
+/** The attester's approval of one large refund (PaymentRouter.refundWithApproval). */
+export const refundApprovalTypes = {
+  RefundApproval: [
+    { name: "opHash", type: "bytes32" },
+    { name: "deadline", type: "uint256" },
+  ],
+} as const;
+
+/** keccak256(abi.encode(id, value, to, salt)): what the approval is bound to, so it cannot authorise another refund. */
+export function refundOpHash(id: Hex, value: bigint, to: Address, salt: Hex): Hex {
+  return keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "uint128" }, { type: "address" }, { type: "bytes32" }], [id, value, to, salt]));
+}
 
 export function routerDomain(verifyingContract: Address) {
   return {

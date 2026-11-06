@@ -1,8 +1,9 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { hashTypedData, type Address, type Hex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { z } from "zod";
-import { b64urlEncode, buildReceiveAuth, encodeWebAuthnSignature, fromUnits, parseDerSignature, refundNonce, toUnits } from "@stenmont/shared";
+import { b64urlEncode, buildReceiveAuth, encodeWebAuthnSignature, fromUnits, parseDerSignature, refundApprovalTypes, refundNonce, refundOpHash, routerDomain, toUnits } from "@stenmont/shared";
 import type { AppEnv } from "../app";
 import { audit } from "../audit";
 import { Rejected } from "../chain";
@@ -10,10 +11,14 @@ import { invoices, payments, refundRequests, refunds } from "../db/schema";
 import { fail } from "../errors";
 import { randomHex } from "../lib/crypto";
 import { amountSchema, idSchema, invalid } from "../lib/validation";
+import { requireApproval } from "../world/approvals";
+import { d1ApprovalRepo } from "../world/d1";
 import { checkAssertion } from "./auth";
 
-/** Refunds above this need a human's approval (the router's refundApprovalThreshold: 100 USDT). Wired up in Phase 5. */
-const APPROVAL_THRESHOLD = 100_000_000n;
+/** Refunds above this need a person's World approval, and the router needs the attester's signature. Must equal the router's threshold. */
+const DEFAULT_APPROVAL_THRESHOLD = 100_000_000n;
+const thresholdOf = (env: { REFUND_APPROVAL_THRESHOLD?: string }) => (env.REFUND_APPROVAL_THRESHOLD ? BigInt(env.REFUND_APPROVAL_THRESHOLD) : DEFAULT_APPROVAL_THRESHOLD);
+const APPROVAL_DEADLINE_SECONDS = 900;
 const VALID_FOR_SECONDS = 3_600;
 const address = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 const b64 = z.string().regex(/^[A-Za-z0-9_-]{1,4096}$/);
@@ -69,7 +74,14 @@ refundRoutes.post("/", async (c) => {
   const nowS = Math.floor(c.var.now().getTime() / 1000);
   const waiting = (await db.select().from(refundRequests).where(and(eq(refundRequests.invoiceId, inv.id), inArray(refundRequests.status, ["pending", "sending"])))).filter((r) => r.validBefore > nowS);
   const committed = BigInt(inv.amountRefunded) + waiting.reduce((sum, r) => sum + BigInt(r.value), 0n);
-  if (committed + value > APPROVAL_THRESHOLD) return fail(c, 409, "approval_required", "Refunds this large need a person's approval first.");
+  let approved = false;
+  if (committed + value > thresholdOf(c.env)) {
+    // What the person must approve, spelled out so the dashboard can ask World for exactly this.
+    const approvalParams = { invoiceId: inv.id, amount: fromUnits(value), to };
+    const gate = await requireApproval(d1ApprovalRepo(db), { merchantId: merchant.id, operation: "refund", params: approvalParams, now: c.var.now() });
+    if (!gate.ok) return fail(c, 409, gate.code, gate.message, { approvalParams });
+    approved = true;
+  }
 
   const salt = `0x${randomHex(32)}` as Hex;
   const validBefore = Math.floor(c.var.now().getTime() / 1000) + VALID_FOR_SECONDS;
@@ -93,12 +105,13 @@ refundRoutes.post("/", async (c) => {
     salt,
     validBefore,
     challenge,
+    requiresAttester: approved ? 1 : 0,
     status: "pending",
     txHash: null,
     createdAt: c.var.now().toISOString(),
   };
   await db.insert(refundRequests).values(row);
-  return c.json({ ...view(row), challenge, authorization: { salt, validBefore } }, 201);
+  return c.json({ ...view(row), challenge, approved, authorization: { salt, validBefore } }, 201);
 });
 
 /** Step 2: the passkey has signed. Check it, then let the router redeem it. */
@@ -125,6 +138,22 @@ refundRoutes.post("/:id/submit", async (c) => {
   try {
     const { r, s } = parseDerSignature(checked.parts.der);
     const signature = encodeWebAuthnSignature({ r, s, authenticatorData: checked.parts.authenticatorData, clientDataJSON: checked.parts.clientDataJSON });
+    // A refund a person approved also needs the router's attester signature, over exactly this refund (id, amount, recipient, salt).
+    let approval: { deadline: bigint; signature: Hex } | undefined;
+    if (req.requiresAttester === 1) {
+      if (!c.env.ATTESTER_PRIVATE_KEY) {
+        await unlock();
+        return fail(c, 503, "approval_unavailable", "Large refunds are not available right now.");
+      }
+      const deadline = BigInt(Math.floor(c.var.now().getTime() / 1000) + APPROVAL_DEADLINE_SECONDS);
+      const signature = await privateKeyToAccount(c.env.ATTESTER_PRIVATE_KEY as Hex).signTypedData({
+        domain: routerDomain(c.env.ROUTER_ADDRESS as Address),
+        types: refundApprovalTypes,
+        primaryType: "RefundApproval",
+        message: { opHash: refundOpHash(req.invoiceId as Hex, BigInt(req.value), req.toAddress as Address, req.salt as Hex), deadline },
+      });
+      approval = { deadline, signature };
+    }
     const { txHash } = await chain.refund({
       invoiceId: req.invoiceId as Hex,
       value: BigInt(req.value),
@@ -134,6 +163,7 @@ refundRoutes.post("/:id/submit", async (c) => {
       validBefore: BigInt(req.validBefore),
       salt: req.salt as Hex,
       signature,
+      ...(approval ? { approval } : {}),
     });
     await db.update(refundRequests).set({ status: "submitted", txHash }).where(eq(refundRequests.id, req.id));
     await audit(db, { merchantId: merchant.id, actor: `passkey:${checked.pk.id}`, action: "refund.submitted", payload: { id: req.id, invoiceId: req.invoiceId, to: req.toAddress, value: req.value, txHash } });

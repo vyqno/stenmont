@@ -12,6 +12,9 @@ import { randomHex } from "../lib/crypto";
 import { amountSchema, idSchema, invalid, returnUrlOk } from "../lib/validation";
 import { invoiceView } from "../lib/views";
 import { hitRateLimit } from "../relayer/caps";
+import { d1WorldRepo } from "../world/d1";
+import { assertDifferentHumans } from "../world/samehuman";
+import { merchants } from "../db/schema";
 import { emitEvent } from "../webhooks";
 
 const createSchema = z.strictObject({
@@ -19,6 +22,7 @@ const createSchema = z.strictObject({
   number: z.string().regex(/^[A-Za-z0-9._-]{1,64}$/).optional(),
   customerEmail: z.email().max(254).optional(),
   dueDate: z.iso.datetime().optional(),
+  buyerMerchantId: z.string().max(80).optional(),
   successUrl: z.string().max(2048).optional(),
   cancelUrl: z.string().max(2048).optional(),
   metadata: z
@@ -54,6 +58,13 @@ invoiceRoutes.post("/", async (c) => {
       await hitRateLimit(db, "invoices:global", 20_000, 86_400, at),
     ];
     if (within.includes(false)) return fail(c, 429, "rate_limited", "Too many invoices created. Try again in a minute.");
+    // An invoice between two businesses run by the same person is not a real sale: refuse it (World ID, one person one business).
+    if (input.buyerMerchantId) {
+      const [buyer] = await db.select({ id: merchants.id }).from(merchants).where(eq(merchants.id, input.buyerMerchantId));
+      if (!buyer) return fail(c, 404, "buyer_not_found", "The buyer business was not found");
+      const same = await assertDifferentHumans(d1WorldRepo(db), buyer.id, merchant.id);
+      if (!same.ok) return fail(c, 422, "same_human", "The buyer and the supplier are the same person, so this invoice cannot be created.");
+    }
     if (!merchant.address) return fail(c, 409, "merchant_not_ready", "This merchant has no onchain address yet");
     const merchantAddress = merchant.address as Address;
     const number = input.number ?? `INV-${Date.now().toString(36).toUpperCase()}${randomHex(2).toUpperCase()}`;
@@ -78,6 +89,7 @@ invoiceRoutes.post("/", async (c) => {
       amount: amount.toString(),
       customerEmail: input.customerEmail ?? null,
       dueDate: input.dueDate ?? null,
+      buyerMerchantId: input.buyerMerchantId ?? null,
       successUrl: input.successUrl ?? null,
       cancelUrl: input.cancelUrl ?? null,
       metaHash,

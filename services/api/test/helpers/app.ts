@@ -40,13 +40,13 @@ export async function seedMerchant(db: D1Database, id = "m_1", name = "Acme", ke
   return key;
 }
 
-export function setup(chainOverrides: Partial<ChainClient> = {}, envOverrides: Partial<Env> = {}) {
+export function setup(chainOverrides: Partial<ChainClient> = {}, envOverrides: Partial<Env> = {}, extra: { fetch?: typeof fetch } = {}) {
   const db = newD1();
   const chain = fakeChain(chainOverrides);
   const ens = fakeEns();
   const env = { ...baseEnv(db), ...envOverrides } as Env;
   const clock = { now: new Date("2026-11-06T12:00:00Z") };
-  const app = createApp({ chain: () => chain, ens: () => ens, now: () => clock.now });
+  const app = createApp({ chain: () => chain, ens: () => ens, now: () => clock.now, ...(extra.fetch ? { fetch: extra.fetch } : {}) });
   const req = (path: string, init: RequestInit & { key?: string; idem?: string } = {}) => {
     const headers = new Headers(init.headers);
     if (init.key) headers.set("authorization", `Bearer ${init.key}`);

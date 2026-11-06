@@ -18,15 +18,16 @@ import { publicRoutes } from "./routes/public";
 import { refundRoutes } from "./routes/refunds";
 import { relayRoutes } from "./routes/relay";
 import { subscriptionPublicRoutes, subscriptionRelayRoutes, subscriptionRoutes } from "./routes/subscriptions";
+import { approvalRoutes, worldAuthRoutes, worldRoutes } from "./routes/world";
 import { webhookEndpointRoutes } from "./routes/webhookEndpoints";
 
 export type Db = DrizzleD1Database;
 export type Merchant = typeof merchants.$inferSelect;
 export type AppEnv = {
   Bindings: Env;
-  Variables: { db: Db; chain: ChainClient; ens: EnsClient; now: () => Date; merchantId: string; merchant: Merchant };
+  Variables: { db: Db; chain: ChainClient; ens: EnsClient; fetch: typeof fetch; now: () => Date; merchantId: string; merchant: Merchant };
 };
-export type Deps = { chain: (env: Env) => ChainClient; ens?: (env: Env) => EnsClient; now: () => Date };
+export type Deps = { chain: (env: Env) => ChainClient; ens?: (env: Env) => EnsClient; now: () => Date; /** For outbound calls to World; tests pass a fake. */ fetch?: typeof fetch };
 
 export function createApp(deps: Deps = { chain: viemChain, now: () => new Date() }) {
   const app = new Hono<AppEnv>();
@@ -36,6 +37,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
     c.set("chain", deps.chain(c.env));
     c.set("ens", (deps.ens ?? viemEns)(c.env));
     c.set("now", deps.now);
+    c.set("fetch", deps.fetch ?? ((...a) => fetch(...a)));
     await next();
   });
 
@@ -70,7 +72,10 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/refunds", refundRoutes);
   v1.route("/subscriptions", subscriptionRoutes);
   v1.route("/ens", ensRoutes);
+  v1.route("/world", worldRoutes);
+  v1.route("/approvals", approvalRoutes);
   app.route("/v1", v1);
+  app.route("/auth/world", worldAuthRoutes);
   app.route("/auth", authRoutes);
   app.route("/relay", relayRoutes);
   app.route("/relay", subscriptionRelayRoutes);

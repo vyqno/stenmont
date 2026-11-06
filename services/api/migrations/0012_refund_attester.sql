@@ -1,0 +1,1 @@
+ALTER TABLE `refund_requests` ADD `requires_attester` integer DEFAULT 0 NOT NULL;

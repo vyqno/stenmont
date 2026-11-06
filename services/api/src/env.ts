@@ -29,8 +29,22 @@ export type Env = {
   /** Parent domain for the session cookie, so the app and the API (sibling subdomains) share it. Unset = host-only. */
   COOKIE_DOMAIN?: string;
   INDEXER_CONFIRMATIONS?: string;
+  // World (secrets are optional so the API runs without them; the World routes answer 503 when they are missing)
+  WORLD_APP_ID?: string;
+  WORLD_RP_ID?: string;
+  WORLD_RP_SIGNING_KEY?: string;
+  WORLD_OIDC_CLIENT_ID?: string;
+  WORLD_OIDC_CLIENT_SECRET?: string;
+  /** "staging" or "production": proofs from any other environment are refused. */
+  WORLD_ENVIRONMENT?: string;
+  WORLD_OIDC_ISSUER?: string;
+  WORLD_VERIFY_URL?: string;
+  /** Refunds above this many USDT base units need a World approval. Must equal the router's `refundApprovalThreshold`. Default 100 USDT. */
+  REFUND_APPROVAL_THRESHOLD?: string;
   // secrets (wrangler secret)
   RELAYER_PRIVATE_KEY: string;
+  /** Signs the router's large-refund approvals once a person has approved (the router's `attester`). */
+  ATTESTER_PRIVATE_KEY?: string;
   /** The wallet that issues subnames. It may only register names on the subname registry. */
   ENS_REGISTRAR_PRIVATE_KEY: string;
   /** Staging only: the wallet that hands out test USDT. Never set in production. */

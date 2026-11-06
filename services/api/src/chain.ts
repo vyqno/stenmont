@@ -38,6 +38,8 @@ export type RefundRequest = {
   validBefore: bigint;
   salt: Hex;
   signature: Hex;
+  /** For refunds above the router's threshold: the attester's signature, sent with `refundWithApproval`. */
+  approval?: { deadline: bigint; signature: Hex };
 };
 
 export type SubscriptionState = { nextCharge: bigint; charges: number; status: "none" | "active" | "cancelled" | "completed" };
@@ -155,8 +157,15 @@ export function viemChain(env: Env): ChainClient {
         to: router,
         data: encodeFunctionData({
           abi: paymentRouterAbi,
-          functionName: "refund",
-          args: [req.invoiceId, req.value, req.to, { payer: req.merchant, validAfter: req.validAfter, validBefore: req.validBefore, salt: req.salt, signature: req.signature }],
+          ...(req.approval
+            ? {
+                functionName: "refundWithApproval" as const,
+                args: [req.invoiceId, req.value, req.to, { payer: req.merchant, validAfter: req.validAfter, validBefore: req.validBefore, salt: req.salt, signature: req.signature }, req.approval] as const,
+              }
+            : {
+                functionName: "refund" as const,
+                args: [req.invoiceId, req.value, req.to, { payer: req.merchant, validAfter: req.validAfter, validBefore: req.validBefore, salt: req.salt, signature: req.signature }] as const,
+              }),
         }),
       };
       await estimate(call);

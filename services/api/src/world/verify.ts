@@ -1,4 +1,4 @@
-export type VerifyDeps = { fetch: typeof fetch; baseUrl: string; rpId: string };
+export type VerifyDeps = { fetch: typeof fetch; baseUrl: string; rpId: string; /** "production" or "staging": proofs from any other environment are refused. */ environment?: string };
 export type VerifyResult =
   | { ok: true; nullifier: string; action: string | null; raw: unknown }
   | { ok: false; kind: "invalid_proof"; code: string; message: string }
@@ -17,12 +17,15 @@ export async function verifyProof(deps: VerifyDeps, proof: unknown, expectedActi
   if (claimed !== undefined && claimed !== expectedAction)
     return { ok: false, kind: "invalid_proof", code: "action_mismatch", message: "proof was made for another action" };
 
+  if (deps.environment && (proof as { environment?: unknown }).environment !== deps.environment)
+    return { ok: false, kind: "invalid_proof", code: "wrong_environment", message: `this proof was not made for the ${deps.environment} environment` };
+
   let res: Response;
   try {
     res = await deps.fetch(`${deps.baseUrl.replace(/\/$/, "")}/api/v4/verify/${encodeURIComponent(deps.rpId)}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(proof),
+      body: JSON.stringify(deps.environment ? { ...(proof as object), environment: deps.environment } : proof),
       signal: AbortSignal.timeout(10_000),
     });
   } catch {
@@ -40,12 +43,15 @@ export async function verifyProof(deps: VerifyDeps, proof: unknown, expectedActi
     return { ok: false, kind: "invalid_proof", code, message: typeof body?.detail === "string" ? body.detail : "World rejected the proof" };
   }
   if (res.status !== 200 || body?.success !== true) return { ok: false, kind: "invalid_proof", code: "verification_failed", message: "World did not confirm the proof" };
+  if (deps.environment && body?.environment !== undefined && body.environment !== deps.environment)
+    return { ok: false, kind: "invalid_proof", code: "wrong_environment", message: "World answered for a different environment" };
   const results: any[] | null = Array.isArray(body.results) ? body.results : null;
   if (results && results.some((r) => r?.success === false)) return { ok: false, kind: "invalid_proof", code: "verification_failed", message: "a credential did not verify" };
   const raw = body.nullifier ?? results?.find((r) => r?.nullifier)?.nullifier;
   // A "success" without a usable nullifier cannot be deduplicated: treat as an upstream fault, never as enrolment.
   if (typeof raw !== "string" || !NULLIFIER.test(raw)) return upstream("World answer carried no usable nullifier");
-  return { ok: true, nullifier: raw.toLowerCase(), action: typeof body.action === "string" ? body.action : null, raw: body };
+  // Stored as a plain number: "0x0abc" and "0xABC" are the same person, and text comparison would miss that.
+  return { ok: true, nullifier: BigInt(raw).toString(), action: typeof body.action === "string" ? body.action : null, raw: body };
 }
 
 export type EnrollmentRow = { id: string; merchantId: string; action: string; nullifier: string; verifiedAt: string };

@@ -91,6 +91,7 @@ export const invoices = sqliteTable(
     dueDate: text("due_date"),
     metaHash: text("meta_hash").notNull(),
     metadata: text("metadata").notNull().default("{}"),
+    buyerMerchantId: text("buyer_merchant_id"), // set when the buyer is also a Stenmont business (checked against the supplier for the same human)
     successUrl: text("success_url"), // where the pay page sends the customer after paying (set by the merchant, never by the payer)
     cancelUrl: text("cancel_url"),
     createTxHash: text("create_tx_hash"),
@@ -143,6 +144,7 @@ export const refundRequests = sqliteTable("refund_requests", {
   salt: text("salt").notNull(),
   validBefore: integer("valid_before").notNull(), // unix seconds
   challenge: text("challenge").notNull(), // base64url of the digest the merchant passkey signs
+  requiresAttester: integer("requires_attester").notNull().default(0), // a person approved this large refund; the router also needs the attester signature
   status: text("status").notNull().default("pending"), // pending | sending | submitted
   txHash: text("tx_hash"),
   createdAt: text("created_at").notNull(),
@@ -181,6 +183,36 @@ export const ensNames = sqliteTable(
     createdAt: text("created_at").notNull(),
   },
   (t) => [uniqueIndex("ens_names_label_uq").on(t.label)],
+);
+
+export const worldEnrollments = sqliteTable(
+  "world_enrollments",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id").notNull(),
+    action: text("action").notNull(),
+    nullifier: text("nullifier").notNull(), // decimal text of the 256-bit number
+    verifiedAt: text("verified_at").notNull(),
+  },
+  (t) => [uniqueIndex("world_enrollments_action_nullifier").on(t.action, t.nullifier), uniqueIndex("world_enrollments_merchant_action").on(t.merchantId, t.action)],
+);
+
+export const approvals = sqliteTable(
+  "approvals",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id").notNull(),
+    operation: text("operation").notNull(), // refund | payout_change | agent_limit
+    paramsHash: text("params_hash").notNull(),
+    nonce: text("nonce").notNull(),
+    status: text("status").notNull(), // pending | approved | denied | consumed
+    worldSub: text("world_sub"),
+    authTime: integer("auth_time"),
+    denyReason: text("deny_reason"),
+    createdAt: text("created_at").notNull(),
+    expiresAt: text("expires_at").notNull(),
+  },
+  (t) => [index("approvals_lookup").on(t.merchantId, t.operation, t.createdAt)],
 );
 
 export const paymentLinks = sqliteTable(

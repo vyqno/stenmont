@@ -1,6 +1,9 @@
-import { hashTypedData } from "viem";
+import { hashTypedData, recoverTypedDataAddress } from "viem";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it } from "vitest";
-import { b64urlDecode, b64urlEncode, buildReceiveAuth, refundNonce } from "@stenmont/shared";
+import { b64urlDecode, b64urlEncode, buildReceiveAuth, refundApprovalTypes, refundNonce, refundOpHash, routerDomain } from "@stenmont/shared";
+import { createApproval } from "../src/world/approvals";
+import { d1ApprovalRepo } from "../src/world/d1";
 import { Rejected } from "../src/chain";
 import { invoices, payments, refunds } from "../src/db/schema";
 import { fakeAuthenticator } from "./helpers/authenticator";
@@ -157,5 +160,73 @@ describe("POST /v1/refunds/:id/submit (the passkey signs, we relay)", () => {
     expect((await b.submit(r.id, sign(b.auth, r.challenge))).status).toBe(502);
     mode = "ok";
     expect((await b.submit(r.id, sign(b.auth, r.challenge))).status).toBe(200); // the same request can be retried
+  });
+});
+
+describe("refunds above the threshold need a World approval, then the platform's attester signs for the router", () => {
+  const ATTESTER_KEY = generatePrivateKey();
+  const BIG = 150_000_000n;
+  async function bigBusiness() {
+    const t = setup({}, { ATTESTER_PRIVATE_KEY: ATTESTER_KEY });
+    const b = await business(t, BIG);
+    return { t, b };
+  }
+  async function approve(t: T, merchantId: string, params: Record<string, unknown>) {
+    const repo = d1ApprovalRepo(dbOf(t.db));
+    const row = await createApproval(repo, { merchantId, operation: "refund", params }, { now: t.clock.now, newId: () => crypto.randomUUID(), newNonce: () => "n" });
+    await repo.transition(row.id, "pending", { status: "approved", worldSub: "human_1", authTime: Math.floor(t.clock.now.getTime() / 1000) });
+    return row.id;
+  }
+
+  it("says exactly what must be approved", async () => {
+    const { b } = await bigBusiness();
+    const res = await b.request({ invoiceId: INV });
+    expect(res.status).toBe(409);
+    const body = await json(res);
+    expect(body.error.code).toBe("approval_required");
+    expect(body.error.details.approvalParams).toEqual({ invoiceId: INV, amount: "150", to: PAYER });
+  });
+  it("lets the refund through once, only for what was approved", async () => {
+    const { t, b } = await bigBusiness();
+    await approve(t, b.merchantId, { invoiceId: INV, amount: "140", to: PAYER }); // approved for a different amount
+    expect((await b.request({ invoiceId: INV })).status).toBe(409);
+    await approve(t, b.merchantId, { invoiceId: INV, amount: "150", to: PAYER });
+    const ok = await b.request({ invoiceId: INV });
+    expect(ok.status).toBe(201);
+    expect((await json(ok)).approved).toBe(true);
+    expect((await b.request({ invoiceId: INV })).status).toBe(409); // the approval was used up
+  });
+  it("sends the router the attester's signature over exactly this refund", async () => {
+    const { t, b } = await bigBusiness();
+    await approve(t, b.merchantId, { invoiceId: INV, amount: "150", to: PAYER });
+    const r = await json(await b.request({ invoiceId: INV }));
+    const res = await b.submit(r.id, sign(b.auth, r.challenge));
+    expect(res.status, JSON.stringify(await res.clone().json())).toBe(200);
+    const sent = t.chain.refundsSent[0]!;
+    expect(sent.approval).toBeDefined();
+    const opHash = refundOpHash(INV as `0x${string}`, BIG, PAYER as `0x${string}`, sent.salt);
+    const signer = await recoverTypedDataAddress({
+      domain: routerDomain(ROUTER),
+      types: refundApprovalTypes,
+      primaryType: "RefundApproval",
+      message: { opHash, deadline: sent.approval!.deadline },
+      signature: sent.approval!.signature,
+    });
+    expect(signer).toBe(privateKeyToAccount(ATTESTER_KEY).address);
+  });
+  it("small refunds carry no attester signature, and a missing attester key stops a big one before anything is sent", async () => {
+    const t = setup({}, { ATTESTER_PRIVATE_KEY: ATTESTER_KEY });
+    const b = await business(t);
+    const r = await json(await b.request({ invoiceId: INV, amount: "2" }));
+    await b.submit(r.id, sign(b.auth, r.challenge));
+    expect(t.chain.refundsSent[0]!.approval).toBeUndefined();
+
+    const noKey = setup();
+    const nb = await business(noKey, BIG);
+    await approve(noKey, nb.merchantId, { invoiceId: INV, amount: "150", to: PAYER });
+    const asked = await json(await nb.request({ invoiceId: INV }));
+    const res = await nb.submit(asked.id, sign(nb.auth, asked.challenge));
+    expect(res.status).toBe(503);
+    expect(noKey.chain.refundsSent).toHaveLength(0);
   });
 });

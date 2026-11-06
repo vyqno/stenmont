@@ -14,7 +14,7 @@ describe("verifyProof", () => {
     let seen: any;
     const f = async (url: string, init: RequestInit) => ((seen = { url, body: init.body }), new Response(JSON.stringify(ok)));
     const r = await verifyProof(mk(f), proof, "enrol-business");
-    expect(r).toMatchObject({ ok: true, nullifier: "0xabc123" });
+    expect(r).toMatchObject({ ok: true, nullifier: BigInt("0xabc123").toString() });
     expect(seen.url).toBe("https://world.test/api/v4/verify/rp_1");
     expect(seen.body).toBe(JSON.stringify(proof));
   });
@@ -48,7 +48,7 @@ describe("enrol", () => {
   it("enrols on success", async () => {
     const repo = memoryWorldRepo();
     const r = await enrol(repo, eDeps(reply(200, ok)), { merchantId: "m1", action: "enrol-business", proof });
-    expect(r).toMatchObject({ ok: true, enrollment: { merchantId: "m1", nullifier: "0xabc123", verifiedAt: "2026-11-06T10:00:00.000Z" } });
+    expect(r).toMatchObject({ ok: true, enrollment: { merchantId: "m1", nullifier: BigInt("0xabc123").toString(), verifiedAt: "2026-11-06T10:00:00.000Z" } });
     expect(repo.rows).toHaveLength(1);
   });
   it("replay of the same nullifier by another business is a duplicate (409)", async () => {
@@ -101,5 +101,30 @@ describe("same human", () => {
     const repo = memoryWorldRepo();
     await repo.insertEnrollment({ id: "1", merchantId: "m", action: "enrol-business", nullifier: "0x1", verifiedAt: "t" });
     expect(await assertDifferentHumans(repo, "m", "m")).toEqual({ ok: false, code: "same_human" });
+  });
+});
+
+
+describe("environment and number handling (World's integration guide, steps 5 and 6)", () => {
+  const withEnv = (f: any, environment = "staging") => ({ ...mk(f), environment });
+  it("refuses a proof made for another environment before calling World, and sends the expected one", async () => {
+    let called = false;
+    const f = async () => ((called = true), new Response(JSON.stringify({ ...ok, environment: "staging" })));
+    const wrong = await verifyProof(withEnv(f, "production"), { action: "enrol-business", environment: "staging" }, "enrol-business");
+    expect(wrong).toMatchObject({ ok: false, kind: "invalid_proof", code: "wrong_environment" });
+    expect(called).toBe(false);
+    const fine = await verifyProof(withEnv(f, "staging"), { action: "enrol-business", environment: "staging" }, "enrol-business");
+    expect(fine.ok).toBe(true);
+  });
+  it("refuses an answer whose environment is not the expected one", async () => {
+    const f = async () => new Response(JSON.stringify({ ...ok, environment: "production" }));
+    expect(await verifyProof(withEnv(f, "staging"), { action: "enrol-business", environment: "staging" }, "enrol-business")).toMatchObject({ ok: false, code: "wrong_environment" });
+  });
+  it("treats the same number written two ways as the same person", async () => {
+    const a = async () => new Response(JSON.stringify({ success: true, nullifier: "0x0abc" }));
+    const b = async () => new Response(JSON.stringify({ success: true, nullifier: "0xABC" }));
+    const ra = await verifyProof(mk(a), {}, "enrol-business");
+    const rb = await verifyProof(mk(b), {}, "enrol-business");
+    expect(ra.ok && rb.ok && ra.nullifier === rb.nullifier).toBe(true);
   });
 });
