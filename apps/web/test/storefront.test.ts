@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addToCart, cartCount, cartTotal, checkoutBody, checkoutMessage, formatPrice, loadCart, parseCart, removeFromCart, saveCart, setQuantity, stockLabel, variantName, type Cart } from "../lib/storefront";
+import { checkoutKey, htmlToText, payPath, addToCart, cartCount, cartTotal, checkoutBody, checkoutMessage, formatPrice, loadCart, parseCart, removeFromCart, saveCart, setQuantity, stockLabel, variantName, type Cart } from "../lib/storefront";
 
 const memory = () => {
   const m = new Map<string, string>();
@@ -86,5 +86,24 @@ describe("what is shown", () => {
     }
     expect(checkoutMessage("out_of_stock")).toMatch(/stock/i);
     expect(checkoutMessage("payments_paused")).toMatch(/paused/i);
+  });
+});
+
+describe("safe handling of what the server and merchants send", () => {
+  it("only ever goes to our own pay page", () => {
+    const id = `0x${"ab".repeat(32)}`;
+    expect(payPath(`https://app.stenmont.com/pay/${id}`)).toBe(`/pay/${id}`);
+    expect(payPath(`https://evil.example/pay/${id}`)).toBe(`/pay/${id}`); // host is ignored: we stay on this site
+    for (const bad of ["javascript:alert(1)", "https://x.example/steal", `/pay/${id}`, `https://x.example/pay/${id}/more`, "", null, undefined, 5]) expect(payPath(bad)).toBeNull();
+  });
+  it("turns a merchant's description into plain text", () => {
+    expect(htmlToText("<p>Hello <b>there</b></p><script>alert(1)</script><p>A &amp; B</p>")).toBe("Hello there\nA & B");
+    expect(htmlToText("<img src=x onerror=alert(1)>Mug")).toBe("Mug");
+  });
+  it("keeps one key per cart, and a new key when the cart changes", () => {
+    const s = memory();
+    const a = checkoutKey(s, "acme", { items: [{ variantId: "v", quantity: 1 }] });
+    expect(checkoutKey(s, "acme", { items: [{ variantId: "v", quantity: 1 }] })).toBe(a);
+    expect(checkoutKey(s, "acme", { items: [{ variantId: "v", quantity: 2 }] })).not.toBe(a);
   });
 });

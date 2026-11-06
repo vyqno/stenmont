@@ -96,3 +96,45 @@ const MESSAGES: Record<string, string> = {
   idempotency_in_progress: "Your order is already being placed. Please wait a moment.",
 };
 export const checkoutMessage = (code: string) => MESSAGES[code] ?? "Something went wrong. Please try again.";
+
+/** The pay page path for a pay address we were given, or null. We always go to our own /pay page, whatever host the address names. */
+export function payPath(payUrl: unknown): string | null {
+  try {
+    const path = new URL(String(payUrl)).pathname;
+    return /^\/pay\/0x[0-9a-f]{64}$/.test(path) ? path : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Product descriptions are shown as plain text: tags and entities become text, nothing from a merchant's HTML is ever run. */
+export function htmlToText(html: string): string {
+  return html
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<\/(p|div|li|h[1-6]|br)>|<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/[ \t]+/g, " ")
+    .replace(/[ \t]*\n\s*/g, "\n")
+    .trim();
+}
+
+/** One Idempotency-Key per distinct cart: pressing Pay twice, or a retry after a dropped connection, reuses the key and so the same order. */
+export function checkoutKey(store: Store, slug: string, body: unknown): string {
+  const name = `stenmont.checkout.v1.${slug}`;
+  const fp = JSON.stringify(body);
+  try {
+    const have = JSON.parse(store.getItem(name) ?? "null") as { fp?: string; key?: string } | null;
+    if (have?.fp === fp && typeof have.key === "string") return have.key;
+    const key = crypto.randomUUID();
+    store.setItem(name, JSON.stringify({ fp, key }));
+    return key;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
