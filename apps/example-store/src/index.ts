@@ -1,12 +1,13 @@
+import { Stenmont, verifyWebhook } from "@stenmont/sdk";
 import { Hono } from "hono";
 
-type Env = { Bindings: { ORDERS: KVNamespace; SHOP_URL: string } };
+type Env = { Bindings: { ORDERS: KVNamespace; SHOP_URL: string; STENMONT_API_KEY: string; STENMONT_API_URL: string; STENMONT_WEBHOOK_SECRET: string } };
 type Order = { id: string; sku: string; name: string; amount: string; status: "pending" | "paid" };
 
 export const PRODUCTS = [
-  { id: "tee", name: "Studio tee", price: "12.00" },
-  { id: "mug", name: "Desk mug", price: "8.50" },
-  { id: "print", name: "Poster print", price: "20.00" },
+  { id: "tee", name: "Studio tee", price: "2.00" },
+  { id: "mug", name: "Desk mug", price: "1.50" },
+  { id: "print", name: "Poster print", price: "4.00" },
 ];
 
 const page = (title: string, body: string, head = "") =>
@@ -39,18 +40,16 @@ app.post("/buy/:sku", async (c) => {
   if (!p) return c.text("Unknown product", 404);
   const id = crypto.randomUUID().split("-").join("").slice(0, 12);
   await save(c.env.ORDERS, { id, sku: p.id, name: p.name, amount: p.price, status: "pending" });
-  return c.redirect(`/orders/${id}/pay`, 303); // a stand-in checkout; the real one replaces this
+  const stenmont = new Stenmont({ apiKey: c.env.STENMONT_API_KEY, baseUrl: c.env.STENMONT_API_URL });
+  const session = await stenmont.checkout.sessions.create({ amount: p.price, successUrl: `${c.env.SHOP_URL}/orders/${id}`, cancelUrl: c.env.SHOP_URL, metadata: { order: id } }).catch(() => null);
+  return session ? c.redirect(session.url, 303) : c.text("Checkout is unavailable. Please try again.", 502);
 });
 
-// The fake checkout every tutorial starts with: a button that just says "paid".
-app.get("/orders/:id/pay", async (c) => {
-  const o = await load(c.env.ORDERS, c.req.param("id"));
-  if (!o) return c.text("Order not found", 404);
-  return page("Pay", `<h1>Pay $${o.amount}</h1><form method="post" action="/orders/${o.id}/fake-pay"><button>Pay</button></form>`);
-});
-app.post("/orders/:id/fake-pay", async (c) => {
-  await markPaid(c.env.ORDERS, c.req.param("id"));
-  return c.redirect(`/orders/${c.req.param("id")}`, 303);
+app.post("/webhooks/stenmont", async (c) => {
+  const event = await verifyWebhook<{ invoice: { metadata: { order?: string } } }>(await c.req.text(), c.req.header("stenmont-signature") ?? "", c.env.STENMONT_WEBHOOK_SECRET).catch(() => null);
+  if (!event) return c.text("Bad signature", 400);
+  if (event.type === "invoice.paid") await markPaid(c.env.ORDERS, event.data.invoice.metadata.order);
+  return c.text("ok");
 });
 
 app.get("/orders/:id", async (c) => {

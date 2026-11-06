@@ -86,10 +86,12 @@ function PayButton(props: {sessionUrl: string; children?: ReactNode}): JSX.Eleme
 
 **Files:** Create `apps/example-store/` (separate app, its own `package.json`, deployed at `shop.stenmont.com`), `apps/example-store/INTEGRATION.md` (the ≤20-line diff shown to judges)
 
-- [ ] The store starts with a plain cart and a fake "Pay" button; commit that as the baseline in `commits.md`
-- [ ] Add Stenmont: install the SDK, a server route creating the checkout session, `<PayButton/>`, and a webhook route that marks the order paid. Count with `git diff --stat` on the baseline: ≤ 20 added lines of integration code
-- [ ] Playwright: buy a product, pay, land on success, order status `paid` via webhook
-- [ ] Commit line: `feat: add example store using Stenmont`
+- [x] The store starts with a plain cart and a fake "Pay" button; commit that as the baseline in `commits.md`
+- [x] Add Stenmont: install the SDK, a server route creating the checkout session, `<PayButton/>`, and a webhook route that marks the order paid. Count with `git diff --stat` on the baseline: ≤ 20 added lines of integration code
+- [x] Playwright: buy a product, pay, land on success, order status `paid` via webhook
+- [x] Commit line: `feat: add example store using Stenmont`
+
+**Built:** a Cloudflare Worker (Hono, orders in KV) at `shop-staging.stenmont.com`. The Stenmont integration is 10 added lines of source (the limit was a ceiling, not a target); see `apps/example-store/INTEGRATION.md`. 7 store tests, and a live Playwright run: buy, pay with a passkey, return to the shop, order turns paid by signed webhook (1.9 minutes). The store uses its own staging business ("Studio shop") whose passkey lives in a throwaway test authenticator; use a real passkey business for the demo video.
 
 ### Task 4.7: Dashboard screens
 

@@ -1,9 +1,19 @@
 {
   // Top level = local development only. Staging is the only deployed environment for now.
+  // Secrets (STENMONT_API_KEY, STENMONT_WEBHOOK_SECRET) live in Cloudflare via `wrangler secret`, never here.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "stenmont-example-store-dev",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-01",
   "workers_dev": false,
-  "vars": { "SHOP_URL": "http://localhost:8788" }
+  "vars": { "SHOP_URL": "http://localhost:8788", "STENMONT_API_URL": "http://localhost:8787" },
+  "env": {
+    "staging": {
+      "name": "stenmont-example-store-staging",
+      "workers_dev": false,
+      "routes": [{ "pattern": "shop-staging.stenmont.com", "custom_domain": true }],
+      "vars": { "SHOP_URL": "https://shop-staging.stenmont.com", "STENMONT_API_URL": "https://api-staging.stenmont.com" },
+      "kv_namespaces": [{ "binding": "ORDERS", "id": "9b22c1e91aad43d3bd308ddbcaf0202e" }]
+    }
+  }
 }
