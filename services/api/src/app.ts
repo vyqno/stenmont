@@ -14,6 +14,7 @@ import { exportRoutes } from "./routes/exports";
 import { financingRoutes } from "./routes/financing";
 import { investRoutes } from "./routes/invest";
 import { invoiceRoutes } from "./routes/invoices";
+import { oauthGrantRoutes, oauthRoutes } from "./routes/oauth";
 import { gasTankRoutes } from "./routes/gasTank";
 import { linkRoutes } from "./routes/links";
 import { publicRoutes } from "./routes/public";
@@ -86,7 +87,9 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   v1.route("/world", worldRoutes);
   v1.route("/approvals", approvalRoutes);
   v1.route("/financing", financingRoutes);
+  v1.route("/oauth", oauthGrantRoutes);
   app.route("/v1", v1);
+  app.route("/", oauthRoutes);
   app.route("/auth/world", worldAuthRoutes);
   app.route("/auth", authRoutes);
   app.route("/invest", investRoutes);
