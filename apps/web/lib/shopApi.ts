@@ -21,5 +21,7 @@ export async function fetchProducts(hostname: string, slug: string): Promise<{ s
 
 export async function fetchProduct(hostname: string, slug: string, handle: string): Promise<{ shop: ShopInfo; product: ShopProduct } | null> {
   const res = await fetch(`${apiBase(hostname)}/store/${encodeURIComponent(slug)}/products/${encodeURIComponent(handle)}`);
-  return res.ok ? ((await res.json()) as { shop: ShopInfo; product: ShopProduct }) : null;
+  if (!res.ok) return null;
+  const body = (await res.json()) as { store: ShopInfo; product: ShopProduct };
+  return { shop: body.store, product: body.product };
 }
