@@ -1,28 +1,25 @@
 # Typography
 
-| Role | Font | Fallback |
-|---|---|---|
-| Headings, body, UI | Neue Haas Grotesk (Display for large headings, Text for body) | `"Helvetica Neue", Helvetica, Arial, system-ui, sans-serif` |
-| Logo only | All Round Gothic (lowercase, tracking 10) | `"Avenir Next", Futura, Onest, sans-serif` |
-| Numbers and addresses | a monospaced face | `ui-monospace, "SF Mono", Menlo, monospace` |
+## Selected system
 
-Whitechain itself uses Onest; it is a good open fallback for body text if the licensed fonts are not loaded.
+| Role | Family | Weight | Size / line height |
+|---|---|---|---|
+| Logo | Custom Stenmont artwork | Original | See LOGO.md |
+| Hero | Neue Haas Grotesk Display | Medium | 56/60 desktop, 36/40 mobile |
+| Page heading | Neue Haas Grotesk Display | Medium | 40/44 desktop, 28/32 mobile |
+| Section heading | Neue Haas Grotesk Display | Medium | 28/34 desktop, 24/30 mobile |
+| Body | Neue Haas Grotesk Text | Regular | 16/24 |
+| Navigation / button / label | Neue Haas Grotesk Text | Medium | 14/20; mobile inputs 16/24 |
+| Supporting information | Neue Haas Grotesk Text | Regular | 14/20 |
+| Numerical data | Neue Haas Grotesk Text | Regular | 14/20, tabular numerals |
+| Code and identifiers | Existing system monospace | Regular | 14/22 |
 
-## Scale (rem, base 16)
+Use sentence case. Headline tracking: −0.02em to 0; body: 0; compact labels: 0 to 0.01em. No artificial stretching, synthetic bolding or decorative alternate typefaces. Keep body lines between 45 and 75 characters. Financial values must retain the precision required by their context; two decimals for currency display, full supported precision when entering values or inspecting raw units.
 
-`display 3.5` · `h1 2.5` · `h2 1.75` · `h3 1.25` · `body 1` · `small 0.875` · `micro 0.75`
-Weights: 400 body, 500 labels and buttons, 700 headings. Line height 1.5 for body, 1.1 for display.
+## Dependency and licence audit
 
-## Rules
+The app references Adobe Fonts project `szp4mzp` with `neue-haas-grotesk-text`, `neue-haas-grotesk-display` and `all-round-gothic`. This proves a stylesheet reference, not the licence entitlement, permitted domains, weight availability or successful loading. No licence evidence or distributable supporting font files were established in this audit. Protected demo/trial folders were not inspected or changed.
 
-- Amounts are tabular figures (`font-variant-numeric: tabular-nums`) and always show two decimals: `$12.50`.
-- Customer-facing text never uses crypto vocabulary (gas, wallet, chain, token, seed). A test enforces this on the pay page.
-- Sentence case for headings, no all-caps except the logo rule above (which is lowercase).
+Before implementation, confirm entitlement, approved domains, Medium/Regular availability and loading. Do not distribute trial files. Do not package fonts with docs or SVGs. Font specimens require the licensed family; a renderer fallback must be labelled as such and is not approval of a different brand typeface.
 
-## Loading (when licensed)
-
-Put the web fonts in `apps/web/public/fonts/` and declare them with `font-display: swap`; keep the fallback stack so the site renders correctly without them.
-
-## Loaded from Adobe Fonts (2026-11-06)
-
-The site loads one Adobe Fonts web project, `https://use.typekit.net/szp4mzp.css`, from `apps/web/app/layout.tsx`. Families: `neue-haas-grotesk-text` (body and UI), `neue-haas-grotesk-display` (h1 to h3), `all-round-gothic` (logo only). The project's domain list must include `stenmont.com` and `localhost`, or the fonts will not load there and the fallbacks (Onest, Helvetica) show instead.
+The existing app's Onest/Helvetica fallback remains an implementation fallback, not the selected supporting typeface. This docs-only change does not alter loading or the live logo.
