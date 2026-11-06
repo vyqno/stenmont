@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { AppEnv } from "../app";
 import { sessionMerchant } from "../auth";
 import { audit } from "../audit";
-import { approvals as approvalsTable } from "../db/schema";
+import { approvals as approvalsTable, worldEnrollments } from "../db/schema";
 import type { Env } from "../env";
 import { fail } from "../errors";
 import { randomHex } from "../lib/crypto";
@@ -51,6 +51,7 @@ worldRoutes.post("/verify", async (c) => {
     { merchantId, action: parsed.data.action, proof: parsed.data.idkitResponse },
   );
   if (out.ok) {
+    await db.update(worldEnrollments).set({ proofEnvironment: environmentOf(c.env) }).where(eq(worldEnrollments.merchantId, merchantId));
     await audit(db, { merchantId, actor: `merchant:${merchantId}`, action: "world.enrolled", payload: { action: parsed.data.action } });
     return c.json({ enrolled: true });
   }

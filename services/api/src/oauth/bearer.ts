@@ -45,6 +45,7 @@ export const requireOAuth = createMiddleware<AppEnv>(async (c, next) => {
   if (needed === "write") {
     await audit(db, { merchantId: merchant.id, actor: `oauth:${row.clientId}`, action: "oauth.write_used", payload: { grantId: row.grantId, method: c.req.method, path: c.req.path } });
   }
+  c.set("agentScopes", row.scopes);
   c.set("merchantId", merchant.id);
   c.set("merchant", merchant);
   await next();

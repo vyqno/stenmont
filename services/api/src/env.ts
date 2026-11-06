@@ -12,6 +12,8 @@ export type Env = {
   AGENT_ENABLED?: string;
   GEMINI_API_KEY?: string;
   AGENT_KEY_SECRET?: string;
+  /** Dedicated EIP-712 signer for short-lived public business fact observations. */
+  A2A_ATTESTER_PRIVATE_KEY?: string;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
   GOOGLE_CLIENT_ID?: string;

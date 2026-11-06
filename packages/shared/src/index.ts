@@ -12,3 +12,5 @@ export * from "./financing";
 export * from "./directory";
 export * from "./merkle";
 export * from "./books";
+
+export * from "./businessTrust";

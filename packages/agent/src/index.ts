@@ -112,3 +112,5 @@ export function createAgentFetch(opts: AgentOptions): typeof fetch {
   };
 }
 export * from "./resolve";
+
+export * from "./a2a";

@@ -91,7 +91,7 @@ describe("POST /v1/world/verify (one person, one business)", () => {
     expect(res.status).toBe(200);
     expect(await json(res)).toMatchObject({ enrolled: true });
     expect(w.calls.find((c) => c.url.includes("/api/v4/verify/rp_test"))?.body).toMatchObject({ environment: "staging" });
-    expect((await dbOf(t.db).select().from(worldEnrollments))[0]).toMatchObject({ merchantId: "m_1", action: "enrol-business", nullifier: BigInt("0xabc").toString() });
+    expect((await dbOf(t.db).select().from(worldEnrollments))[0]).toMatchObject({ merchantId: "m_1", action: "enrol-business", proofEnvironment: "staging", nullifier: BigInt("0xabc").toString() });
   });
   it("shows the status of the signed-in business", async () => {
     const { t, post, key1, key2 } = await world();

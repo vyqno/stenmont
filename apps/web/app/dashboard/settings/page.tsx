@@ -74,6 +74,8 @@ export default function Settings() {
         <p className="mt-2 text-sm text-muted">A key is shown in full only once, when it is made. You cannot revoke your only working key.</p>
       </Card>
 
+      <Card title="Agent access"><p>Choose the billing skills connected agents can use, publish ENS discovery, or revoke access.</p><a href="/dashboard/agent-access" className="mt-3 inline-block underline">Manage agent access</a></Card>
+
       <ConnectedApps />
 
       <Card title="Webhooks">

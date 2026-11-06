@@ -29,6 +29,7 @@ export const requireApiKey = createMiddleware<AppEnv>(async (c, next) => {
 
   const [merchant] = await db.select().from(merchants).where(eq(merchants.id, match.merchantId));
   if (!merchant || merchant.status !== "active") return fail(c, 401, "unauthorized", "Missing or invalid API key");
+  c.set("agentScopes", match.scopes === "*" ? "write" : match.scopes);
   c.set("merchantId", merchant.id);
   c.set("merchant", merchant);
   await next();

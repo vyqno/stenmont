@@ -16,7 +16,7 @@ export const covers = (granted: readonly Scope[], needed: Scope) => maxLevel(gra
 
 const SAFE = new Set(["GET", "HEAD", "OPTIONS"]);
 /** Never reachable with an OAuth token, whatever its scope: confirming money moves, minting keys, managing connected apps. */
-const NEVER = [/^\/v1\/collections\/(policy|actions)(\/|$)/, /^\/v1\/invoices\/[^/]+\/expire-install$/, /^\/v1\/oauth(\/|$)/, /^\/v1\/api-keys(\/|$)/, /^\/v1\/refunds\/[^/]+\/submit$/];
+const NEVER = [/^\/v1\/agent-access(\/|$)/, /^\/v1\/collections\/(policy|actions)(\/|$)/, /^\/v1\/invoices\/[^/]+\/expire-install$/, /^\/v1\/oauth(\/|$)/, /^\/v1\/api-keys(\/|$)/, /^\/v1\/refunds\/[^/]+\/submit$/];
 /** Drafts only prepare something that a person must still confirm. */
 const DRAFTS = new Set(["POST /v1/collections/reminders", "POST /v1/collections/plans", "POST /v1/refunds", "POST /v1/approvals"]);
 
@@ -24,6 +24,6 @@ const DRAFTS = new Set(["POST /v1/collections/reminders", "POST /v1/collections/
 export function requiredScope(method: string, rawPath: string): Scope | null {
   const path = rawPath.replace(/\/+$/, "") || "/";
   if (NEVER.some((r) => r.test(path))) return null;
-  if (SAFE.has(method)) return "read";
+  if (SAFE.has(method) || /^\/v1\/a2a\/[^/]+$/.test(path)) return "read";
   return DRAFTS.has(`${method} ${path}`) ? "draft" : "write";
 }
