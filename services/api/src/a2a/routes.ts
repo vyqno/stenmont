@@ -29,12 +29,16 @@ a2aPublicRoutes.get("/a2a/:merchantId/agent-card.json", async c => {
   return c.json(agentCard(c.env.API_URL, m.name, mid, skillList(a)), 200, { "cache-control": "no-store" });
 });
 export const agentAccessRoutes = new Hono<AppEnv>();
+agentAccessRoutes.use("*", async (c, next) => {
+  if (c.req.method !== "GET" && c.var.agentScopes !== undefined && !covers(parseScopes(c.var.agentScopes) ?? [], "write")) return fail(c, 403, "insufficient_scope", "Managing agent access requires write permission");
+  return next();
+});
 agentAccessRoutes.get("/", async c => {
   const a = await access(c.env.DB, c.var.merchantId);
   const [ens] = await c.var.db.select().from(ensNames).where(eq(ensNames.merchantId, c.var.merchantId));
   return c.json({ enabled: !!a?.enabled, skills: skillList(a), availableSkills: SKILLS.map(id => ({ id, scope: scopeFor(id) })), cardUrl: `${c.env.API_URL}/a2a/${encodeURIComponent(c.var.merchantId)}/agent-card.json`, ens: { name: ens?.name ?? null, record: "stenmont.a2a", status: a?.ens_tx ? "published" : "publication_pending", txHash: a?.ens_tx ?? null } });
 });
-agentAccessRoutes.put("/", bodyLimit({ maxSize: 4096, onError: c => c.json({ error: { code: "too_large" } }, 413) }), async c => {
+agentAccessRoutes.on(["PUT", "POST"], "/", bodyLimit({ maxSize: 4096, onError: c => c.json({ error: { code: "too_large" } }, 413) }), async c => {
   const parsed = z.object({ enabled: z.boolean(), skills: z.array(z.enum(SKILLS)).max(5) }).strict().safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return fail(c, 400, "invalid", "Choose only supported skills");
   await c.env.DB.prepare("INSERT INTO a2a_access (merchant_id,enabled,skills,updated_at) VALUES (?,?,?,?) ON CONFLICT(merchant_id) DO UPDATE SET enabled=excluded.enabled,skills=excluded.skills,updated_at=excluded.updated_at")
@@ -76,6 +80,8 @@ a2aRoutes.post("/:merchantId", bodyLimit({ maxSize: 16384, onError: c => c.json(
     if (method === "CancelTask") return error(-32002, "This synchronous task is already terminal");
     return result(JSON.parse(row.task));
   }
+  if (["SendStreamingMessage", "SubscribeToTask"].includes(method)) return error(-32004, "Streaming is not supported");
+  if (method.includes("PushNotification")) return error(-32003, "Push notifications are not supported");
   if (method !== "SendMessage") return error(-32601, "Method not found");
   const parsed = send.safeParse(params);
   if (!parsed.success) return error(-32602, "Send one structured data part with a supported skill and input");
@@ -87,7 +93,7 @@ a2aRoutes.post("/:merchantId", bodyLimit({ maxSize: 16384, onError: c => c.json(
   const { skill, input } = message.parts[0].data;
   if (!skillList(a).includes(skill)) return fail(c, 403, "skill_disabled", "This skill is disabled");
   const granted = c.var.agentScopes;
-  if (granted && !covers(parseScopes(granted) ?? [], scopeFor(skill))) return fail(c, 403, "insufficient_scope", `This skill requires ${scopeFor(skill)} scope`);
+  if (granted !== undefined && !covers(parseScopes(granted) ?? [], scopeFor(skill))) return fail(c, 403, "insufficient_scope", `This skill requires ${scopeFor(skill)} scope`);
   const hash = await sha256Hex(JSON.stringify(message));
   const prior = await c.env.DB.prepare("SELECT input_hash,task FROM a2a_tasks WHERE merchant_id=? AND message_id=?").bind(mid, message.messageId).first<{ input_hash: string; task: string }>();
   if (prior) return prior.input_hash === hash ? result({ task: JSON.parse(prior.task) }) : error(-32602, "Message id already used with different input");

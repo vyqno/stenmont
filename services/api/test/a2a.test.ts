@@ -77,3 +77,21 @@ describe("A2A scope boundary", () => {
     expect((await s.send("SendMessage", message("create_invoice_draft", { number: "draft", amount: "1" }))).status).toBe(403);
   });
 });
+
+describe("A2A task quotas and settings revocation", () => {
+  it("atomically caps concurrent new tasks and lets a draft-scoped app create drafts", async () => {
+    const s = await ready(); const conn = await connect(s, "draft");
+    const headers = { authorization: `Bearer ${conn.tokens.access_token}`, "A2A-Version": "1.0" };
+    const draft = await s.req("/v1/a2a/m_1", { method: "POST", headers, body: rpc("SendMessage", message("create_invoice_draft", { number: "draft", amount: "1" })) });
+    expect(draft.status).toBe(200);
+    for (let n = 0; n < 198; n++) await s.db.prepare("INSERT INTO a2a_tasks (id,merchant_id,message_id,input_hash,task,created_at,expires_at) VALUES (?,'m_1',?,'h','{}',?,?)").bind(`seed-${n}`, `seed-${n}`, s.clock.now.toISOString(), "2027-01-01T00:00:00Z").run();
+    const responses = await Promise.all(Array.from({ length: 5 }, (_, n) => s.req("/v1/a2a/m_1", { method: "POST", key: s.key, headers: { "A2A-Version": "1.0" }, body: rpc("SendMessage", { message: { ...message("list_catalogue").message, messageId: `concurrent-${n}` } }) })));
+    expect(responses.filter(r => r.status === 200)).toHaveLength(1);
+    expect(responses.filter(r => r.status === 429)).toHaveLength(4);
+  });
+  it("blocks a cached OAuth credential immediately after merchant revocation", async () => {
+    const s = await ready(); const conn = await connect(s, "read");
+    expect((await s.req("/v1/agent-access", { method: "POST", key: s.key, body: JSON.stringify({ enabled: false, skills: [] }) })).status).toBe(200);
+    expect((await s.req("/v1/a2a/m_1", { method: "POST", headers: { authorization: `Bearer ${conn.tokens.access_token}`, "A2A-Version": "1.0" }, body: rpc("SendMessage", message("list_catalogue")) })).status).toBe(403);
+  });
+});

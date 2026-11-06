@@ -15,14 +15,14 @@ export function isPublicIPv4(ip: string): boolean {
   if (!/^(?:\d{1,3}\.){3}\d{1,3}$/.test(ip)) return false;
   const p = ip.split(".").map(Number); const [a, b, c] = p as [number, number, number, number];
   if (p.some(n => n > 255)) return false;
-  return !(a === 0 || a === 10 || a === 127 || a >= 224 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && (b === 168 || b === 0 || (b === 2))) || (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) || (a === 203 && b === 0 && c === 113));
+  return !(a === 0 || a === 10 || a === 127 || a >= 224 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && (b === 168 || b === 0 || (b === 2) || (b === 88 && c === 99))) || (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) || (a === 203 && b === 0 && c === 113));
 }
 const safeUrl = (raw: string) => { const s = parseHttpsUrl(raw); if (!s || new URL(raw).hash) throw new Error("unsafe A2A URL"); return new URL(s); };
 const resolveDefault = async (host: string) => (await lookup(host, { all: true, verbatim: true })).map(a => a.address);
 /** DNS result is pinned at the socket; TLS still validates the original hostname. No second resolver lookup can rebind. */
 export const pinnedHttpsRequest: PinnedRequest = (url, options) => new Promise((resolve, reject) => {
   if (!options.addresses.length || !options.addresses.every(isPublicIPv4)) return reject(new Error("unsafe DNS"));
-  const req = httpsRequest(url, { method: options.body ? "POST" : "GET", agent: false, servername: url.hostname,
+  const req = httpsRequest(url, { method: options.body ? "POST" : "GET", agent: false, servername: url.hostname, family: 4, rejectUnauthorized: true,
     lookup: (_host, _opts, cb) => cb(null, options.addresses[0]!, 4),
     headers: { accept: "application/json", "A2A-Version": "1.0", ...(options.body ? { "content-type": "application/json" } : {}), ...(options.token ? { authorization: `Bearer ${options.token}` } : {}) },
   }, res => {
@@ -31,6 +31,8 @@ export const pinnedHttpsRequest: PinnedRequest = (url, options) => new Promise((
     res.on("error", reject);
     res.on("end", () => resolve({ status: res.statusCode ?? 0, contentType: String(res.headers["content-type"] ?? ""), body: Buffer.concat(chunks).toString("utf8"), ...(res.headers.location ? { location: res.headers.location } : {}) }));
   });
+  const deadline = setTimeout(() => req.destroy(new Error("A2A deadline")), 10_000);
+  req.once("close", () => clearTimeout(deadline));
   req.setTimeout(10_000, () => req.destroy(new Error("A2A timeout")));
   req.on("error", reject); if (options.body) req.write(options.body); req.end();
 });
@@ -51,6 +53,7 @@ export async function discoverAgent(name: string, opts: DiscoveryOptions): Promi
   if (!record) throw new Error("missing stenmont.a2a record");
   const url = safeUrl(record); const card = await readJson(url, opts);
   if (!card || !text(card.name) || !text(card.description) || !text(card.version) || !card.capabilities || typeof card.capabilities !== "object" || Array.isArray(card.capabilities) || !strings(card.defaultInputModes) || !strings(card.defaultOutputModes) || !Array.isArray(card.skills) || card.skills.length > 5 || !card.skills.every((s: any) => A2A_SKILLS.includes(s?.id) && text(s.name) && text(s.description) && strings(s.tags))) throw new Error("invalid agent card schema");
+  if (!["streaming", "pushNotifications", "extendedAgentCard"].every(k => card.capabilities[k] === undefined || typeof card.capabilities[k] === "boolean") || !card.defaultInputModes.includes("application/json") || !card.defaultOutputModes.includes("application/json") || new Set(card.skills.map((s: any) => s.id)).size !== card.skills.length) throw new Error("invalid agent capabilities or media types");
   if (!Array.isArray(card.supportedInterfaces) || card.supportedInterfaces.length !== 1) throw new Error("unsupported A2A interfaces");
   const iface = card.supportedInterfaces[0];
   if (iface?.protocolBinding !== "JSONRPC" || iface.protocolVersion !== "1.0") throw new Error("unsupported A2A protocol");

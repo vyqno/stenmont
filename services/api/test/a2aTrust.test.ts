@@ -26,7 +26,10 @@ describe("truth observations and registrar publication", () => {
     expect((await s.req("/a2a/m_1/trust")).status).toBe(409);
   });
   it("does not invent an enrollment or a signer", async () => {
-    const s = await facts(); await s.db.prepare("DELETE FROM world_enrollments").run();
+    const s = await facts();
+    await s.db.prepare("UPDATE world_enrollments SET proof_environment=NULL").run();
+    expect((await s.req("/a2a/m_1/trust")).status).toBe(409);
+    await s.db.prepare("DELETE FROM world_enrollments").run();
     expect((await s.req("/a2a/m_1/trust")).status).toBe(409);
     delete s.env.A2A_ATTESTER_PRIVATE_KEY;
     expect((await s.req("/a2a/m_1/trust")).status).toBe(503);
