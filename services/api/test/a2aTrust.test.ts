@@ -10,7 +10,7 @@ async function facts() {
   const now = s.clock.now.toISOString();
   await s.db.prepare("INSERT INTO a2a_access (merchant_id,enabled,skills,updated_at) VALUES ('m_1',1,'[]',?)").bind(now).run();
   await s.db.prepare("INSERT INTO ens_names (merchant_id,label,name,resolver,agent_registry,status,created_at) VALUES ('m_1','acme','acme.stenmont.eth',?,?, 'active',?)").bind(PAYOUT_ADDRESS, PAYOUT_ADDRESS, now).run();
-  await s.db.prepare("INSERT INTO world_enrollments (id,merchant_id,action,nullifier,verified_at,proof_environment) VALUES ('w','m_1','enrol-business','1',?,'staging')").bind(now).run();
+  await s.db.prepare("INSERT INTO world_enrollments (id,merchant_id,action,nullifier,verified_at,proof_environment) VALUES ('w','m_1','enrol-business-v2','1',?,'staging')").bind(now).run();
   await s.db.prepare("INSERT INTO sites (id,merchant_id,url,host,token,created_at) VALUES ('s','m_1','https://acme.example','acme.example','proof',?)").bind(now).run();
   s.ens.resolveAddress = async () => PAYOUT_ADDRESS;
   return { ...s, apiKey };
@@ -42,4 +42,12 @@ describe("truth observations and registrar publication", () => {
     expect(s.ens.textWrites[0]!.records).toEqual({ "stenmont.a2a": "https://api.test/a2a/m_1/agent-card.json" });
     expect((await s.req("/v1/agent-access", { method: "PUT", key: s.apiKey, body: JSON.stringify({ enabled: true, skills: [], records: { "stenmont.a2a": "evil" } }) })).status).toBe(400);
   });
+});
+
+it('requires the new enrolment action for a public trust assertion',async()=>{
+ const s=await facts();
+ await s.db.prepare("UPDATE world_enrollments SET action='enrol-business'").run();
+ expect((await s.req('/a2a/m_1/trust')).status).toBe(409);
+ await s.db.prepare("UPDATE world_enrollments SET action='enrol-business-v2'").run();
+ expect((await s.req('/a2a/m_1/trust')).status).toBe(200);
 });

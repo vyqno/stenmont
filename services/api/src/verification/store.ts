@@ -15,7 +15,7 @@ export async function loadFacts(db: Db, merchantId: string) {
     .innerJoin(sites, eq(sites.id, siteChecks.siteId))
     .where(and(eq(sites.merchantId, merchantId), eq(siteChecks.kind, "domain"), eq(siteChecks.ok, 1)))
     .limit(1);
-  const [world] = await db.select({ id: worldEnrollments.id }).from(worldEnrollments).where(and(eq(worldEnrollments.merchantId, merchantId), eq(worldEnrollments.action, "enrol-business"))).limit(1);
+  const [world] = await db.select({ id: worldEnrollments.id }).from(worldEnrollments).where(and(eq(worldEnrollments.merchantId, merchantId), eq(worldEnrollments.action, "enrol-business-v2"))).limit(1);
   return { records, domainVerified: !!domain, worldEnrolled: !!world };
 }
 

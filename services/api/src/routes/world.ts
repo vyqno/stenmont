@@ -16,7 +16,7 @@ import { createRpContext } from "../world/rp";
 import { enrol } from "../world/verify";
 
 const base64url = (b: Uint8Array) => btoa(String.fromCharCode(...b)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
-const ENROL_ACTION = "enrol-business";
+const ENROL_ACTION = "enrol-business-v2";
 const ACTIONS = new Set([ENROL_ACTION]);
 const OPERATIONS = ["refund", "payout_change", "agent_limit", "collections_exception"] as const;
 

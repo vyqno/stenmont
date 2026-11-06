@@ -23,7 +23,7 @@ test("the API issues a World request signature and an approval link that World's
   const status = await request.get(`${API}/v1/world/status`, { headers });
   expect(await status.json()).toMatchObject({ enrolled: false });
 
-  const sig = await request.post(`${API}/v1/world/rp-signature`, { headers: { ...headers, "idempotency-key": crypto.randomUUID() }, data: { action: "enrol-business" } });
+  const sig = await request.post(`${API}/v1/world/rp-signature`, { headers: { ...headers, "idempotency-key": crypto.randomUUID() }, data: { action: "enrol-business-v2" } });
   expect(sig.status(), await sig.text()).toBe(200);
   const body = (await sig.json()) as { app_id: string; environment: string; rp_context: { rp_id: string; signature: string; nonce: string } };
   expect(body.app_id).toMatch(/^app_/);

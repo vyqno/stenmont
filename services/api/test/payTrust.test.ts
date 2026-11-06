@@ -21,7 +21,7 @@ const withSite = async (db: ReturnType<typeof dbOf>, ok: number) => {
   await db.insert(sites).values({ id: "s_1", merchantId: "m_1", url: "https://acme.example", host: "acme.example", token: "tok", createdAt: "2026-11-01T00:00:00Z" });
   await db.insert(siteChecks).values({ siteId: "s_1", kind: "domain", ok, detail: "x", checkedAt: "2026-11-01T00:00:00Z" });
 };
-const withWorld = (db: ReturnType<typeof dbOf>) => db.insert(worldEnrollments).values({ id: "w_1", merchantId: "m_1", action: "enrol-business", nullifier: "n1", verifiedAt: "2026-11-01T00:00:00Z" });
+const withWorld = (db: ReturnType<typeof dbOf>) => db.insert(worldEnrollments).values({ id: "w_1", merchantId: "m_1", action: "enrol-business-v2", nullifier: "n1", verifiedAt: "2026-11-01T00:00:00Z" });
 const withRecord = (db: ReturnType<typeof dbOf>, method: string, expiresAt: string | null = null) =>
   db.insert(verificationRecords).values({ id: crypto.randomUUID(), merchantId: "m_1", tier: 2, method, decision: "approved", decidedAt: "2026-11-01T00:00:00Z", expiresAt });
 

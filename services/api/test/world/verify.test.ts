@@ -90,17 +90,17 @@ describe("same human", () => {
     const row = (id: string, m: string, n: string, action = "enrol-business") => repo.insertEnrollment({ id, merchantId: m, action, nullifier: n, verifiedAt: "t" });
     await row("1", "buyer", "0x1");
     await row("2", "supplier", "0x2");
-    expect(await assertDifferentHumans(repo, "buyer", "supplier")).toEqual({ ok: true });
+    expect(await assertDifferentHumans(repo, "buyer", "supplier", "enrol-business")).toEqual({ ok: true });
     // the same human enrolled a second business: that needs the same nullifier, which enrol() forbids; simulate a legacy row
     repo.rows.push({ id: "3", merchantId: "supplier", action: "enrol-business", nullifier: "0x1", verifiedAt: "t" });
-    expect(await assertDifferentHumans(repo, "buyer", "supplier")).toEqual({ ok: false, code: "same_human" });
+    expect(await assertDifferentHumans(repo, "buyer", "supplier", "enrol-business")).toEqual({ ok: false, code: "same_human" });
     repo.rows.splice(0, repo.rows.length, { id: "9", merchantId: "buyer", action: "other", nullifier: "0x1", verifiedAt: "t" }, { id: "8", merchantId: "supplier", action: "enrol-business", nullifier: "0x1", verifiedAt: "t" });
-    expect(await assertDifferentHumans(repo, "buyer", "supplier")).toEqual({ ok: true });
+    expect(await assertDifferentHumans(repo, "buyer", "supplier", "enrol-business")).toEqual({ ok: true });
   });
   it("a business paying itself is the same human", async () => {
     const repo = memoryWorldRepo();
     await repo.insertEnrollment({ id: "1", merchantId: "m", action: "enrol-business", nullifier: "0x1", verifiedAt: "t" });
-    expect(await assertDifferentHumans(repo, "m", "m")).toEqual({ ok: false, code: "same_human" });
+    expect(await assertDifferentHumans(repo, "m", "m", "enrol-business")).toEqual({ ok: false, code: "same_human" });
   });
 });
 

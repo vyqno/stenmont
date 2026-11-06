@@ -13,7 +13,7 @@ async function named(t: T, id = "m_1", name = "acme.stenmont.eth", status = "act
   const db = dbOf(t.db);
   await db.insert(ensNames).values({ merchantId: id, label: name.split(".")[0]!, name, resolver: RESOLVER, agentRegistry: "0x5555555555555555555555555555555555555555", status, createdAt: "2026-11-01T00:00:00Z" });
 }
-const world = (t: T, id = "m_1") => dbOf(t.db).insert(worldEnrollments).values({ id: `w_${id}`, merchantId: id, action: "enrol-business", nullifier: `n_${id}`, verifiedAt: "2026-11-01T00:00:00Z" });
+const world = (t: T, id = "m_1") => dbOf(t.db).insert(worldEnrollments).values({ id: `w_${id}`, merchantId: id, action: "enrol-business-v2", nullifier: `n_${id}`, verifiedAt: "2026-11-01T00:00:00Z" });
 const publish = (t: T, id = "m_1") => publishTierBadge({ db: dbOf(t.db), ens: t.ens, now: t.clock.now }, id);
 
 describe("publishTierBadge", () => {

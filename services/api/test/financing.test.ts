@@ -47,7 +47,7 @@ async function business(t: T, opts: { verified?: boolean; invoice?: Partial<type
   const cookie = (act.headers.get("set-cookie") ?? "").split(";")[0]!;
   const merchantId = ((await json(act)).merchant as { id: string }).id;
   const db = dbOf(t.db);
-  if (opts.verified !== false) await db.insert(worldEnrollments).values({ id: "w1", merchantId, action: "enrol-business", nullifier: "777", verifiedAt: "2026-11-06T00:00:00Z" });
+  if (opts.verified !== false) await db.insert(worldEnrollments).values({ id: "w1", merchantId, action: "enrol-business-v2", nullifier: "777", verifiedAt: "2026-11-06T00:00:00Z" });
   const stamp = "2026-11-06T10:00:00.000Z";
   await db.insert(invoices).values({
     id: INV, merchantId, number: "INV-1", status: "open", amount: "100000000", metaHash: H(0), customerEmail: "secret@customer.example",
@@ -302,7 +302,7 @@ describe("the investor allowlist (World ID)", () => {
     const body = await json(none);
     expect(body.error.code).toBe("tier_limit");
     expect(body.error.details).toMatchObject({ reason: "investor_tier", nextTier: 4 });
-    await dbOf(t.db).insert(worldEnrollments).values({ id: "w9", merchantId: "m_4444", action: "enrol-business", nullifier: "9", verifiedAt: "2026-11-01T00:00:00Z" });
+    await dbOf(t.db).insert(worldEnrollments).values({ id: "w9", merchantId: "m_4444", action: "enrol-business-v2", nullifier: "9", verifiedAt: "2026-11-01T00:00:00Z" });
     await dbOf(t.db).insert(merchants).values({ id: "m_4444", name: "Investor Ltd", address: INVESTOR, createdAt: "2026-11-01T00:00:00Z" });
     expect((await raw(t)).status).toBe(403); // World alone is tier 3: not enough to invest
     await kycBusiness(t, INVESTOR, "rejected");

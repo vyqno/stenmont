@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AuthError, api } from "../lib/auth";
 import { Badge, Card, primaryButton } from "./ui";
 
-const ACTION = "enrol-business";
+const ACTION = "enrol-business-v2";
 type Setup = { app_id: string; environment: "staging" | "production"; rp_context: RpContext };
 
 /**
