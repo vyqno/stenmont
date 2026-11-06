@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Logo } from "../../components/Logo";
 import { IdentitySignIn } from "../../components/IdentitySignIn";
+import { WalletSignIn } from "../../components/WalletSignIn";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthError, signIn } from "../../lib/auth";
@@ -38,6 +39,7 @@ export default function LoginClient() {
           {error}
         </p>
       )}
+      <WalletSignIn onSignedIn={() => router.push(safeNext(location.search) ?? "/dashboard")} />
       <IdentitySignIn />
       <p className="text-sm">
         New here? <Link href="/signup" className="underline">Create your business</Link>
