@@ -63,6 +63,17 @@ async function handlePaid(env: Bindings, s: Shopify, event: StenmontEvent, inv: 
   }
 
   let order = await getOrder(s, orderGid);
+  if (!draftGid) {
+    // Orders can be edited after invoicing, just like drafts. Never mark a changed order paid by the old invoice.
+    if (meta.shopifyCurrency && order.currency !== meta.shopifyCurrency) return review("price_changed");
+    let expected: string;
+    try {
+      expected = toUsdtAmount(order.total, order.currency, env.RATE_PER_USD);
+    } catch {
+      return review("price_not_convertible");
+    }
+    if (parseUnits6(inv.amount ?? "") !== parseUnits6(expected)) return review("price_changed");
+  }
   if (order.status === "VOIDED" || order.status === "REFUNDED") return review(`order_${order.status.toLowerCase()}`);
   await recordPayment(s, order);
   order = await getOrder(s, orderGid);
