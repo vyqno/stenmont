@@ -1,4 +1,5 @@
 import { BridgeError } from "./util";
+import type { TokenProvider } from "./token";
 
 /** Newest stable Admin API version at build time (shopify.dev showed 2026-10 as "latest"). Bump it when Shopify retires it. */
 export const API_VERSION = "2026-10";
@@ -17,20 +18,25 @@ export type Shopify = { gql: <T = any>(query: string, variables?: Record<string,
  * A tiny Admin GraphQL client. The token goes into one request header, only to https://{shop}/admin/api/..., redirects are never
  * followed, and upstream error text is never copied into our errors. When Shopify says THROTTLED we wait for the bucket to refill and retry.
  */
-export function makeShopify(o: { shop: string; token: string; fetch: typeof fetch; sleep: (ms: number) => Promise<void> }): Shopify {
+export function makeShopify(o: { shop: string; token: string | TokenProvider; fetch: typeof fetch; sleep: (ms: number) => Promise<void> }): Shopify {
   if (!isShopDomain(o.shop)) throw new BridgeError(500, "misconfigured", "SHOPIFY_SHOP_DOMAIN must look like name.myshopify.com.");
-  if (!o.token) throw new BridgeError(500, "misconfigured", "SHOPIFY_ADMIN_TOKEN is not set.");
+  if (!o.token) throw new BridgeError(500, "misconfigured", "No Shopify access token is configured.");
+  const tokens: TokenProvider = typeof o.token === "string" ? { get: async () => o.token as string, canRefresh: false } : o.token;
   const url = `https://${o.shop}/admin/api/${API_VERSION}/graphql.json`;
 
   return {
     async gql<T>(query: string, variables: Record<string, unknown> = {}) {
+      let refreshed = false;
+      let forceNew = false;
       for (let attempt = 0; ; attempt++) {
+        const token = await tokens.get(forceNew);
+        forceNew = false;
         let res: Response;
         try {
           res = await o.fetch(url, {
             method: "POST",
             redirect: "manual",
-            headers: { "content-type": "application/json", accept: "application/json", "x-shopify-access-token": o.token },
+            headers: { "content-type": "application/json", accept: "application/json", "x-shopify-access-token": token },
             body: JSON.stringify({ query, variables }),
             signal: AbortSignal.timeout(TIMEOUT_MS),
           });
@@ -38,6 +44,11 @@ export function makeShopify(o: { shop: string; token: string; fetch: typeof fetc
           throw new BridgeError(502, "shopify_unreachable", "Could not reach Shopify.");
         }
         if (res.status >= 300 && res.status < 400) throw new BridgeError(502, "shopify_redirect", "Shopify answered with a redirect, which is not followed.");
+        if (res.status === 401 && tokens.canRefresh && !refreshed) {
+          refreshed = true; // an expired or revoked token: get a fresh one and retry exactly once
+          forceNew = true;
+          continue;
+        }
         if (res.status === 401 || res.status === 403) throw new BridgeError(502, "shopify_denied", "Shopify refused the admin token.");
         if (res.status === 429) {
           if (attempt >= MAX_THROTTLE_RETRIES) throw new BridgeError(502, "shopify_throttled", "Shopify is rate limiting the bridge.");

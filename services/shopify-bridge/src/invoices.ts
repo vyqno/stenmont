@@ -3,13 +3,14 @@ import type { Bindings, Deps } from "./env";
 import { toUsdtAmount } from "./money";
 import { getDraft, type Draft } from "./ops";
 import { makeShopify, numericId, type Shopify } from "./shopify";
+import { tokenProvider } from "./token";
 import { BridgeError } from "./util";
 
 export type InvoiceRecord = { invoiceId: string; payUrl: string; amount: string; draftOrderId: string };
 
 /** Checks everything the bridge needs is set. Messages name the variable, never its value. */
 export function shopifyFor(env: Bindings, deps: Deps): Shopify {
-  return makeShopify({ shop: env.SHOPIFY_SHOP_DOMAIN, token: env.SHOPIFY_ADMIN_TOKEN, fetch: deps.fetch, sleep: deps.sleep });
+  return makeShopify({ shop: env.SHOPIFY_SHOP_DOMAIN, token: tokenProvider(env, deps), fetch: deps.fetch, sleep: deps.sleep });
 }
 
 export function stenmontFor(env: Bindings, deps: Deps): Stenmont {

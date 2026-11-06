@@ -6,6 +6,7 @@ import { listFeed, recordOrder, TOPICS } from "./mirror";
 import { receiveStenmont } from "./stenmontWebhook";
 import { createDraft, parseCartLines, registerWebhooks, sendDraftInvoice } from "./ops";
 import { numericId, toGid } from "./shopify";
+import { webhookSecret } from "./token";
 import { BridgeError, bearerOk, verifyShopifyHmac } from "./util";
 
 const defaultDeps: Deps = { fetch: (...a) => fetch(...a), sleep: (ms) => new Promise((r) => setTimeout(r, ms)), now: () => Date.now() };
@@ -74,7 +75,7 @@ export function createApp(overrides: Partial<Deps> = {}) {
   // Shopify tells us an order was created or paid. Verified over the RAW body with the app secret before anything is parsed.
   app.post("/webhooks/shopify", async (c) => {
     const raw = await c.req.text();
-    if (!(await verifyShopifyHmac(c.env.SHOPIFY_WEBHOOK_SECRET, raw, c.req.header("x-shopify-hmac-sha256")))) throw new BridgeError(401, "bad_signature", "The webhook signature is not valid.");
+    if (!(await verifyShopifyHmac(webhookSecret(c.env), raw, c.req.header("x-shopify-hmac-sha256")))) throw new BridgeError(401, "bad_signature", "The webhook signature is not valid.");
     if ((c.req.header("x-shopify-shop-domain") ?? "").toLowerCase() !== c.env.SHOPIFY_SHOP_DOMAIN) throw new BridgeError(403, "wrong_shop", "This webhook is from another shop.");
     const topic = c.req.header("x-shopify-topic") ?? "";
     if (!(TOPICS as readonly string[]).includes(topic)) return c.json({ status: "ignored" });

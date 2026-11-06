@@ -2,8 +2,13 @@ export type Bindings = {
   /** KV: idempotency records, order mirror, rate-limit counters. */
   STATE: KVNamespace;
   // secrets
-  SHOPIFY_ADMIN_TOKEN: string;
-  SHOPIFY_WEBHOOK_SECRET: string;
+  /** The Dev Dashboard app's client id and secret: the bridge gets a 24-hour Admin token from them. */
+  SHOPIFY_CLIENT_ID?: string;
+  SHOPIFY_CLIENT_SECRET?: string;
+  /** Optional override: a legacy static Admin token. When set, no token is fetched. */
+  SHOPIFY_ADMIN_TOKEN?: string;
+  /** Optional: defaults to SHOPIFY_CLIENT_SECRET, which is what Shopify signs webhooks with. */
+  SHOPIFY_WEBHOOK_SECRET?: string;
   STENMONT_API_KEY: string;
   STENMONT_WEBHOOK_SECRET: string;
   BRIDGE_ADMIN_TOKEN: string;
