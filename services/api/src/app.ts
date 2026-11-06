@@ -7,6 +7,7 @@ import type { merchants } from "./db/schema";
 import type { Env } from "./env";
 import { viemEns, type EnsClient } from "./ens/client";
 import { ensRoutes } from "./routes/ens";
+import { agentRuntimeRoutes } from "./routes/agentRuntime";
 import { fail } from "./errors";
 import { accountRoutes } from "./routes/account";
 import { apiKeyRoutes } from "./routes/apiKeys";
@@ -49,7 +50,7 @@ export type Db = DrizzleD1Database;
 export type Merchant = typeof merchants.$inferSelect;
 export type AppEnv = {
   Bindings: Env;
-  Variables: { db: Db; chain: ChainClient; ens: EnsClient; fetch: typeof fetch; now: () => Date; merchantId: string; merchant: Merchant };
+  Variables: { db: Db; chain: ChainClient; ens: EnsClient; fetch: typeof fetch; internalFetch: (request: Request) => Promise<Response>; now: () => Date; merchantId: string; merchant: Merchant };
 };
 export type Deps = { chain: (env: Env) => ChainClient; ens?: (env: Env) => EnsClient; now: () => Date; /** For outbound calls to World; tests pass a fake. */ fetch?: typeof fetch };
 
@@ -61,6 +62,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
     c.set("chain", deps.chain(c.env));
     c.set("ens", (deps.ens ?? viemEns)(c.env));
     c.set("now", deps.now);
+    c.set("internalFetch", async request => app.fetch(request,c.env));
     // Outbound calls (World's verifier and sign-in) identify themselves; services behind bot protection refuse anonymous requests.
     c.set("fetch", deps.fetch ?? ((input, init) => fetch(input, { ...init, headers: withUserAgent(init?.headers) })));
     await next();
@@ -92,6 +94,7 @@ export function createApp(deps: Deps = { chain: viemChain, now: () => new Date()
   const v1 = new Hono<AppEnv>();
   v1.use("*", requireAuth);
   v1.get("/me", (c) => c.json({ id: c.var.merchant.id, name: c.var.merchant.name }));
+  v1.route("/agent", agentRuntimeRoutes);
   v1.route("/invoices", invoiceRoutes);
   v1.route("/invoices", installCleanupRoutes);
   v1.route("/payment-links", linkRoutes);

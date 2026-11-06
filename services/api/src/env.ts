@@ -9,6 +9,9 @@ export type Env = {
   BOOKS_SIGNING_KEY?: string;
   /** Optional registry address. Unset until separately deployed and approved. */
   ANCHOR_REGISTRY?: string;
+  AGENT_ENABLED?: string;
+  GEMINI_API_KEY?: string;
+  AGENT_KEY_SECRET?: string;
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string;
   GOOGLE_CLIENT_ID?: string;
