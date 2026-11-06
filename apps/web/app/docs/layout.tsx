@@ -1,19 +1,24 @@
 import Link from "next/link";
 import { Logo } from "../../components/Logo";
-import { DocsNav } from "./DocsNav";
+import { DocsNav, DocsPills } from "./DocsNav";
 import { DocsTools } from "./DocsTools";
+import { DocsToc } from "./DocsToc";
 import "./docs.css";
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="docs-shell">
       <a href="#docs-content" className="skip-link">Skip to documentation</a>
-      <header className="docs-header"><Link href="/" className="text-2xl" aria-label="Stenmont home"><Logo /></Link><span className="docs-label">Documentation</span><Link href="/dashboard/connect" className="docs-connect">Connect your site <span aria-hidden="true">↗</span></Link></header>
-      <div className="docs-tabs"><nav aria-label="Documentation resources"><Link href="/docs" aria-current="page">Guides &amp; reference</Link><a href="/llms.txt">Agent index</a><a href="/llms-full.txt">Full reference</a></nav><span>Test network</span></div>
+      <header className="docs-header">
+        <Link href="/" className="v2-brand" aria-label="Stenmont home"><Logo /></Link>
+        <DocsPills />
+        <span className="docs-label">Test network</span>
+        <Link href="/dashboard/connect" className="v2-btn v2-btn-blue docs-connect"><span>Connect your site</span></Link>
+      </header>
       <div className="docs-grid">
-        <aside className="docs-sidebar"><p className="text-xs font-semibold uppercase tracking-wider">Build with Stenmont</p><DocsNav /><div className="docs-sidebar-note"><p>For people and agents.</p><p>One reference, with the same tested examples.</p><a href="/llms-full.txt">Read the plain text ↗</a></div></aside>
+        <aside className="docs-sidebar"><p className="docs-kicker">Build with Stenmont</p><DocsNav /><div className="docs-sidebar-note"><p>For people and agents. One reference, with the same tested examples.</p><a href="/llms-full.txt">Read the plain text ↗</a><p>Before you build: use test credentials, keep API keys on your server, and confirm payments using signed webhooks.</p><Link href="/docs/webhooks">Webhook verification ↗</Link></div></aside>
         <div className="docs-body"><DocsTools /><main id="docs-content" className="docs-prose">{children}<p className="docs-network-note">This is the test network: test USDT, no real money. Agents can read <a href="/llms.txt">/llms.txt</a> or the complete <a href="/llms-full.txt">/llms-full.txt</a> reference.</p></main></div>
-        <aside className="docs-rail" aria-label="Reference notes"><p className="font-semibold">Before you build</p><p>Use test credentials. Keep API keys on your server.</p><p>Confirm payments using signed webhooks.</p><Link href="/docs/webhooks">Webhook verification ↗</Link><a href="/llms-full.txt">Full agent reference ↗</a></aside>
+        <aside className="docs-rail" aria-label="On this page"><DocsToc /></aside>
       </div>
     </div>
   );
