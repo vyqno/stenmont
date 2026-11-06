@@ -4,6 +4,28 @@ import {IPaymentRouterV2} from "../../src/interfaces/IPaymentRouterV2.sol";
 import {BaseV2} from "./BaseV2.t.sol";
 
 contract RouterV2Test is BaseV2 {
+    function testInvalidDiscountTerms() public {
+        IPaymentRouterV2.CreateInvoice memory r = _discountReq("invalid", AMOUNT, 10_000, uint64(T0 + 10 days));
+        bytes memory sig = _sig(merchantPk, _createHash(r));
+        vm.expectRevert(IPaymentRouterV2.InvalidDiscount.selector);
+        router.createInvoice(r, sig);
+        r.discountBps = 200; r.discountUntil = 0;
+        sig = _sig(merchantPk, _createHash(r));
+        vm.expectRevert(IPaymentRouterV2.InvalidDiscount.selector);
+        router.createInvoice(r, sig);
+        r.discountUntil = uint64(T0 - 1);
+        sig = _sig(merchantPk, _createHash(r));
+        vm.expectRevert(IPaymentRouterV2.InvalidDiscount.selector);
+        router.createInvoice(r, sig);
+    }
+    function testNonceVector() public view {
+        assertEq(router.payNonce(
+            0x9ef5cc50eed76dda0d467227d32f719840fdc30d278ccee49088083624704f1b,
+            0xe4F5853650f40f04e920c62F6dE9e4e38D767B66,
+            0xad7b6b88034155f1e86d31a54d7723ede2183a6538ecab39ce7a7144ff280fcd),
+            0xbd89afbf3fe55dac91f778279a9d95336f1cb4be32c48a4923ab63ad829602f6);
+    }
+
     function testPayoutBindingRejectsTamperedRelayer() public {
         bytes32 id = _newInvoice("bound", AMOUNT);
         IPaymentRouterV2.Auth memory a = _payAuthFor(payerPk, id, AMOUNT, merchant, "salt");
