@@ -390,3 +390,155 @@ export const investorEnrollments = sqliteTable(
   },
   (t) => [uniqueIndex("investor_enrollments_action_nullifier").on(t.action, t.nullifier)],
 );
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Store catalogue (migration 0019). Prices are USDT base units as TEXT, like everywhere else. Every table carries merchant_id
+// and every query filters on it. `external_source` + `external_id` make imports idempotent (re-running updates, never duplicates).
+
+export const storeSettings = sqliteTable(
+  "store_settings",
+  {
+    merchantId: text("merchant_id").primaryKey(),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [uniqueIndex("store_settings_slug_uq").on(t.slug)],
+);
+
+export const products = sqliteTable(
+  "products",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id").notNull(),
+    handle: text("handle").notNull(),
+    title: text("title").notNull(),
+    descriptionHtml: text("description_html").notNull().default(""), // already sanitised
+    vendor: text("vendor").notNull().default(""),
+    productType: text("product_type").notNull().default(""),
+    status: text("status").notNull().default("draft"), // draft | active | archived
+    tags: text("tags").notNull().default("[]"),
+    externalSource: text("external_source"),
+    externalId: text("external_id"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("products_merchant_handle_uq").on(t.merchantId, t.handle),
+    uniqueIndex("products_external_uq").on(t.merchantId, t.externalSource, t.externalId),
+  ],
+);
+
+export const variants = sqliteTable(
+  "variants",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id").notNull(),
+    productId: text("product_id").notNull(),
+    title: text("title").notNull().default(""),
+    sku: text("sku").notNull().default(""),
+    price: text("price").notNull(), // USDT base units
+    inventory: integer("inventory").notNull().default(0),
+    trackInventory: integer("track_inventory").notNull().default(1), // 0 = always in stock
+    options: text("options").notNull().default("{}"),
+    position: integer("position").notNull().default(1),
+    externalSource: text("external_source"),
+    externalId: text("external_id"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [
+    index("variants_product_idx").on(t.productId),
+    uniqueIndex("variants_external_uq").on(t.merchantId, t.externalSource, t.externalId),
+  ],
+);
+
+export const productImages = sqliteTable(
+  "product_images",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id").notNull(),
+    productId: text("product_id").notNull(),
+    url: text("url").notNull(),
+    alt: text("alt").notNull().default(""),
+    position: integer("position").notNull().default(1),
+  },
+  (t) => [uniqueIndex("product_images_uq").on(t.productId, t.url)],
+);
+
+export const collections = sqliteTable(
+  "collections",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id").notNull(),
+    handle: text("handle").notNull(),
+    title: text("title").notNull(),
+    externalSource: text("external_source"),
+    externalId: text("external_id"),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("collections_merchant_handle_uq").on(t.merchantId, t.handle)],
+);
+
+export const productCollections = sqliteTable(
+  "product_collections",
+  { productId: text("product_id").notNull(), collectionId: text("collection_id").notNull() },
+  (t) => [primaryKey({ columns: [t.productId, t.collectionId] })],
+);
+
+/** Records only: the minimum fields from a migration, never passwords or addresses. */
+export const importedCustomers = sqliteTable(
+  "imported_customers",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id").notNull(),
+    externalSource: text("external_source").notNull(),
+    externalId: text("external_id").notNull(),
+    email: text("email").notNull(),
+    firstName: text("first_name").notNull().default(""),
+    lastName: text("last_name").notNull().default(""),
+    country: text("country").notNull().default(""),
+    acceptsMarketing: integer("accepts_marketing").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [uniqueIndex("imported_customers_external_uq").on(t.merchantId, t.externalSource, t.externalId)],
+);
+
+export const importedOrders = sqliteTable(
+  "imported_orders",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id").notNull(),
+    externalSource: text("external_source").notNull(),
+    externalId: text("external_id").notNull(),
+    email: text("email").notNull().default(""),
+    financialStatus: text("financial_status").notNull().default(""),
+    fulfillmentStatus: text("fulfillment_status").notNull().default(""),
+    currency: text("currency").notNull().default(""),
+    total: text("total").notNull().default("0"), // in the ORIGINAL currency, as the source stated it (a record, not a Stenmont payment)
+    lineCount: integer("line_count").notNull().default(0),
+    orderedAt: text("ordered_at"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [uniqueIndex("imported_orders_external_uq").on(t.merchantId, t.externalSource, t.externalId)],
+);
+
+/** A checkout in progress: stock is held until `reservedUntil`, then released unless the invoice was paid. */
+export const storeOrders = sqliteTable(
+  "store_orders",
+  {
+    id: text("id").primaryKey(),
+    merchantId: text("merchant_id").notNull(),
+    invoiceId: text("invoice_id"),
+    status: text("status").notNull(), // reserved | paid | released | failed
+    lines: text("lines").notNull(), // JSON: [{ variantId, quantity, unitPrice }] as priced by the server
+    total: text("total").notNull(),
+    reservedUntil: text("reserved_until").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [index("store_orders_merchant_idx").on(t.merchantId, t.status)],
+);
