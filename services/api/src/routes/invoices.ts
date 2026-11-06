@@ -88,7 +88,8 @@ export type CreateInvoiceInput = Omit<z.infer<typeof createSchema>, "instalments
 /** The one way an invoice is made (the API route and the store checkout both come through here): limits, payee rules, onchain creation, audit, webhook. */
 export async function createInvoice(c: Context<AppEnv>, input: CreateInvoiceInput): Promise<IdempotentResult | Response> {
   const { db, merchant } = c.var;
-  const acceptance=c.env.ENVIRONMENT==='staging'&&c.env.INVOICE_DEFAULT_VERSION==='2'&&c.env.INVOICE_ACCEPTANCE_MERCHANT_ID===merchant.id;
+  const acceptanceIds=[c.env.INVOICE_ACCEPTANCE_MERCHANT_ID,...(c.env.INVOICE_ACCEPTANCE_MERCHANT_IDS??'').split(',').map(id=>id.trim()).filter(Boolean)];
+  const acceptance=c.env.ENVIRONMENT==='staging'&&c.env.INVOICE_DEFAULT_VERSION==='2'&&acceptanceIds.includes(merchant.id);
   if(c.env.INVOICE_CREATION_PAUSED==='yes'&&!acceptance)return fail(c,503,'creation_paused','New invoice creation is paused for the coordinated cutover. Existing obligations remain available.');
   const version=creationVersion(c.env),protocol=invoiceProtocol(c.env,{contractVersion:version}),chain=versionChain(c.var.chain,version);
   const hasDiscount=input.discountBps!==undefined||input.discountUntil!==undefined;
