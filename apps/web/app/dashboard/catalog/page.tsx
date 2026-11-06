@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Badge, Card } from "../../../components/ui";
+import { Badge, Card, EmptyState, PageHeader, PageNotice, secondaryLink } from "../../../components/ui";
 import { AuthError, api } from "../../../lib/auth";
-import { patch, productSummary, put } from "../../../lib/catalog";
+import { StoreSettings } from "./StoreSettings";
+import { patch, productSummary } from "../../../lib/catalog";
 import { useApi } from "../../../lib/useApi";
 
 type Variant = { id: string; title: string; sku: string; price: string; inventory: number; trackInventory: boolean };
@@ -20,12 +21,7 @@ export default function Catalog() {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("10");
-  const [store, setStore] = useState({ slug: "", name: "" });
   const [open, setOpen] = useState("");
-
-  useEffect(() => {
-    api.get<{ slug: string; name: string }>("/v1/store").then(setStore, () => null);
-  }, []);
 
   async function attempt(run: () => Promise<unknown>, ok = "Saved.") {
     setMessage("");
@@ -49,20 +45,10 @@ export default function Catalog() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-3xl font-bold">Catalogue</h1>
-        <Link href="/dashboard/import" className={button}>Import from Shopify</Link>
-      </div>
+      <PageHeader title="Catalogue" description="Your store, and the products customers can buy from it." action={<Link href="/dashboard/import" className={secondaryLink}>Import from Shopify</Link>} />
       {message && <p role="status" className="text-sm">{message}</p>}
 
-      <Card title="Store address">
-        <form onSubmit={(e) => { e.preventDefault(); attempt(() => put("/v1/store", store)); }} className="flex flex-wrap items-end gap-3">
-          <label className="text-sm">Name<input value={store.name} onChange={(e) => setStore({ ...store, name: e.target.value })} required className={`${field} block`} /></label>
-          <label className="text-sm">Address<input value={store.slug} onChange={(e) => setStore({ ...store, slug: e.target.value })} required pattern="[a-z0-9][a-z0-9\-]{1,38}[a-z0-9]" className={`${field} block`} placeholder="my-shop" /></label>
-          <button className={button}>Save</button>
-          {store.slug && <a href={`/store/${store.slug}`} target="_blank" rel="noreferrer" className="text-sm underline" data-testid="view-store">View store</a>}
-        </form>
-      </Card>
+      <StoreSettings />
 
       <Card title="Add a product">
         <form onSubmit={create} className="flex flex-wrap items-end gap-3">
@@ -74,9 +60,9 @@ export default function Catalog() {
       </Card>
 
       <Card>
-        {error && <p role="status" className="text-danger">{error}</p>}
-        {!data && !error && <p className="text-muted">Loading…</p>}
-        {data && data.data.length === 0 && <p className="text-muted">No products yet. Add one above, or import your Shopify store.</p>}
+        {error && <PageNotice kind="error">{error}</PageNotice>}
+        {!data && !error && <PageNotice kind="loading">Loading your products…</PageNotice>}
+        {data && data.data.length === 0 && <EmptyState title="No products yet" description="Add your first product above, or import your Shopify store." action={<Link href="/dashboard/import" className={secondaryLink}>Import from Shopify</Link>} />}
         {data && data.data.length > 0 && (
           <ul className="divide-y divide-line" data-testid="product-list">
             {data.data.map((p) => (
