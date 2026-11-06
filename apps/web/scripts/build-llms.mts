@@ -1,13 +1,15 @@
 // Writes public/llms-full.txt from the same samples the docs pages and the tests use.
 // Run: pnpm --filter @stenmont/web llms   (Node 26 runs TypeScript directly)
 import { writeFileSync } from "node:fs";
+import { EVENT_TYPES } from "../../../services/api/src/events.ts";
+import { publicPaths, ROUTES } from "../lib/seo.ts";
 import { API_URL, APP_URL, MCP_URL, SAMPLES, X402_URL, type SampleName } from "../lib/docSamples.ts";
 
 const fence = (name: SampleName) => `\`\`\`${SAMPLES[name].lang}\n${SAMPLES[name].code}\n\`\`\``;
 
 const text = `# Stenmont: full reference for AI agents and developers
 
-> Stenmont lets a business accept USDT payments on Whitechain without touching crypto. A customer pays with a passkey: no wallet, no gas. This file is the whole integration in one page. Short version: ${APP_URL}/llms.txt
+> Stenmont lets a business accept USDT payments on Whitechain without touching crypto. A customer brings their own USDT and pays with a passkey account or existing wallet. This file is the whole integration in one page. Short version: ${APP_URL}/llms.txt
 
 Everything below is the TEST NETWORK (Whitechain Sepolia, test USDT). No real money moves. The production API is not live yet.
 
@@ -53,7 +55,7 @@ A refund request is drafted through the API but only moves money after the busin
 
 Register an endpoint: POST ${API_URL}/v1/webhook-endpoints with {"url": "https://your-site.example/webhooks/stenmont", "events": ["invoice.paid"]}. The URL must be public https. "events" is optional; leave it out to get every event. The response contains "secret" (starts with whsec_) exactly once. Store it as STENMONT_WEBHOOK_SECRET without printing it.
 
-Event types: invoice.created, invoice.partially_paid, invoice.paid, invoice.cancelled, invoice.reminder, refund.created, subscription.created, subscription.charged, subscription.past_due, subscription.cancelled, claim.funded, claim.settled, claim.defaulted. The dashboard's site check also sends site.test to your endpoint; answer 2xx.
+Event types: ${EVENT_TYPES.join(", ")}. The dashboard's site check also sends site.test to your endpoint; answer 2xx.
 
 Delivery is a POST with a JSON body {id, type, created, data, livemode} and these headers: Stenmont-Signature, Stenmont-Event-Id, Content-Type: application/json. Answer with any 2xx within 10 seconds. Anything else is retried up to 10 times, starting after 20 seconds and doubling up to one hour. Delivery is at least once. After signature verification, load the stored order binding and check invoice ID, status and amount. Atomically mark the order paid once and deduplicate event IDs; never fulfil from metadata or a success redirect alone.
 
@@ -94,6 +96,9 @@ Server: ${MCP_URL}. Send POST requests with "Authorization: Bearer $STENMONT_API
 - list_invoices (status, limit)
 - get_invoice (id)
 - export_payments (from, to, format)
+- list_overdue (read only).
+- draft_reminder (invoiceId). Queues fixed text for merchant review; sends no email.
+- propose_plan (invoiceId, instalments, b2b, payerBusinessName, extensionDays). Only two or three B2B parts are supported; outside-policy extensions require World approval and still need merchant review. Nothing executes automatically.
 - draft_refund (invoiceId, amount, to). It never sends money: it creates a pending request that a person must confirm with their passkey in the dashboard.
 
 ${fence("mcpList")}
@@ -103,6 +108,14 @@ Client configuration (Claude Code .mcp.json style):
 ${fence("mcpConfig")}
 
 OAuth with PKCE is available for scoped agent connections; see ${APP_URL}/docs/mcp.
+
+## Recorded books and scoped agent discovery
+
+Authenticated GET /v1/books/YYYY-MM returns a reconciliation. POST /v1/books/YYYY-MM/close creates a signed locked bundle only when signing is configured; a staging interim snapshot is explicitly labelled. Exports and line proofs live under that period. The service signature attests recorded lines, not completeness; onchain anchoring is unavailable unless a registry is separately approved and configured. Do not close a period without the merchant reviewing its flags.
+
+A2A discovery: /.well-known/agent-card.json, business card /a2a/{merchantId}/agent-card.json, and ENS text stenmont.a2a. Current wire header is A2A-Version: 1.0; JSON-RPC SendMessage, GetTask and CancelTask. Business access is opt-in. Supported skills are quote, create_invoice_draft, check_invoice_status, get_pay_link and list_catalogue. A draft is not payable and never executes money movement. Discovery alone does not authorize sending credentials. Node clients pin validated public IPv4 addresses and refuse redirects. See repository docs/A2A.md for exact limitations.
+
+The dashboard finance assistant is separately configured and can be disabled. Its provider fixtures are not live-provider evidence. Never ask for a provider key in chat.
 
 ## x402: charge an AI agent per request
 
@@ -126,10 +139,32 @@ The agent's limits are checked before anything is signed: per request, per day, 
 ## Limits you should know about
 
 - Test network only. Test USDT has no value.
-- Customers need a passkey (Face ID, fingerprint or device PIN). An agent cannot pay on their behalf.
+- Customers can use a passkey account or an existing wallet with their own USDT. An x402 agent signs only with its own separately authorized payer credentials; connecting to merchant MCP does not authorize spending customer money.
 - Amounts are USD-style decimals. Convert other currencies yourself before creating the invoice.
 - On-chain data (sender, receiver, amount, time) is public. Invoice details and customer emails stay off-chain.
 `;
 
 writeFileSync(new URL("../public/llms-full.txt", import.meta.url), text);
 console.log("wrote public/llms-full.txt", text.length, "bytes");
+
+const short = `# Stenmont
+
+> The agentic business kit for test-network USDT payments, invoices and connected records. Payers bring their own USDT; Stenmont does not fund wallets. Full reference: ${APP_URL}/llms-full.txt
+
+Facts an agent needs:
+- API: ${API_URL}. Server-side Authorization: Bearer $STENMONT_API_KEY; never put credentials in a browser, repository or chat.
+- Persist an Idempotency-Key with the order before a checkout attempt; reuse it on retries.
+- Verify the raw webhook body with Stenmont-Signature and STENMONT_WEBHOOK_SECRET, then bind the stored invoice ID, amount and paid status before atomic fulfilment.
+- Connect: ${APP_URL}/dashboard/connect; finish only after its four checks pass.
+- SDK and React packages are not published. Use HTTP until publication is explicitly approved.
+
+## Docs
+
+${publicPaths.filter(p => p.startsWith("/docs")).map(p => `- [${ROUTES[p][0]}](${APP_URL}${p}): ${ROUTES[p][1]}`).join("\n")}
+
+## Optional
+
+- [Full reference](${APP_URL}/llms-full.txt): integration samples, current webhook events and MCP tools
+- [Documentation sitemap](${APP_URL}/docs/sitemap.xml): public documentation inventory
+`;
+writeFileSync(new URL("../public/llms.txt", import.meta.url), short);

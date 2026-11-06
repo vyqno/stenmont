@@ -15,6 +15,7 @@ import Quickstart from "../app/docs/page";
 import Sdk from "../app/docs/sdk/page";
 import Webhooks from "../app/docs/webhooks/page";
 import X402 from "../app/docs/x402/page";
+import Faq from "../app/docs/faq/page";
 import { API_URL, APP_URL, MCP_URL, SAMPLES, X402_URL } from "../lib/docSamples";
 
 const require = createRequire(import.meta.url);
@@ -185,7 +186,7 @@ describe("addresses and routes in the docs are real", () => {
 describe("llms.txt and the docs pages", () => {
   const llms = readFileSync(join(web, "public/llms.txt"), "utf8");
   const full = readFileSync(join(web, "public/llms-full.txt"), "utf8");
-  const pages = ["", "api", "webhooks", "sdk", "mcp", "x402"];
+  const pages = ["", "api", "webhooks", "sdk", "mcp", "x402", "faq"];
 
   it("every docs page exists and is linked from llms.txt", () => {
     for (const p of pages) {
@@ -212,7 +213,7 @@ describe("llms.txt and the docs pages", () => {
 });
 
 describe("docs pages render", () => {
-  const html = [Quickstart, Api, Webhooks, Sdk, Mcp, X402].map((P) => renderToStaticMarkup(<P />));
+  const html = [Quickstart, Api, Webhooks, Sdk, Mcp, X402, Faq].map((P) => renderToStaticMarkup(<P />));
   it("every sample appears on at least one page, and no page shows a placeholder", () => {
     const all = html.join("\n");
     for (const name of Object.keys(SAMPLES)) expect(all, name).toContain(`data-sample="${name}"`);
