@@ -54,6 +54,8 @@ export type Env = {
   FAUCET_PRIVATE_KEY?: string;
   /** Test environments: claims per IP per day (default 5). */
   FAUCET_IP_LIMIT?: string;
+  /** Signs the sandbox KYC provider's webhooks. Test environments only: the sandbox provider is off in production and without this. */
+  KYC_MOCK_WEBHOOK_SECRET?: string;
   /** Test environments: business sign-ups (activations) per IP per hour (default 5). Each costs the platform gas. */
   ACTIVATE_IP_LIMIT?: string;
 };
