@@ -4,12 +4,14 @@ import type { AppEnv } from "../app";
 import { audit } from "../audit";
 import { plan, write } from "../import/shopify/commit";
 import { readCustomersCsv, readOrdersCsv, readProductsCsv } from "../import/shopify/csvSources";
-import { fetchShopify } from "../import/shopify/graphql";
+import { fetchShopify, isShopDomain } from "../import/shopify/graphql";
 import { mapSource } from "../import/shopify/map";
 import { emptySource, ImportError, type Source } from "../import/shopify/types";
 import { fail } from "../errors";
+import { unseal } from "../lib/seal";
 import { invalid } from "../lib/validation";
 import { hitRateLimit } from "../relayer/caps";
+import { claimConnection, findConnection, purgeShopifyOauth } from "../shopifyOauth/store";
 
 const file = z.string().max(25_000_000);
 const common = {
@@ -20,12 +22,15 @@ const common = {
 };
 const csvBody = z.strictObject({ source: z.literal("csv"), files: z.strictObject({ products: file.optional(), customers: file.optional(), orders: file.optional() }), ...common });
 const apiBody = z.strictObject({ source: z.literal("api"), shop: z.string().max(100), token: z.string().max(200), ...common });
-const previewBody = z.discriminatedUnion("source", [csvBody, apiBody]);
-const commitBody = z.discriminatedUnion("source", [csvBody.extend({ confirm: z.boolean().optional() }), apiBody.extend({ confirm: z.boolean().optional() })]);
+/** The store the merchant connected with one click (see shopifyOauth.ts): the sealed token is looked up here, never sent by the browser. */
+const connectedBody = z.strictObject({ source: z.literal("connected"), shop: z.string().max(100).refine(isShopDomain), ...common }).omit({ includeCustomers: true });
+const previewBody = z.discriminatedUnion("source", [csvBody, apiBody, connectedBody]);
+const commitBody = z.discriminatedUnion("source", [csvBody.extend({ confirm: z.boolean().optional() }), apiBody.extend({ confirm: z.boolean().optional() }), connectedBody.extend({ confirm: z.boolean().optional() })]);
+type Direct = z.infer<typeof csvBody> | z.infer<typeof apiBody>;
 
 export const importRoutes = new Hono<AppEnv>();
 
-async function load(c: Context<AppEnv>, b: z.infer<typeof previewBody>): Promise<Source> {
+async function load(c: Context<AppEnv>, b: Direct): Promise<Source> {
   if (b.source === "api") return fetchShopify({ shop: b.shop, token: b.token, fetch: c.var.fetch, include: b.includeCustomers ? { customers: true, orders: true } : {} });
   const src = emptySource();
   if (!b.files.products && !(b.includeCustomers && (b.files.customers || b.files.orders))) throw new ImportError("no_files", "Choose at least the products file.");
@@ -39,16 +44,34 @@ async function load(c: Context<AppEnv>, b: z.infer<typeof previewBody>): Promise
   return src;
 }
 
+/**
+ * A connected store becomes an ordinary API import: the sealed token is opened for this business and shop only. A preview leaves it
+ * in place; a commit takes it out first, so it can be used for one import and never twice. Anything that does not open is "not connected".
+ */
+async function resolve(c: Context<AppEnv>, b: z.infer<typeof previewBody>, commit: boolean): Promise<Direct> {
+  if (b.source !== "connected") return b;
+  const { db, merchantId } = c.var;
+  const secret = c.env.SHOPIFY_CLIENT_SECRET;
+  const now = c.var.now();
+  await purgeShopifyOauth(db, now);
+  const row = secret ? await (commit ? claimConnection : findConnection)(db, merchantId, b.shop, now) : null;
+  const token = row && secret ? await unseal(secret, row.sealedToken, [merchantId, b.shop]) : null;
+  if (!row || !token) throw new ImportError("not_connected", "Connect your Shopify store again. The connection lasts 15 minutes.", 422);
+  return { source: "api", shop: b.shop, token, includeCustomers: row.includeCustomers === 1, currency: b.currency, rate: b.rate };
+}
+
 /** Shared by preview and commit; nothing is written here unless `commit` is set. The Shopify token is used for this one request and goes no further. */
 async function run(c: Context<AppEnv>, b: z.infer<typeof previewBody>, commit: boolean) {
   const { db, merchantId } = c.var;
   try {
-    const src = await load(c, b);
+    const via = b.source;
+    const direct = await resolve(c, b, commit);
+    const src = await load(c, direct);
     const mapped = mapSource(src, { currency: b.currency, rate: b.rate });
-    const planned = await plan(db, merchantId, mapped, b.source, b.includeCustomers);
+    const planned = await plan(db, merchantId, mapped, direct.source, direct.includeCustomers);
     if (!commit) return c.json({ report: planned.report });
-    const statements = await write(db, merchantId, mapped, planned, b.includeCustomers, c.var.now());
-    await audit(db, { merchantId, actor: `merchant:${merchantId}`, action: "import.shopify.committed", payload: { source: b.source, counts: planned.report.counts, plan: planned.report.plan, statements } });
+    const statements = await write(db, merchantId, mapped, planned, direct.includeCustomers, c.var.now());
+    await audit(db, { merchantId, actor: `merchant:${merchantId}`, action: "import.shopify.committed", payload: { source: via, counts: planned.report.counts, plan: planned.report.plan, statements } });
     return c.json({ report: planned.report, result: { created: planned.report.plan.productsToCreate, updated: planned.report.plan.productsToUpdate, skipped: planned.report.plan.productsSkipped } });
   } catch (e) {
     if (e instanceof ImportError) return fail(c, e.status, e.code, e.message);

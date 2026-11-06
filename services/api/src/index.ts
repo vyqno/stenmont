@@ -7,6 +7,7 @@ import type { Env, WebhookJob } from "./env";
 import { runIndexer } from "./indexer";
 import { runReminders } from "./reminders";
 import { runRenewals } from "./renewals";
+import { purgeShopifyOauth } from "./shopifyOauth/store";
 
 export type { Env } from "./env";
 export { Relayer } from "./relayer/do";
@@ -27,6 +28,7 @@ export default {
     if (at.getUTCMinutes() === 0) {
       ctx.waitUntil(runReminders(env, db, at)); // hourly
       ctx.waitUntil(runDefaults(env, db, chain, at));
+      ctx.waitUntil(purgeShopifyOauth(db, at));
     }
   },
   /** Queue consumer: signed webhook deliveries with retries. */
