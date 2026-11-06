@@ -30,3 +30,9 @@ The independent review (see `plan/review-opus-1.md`) found no way to redirect a 
 - A lost passkey cannot be recovered yet. Tokens other than USDT sent to a passkey account cannot be moved (the account has no execute function).
 - World ID proofs on the test network are mocked by World and must not be relied on for production.
 - The contracts have not had a professional audit.
+
+## Bounded Wave 2 review — 2026-11-06
+
+A public-store reservation expiry could release inventory while its original invoice remained payable. The fix retains inventory until an unpaid, unhooked onchain cancellation is confirmed, with local payment/in-flight guards. Hosted expiry and uncertain states retain inventory for reconciliation. Investor and subscription clients also stop on insufficient owned USDT rather than requesting platform faucet funds. Targeted regressions and typechecks passed; live acceptance remains separate.
+
+The review was partial and sequential. Dependency audit still reports five advisories; contract security, CSP, relayer timeout reconciliation and scheduled cleanup remain open. See [W10 evidence and limitations](docs/WAVE2-W10.md).
