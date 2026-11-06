@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
+import { securityHeaders } from "./lib/securityHeaders";
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@stenmont/shared"],
-  /* config options here */
+  async headers() { return securityHeaders(); },
   turbopack: {
     rules: {
       "*.css": {
