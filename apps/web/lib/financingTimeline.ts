@@ -68,7 +68,7 @@ export function formatWhen(iso: string | null): string {
   if (!d) return "Not recorded";
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${d.toISOString().slice(11, 16)} UTC`;
 }
-const formatDay = (iso: string | number) => {
+export const formatDay = (iso: string | number) => {
   const d = new Date(iso);
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 };
