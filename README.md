@@ -26,6 +26,10 @@ Built from scratch for ETHGlobal Mumbai 2026. Staging uses Whitechain test netwo
 | OAuth MCP | https://mcp-staging.stenmont.com/mcp |
 | Agent instructions | [llms.txt](https://app-staging.stenmont.com/llms.txt) |
 
+**Packages on npm** (published under the author's scope for now): `npm i @vyqno/sdk @vyqno/react` for the server client and the pay button, plus `@vyqno/agent` and `@vyqno/x402` for agent payments and the paywall (JavaScript only, no type declarations yet).
+
+**Shopify (staging):** a one-line theme script (`https://shopify-bridge-staging.stenmont.com/button.js`) adds a "Pay with USDT" button to the cart; the bridge creates the Shopify draft order and a signed webhook marks the order paid. It is wired to one demo store; the Shopify OAuth connect imports a catalogue with read-only scopes, and a write-scope App Store install is not built.
+
 ## The business loop
 
 - **Sell.** Manage products, variants and orders; use a hosted storefront or connect an existing site through a coding-agent prompt, OAuth MCP or the SDK.
