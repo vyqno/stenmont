@@ -9,7 +9,7 @@ export default function Sdk() {
   return (
     <>
       <h1>SDK and React</h1>
-      <Note><code>@stenmont/sdk</code> and <code>@stenmont/react</code> are not on npm yet. Until they are, call the HTTP API directly (see the <a href="/docs">Quickstart</a>); the SDK is a thin wrapper over the same calls and lives in the repository under <code>packages/sdk</code>.</Note>
+      <Note><code>@vyqno/sdk</code> and <code>@vyqno/react</code> are not on npm yet. Until they are, call the HTTP API directly (see the <a href="/docs">Quickstart</a>); the SDK is a thin wrapper over the same calls and lives in the repository under <code>packages/sdk</code>.</Note>
 
       <h2>Create a checkout</h2>
       <p>Set <code>baseUrl</code> to <code>{API_URL}</code> while testing. The default is production, which is not live yet.</p>

@@ -3,7 +3,7 @@
 The example store started as a plain cart with a fake Pay button (commit `feat(example-store): add baseline store with a stand-in checkout`). Adding Stenmont changed `src/index.ts` by **10 added lines** (the fake checkout it replaced was deleted), plus one dependency line. The prices were also lowered for the test faucet; that is a shop setting, not part of the integration.
 
 ```diff
-+import { Stenmont, verifyWebhook } from "@stenmont/sdk";
++import { Stenmont, verifyWebhook } from "@vyqno/sdk";
 -type Env = { Bindings: { ORDERS: KVNamespace; SHOP_URL: string } };
 +type Env = { Bindings: { ORDERS: KVNamespace; SHOP_URL: string; STENMONT_API_KEY: string; STENMONT_API_URL: string; STENMONT_WEBHOOK_SECRET: string } };
 -  return c.redirect(`/orders/${id}/pay`, 303); // a stand-in checkout; the real one replaces this

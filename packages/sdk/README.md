@@ -1,9 +1,9 @@
-# @stenmont/sdk
+# @vyqno/sdk
 
 Server SDK for [Stenmont](https://stenmont.com): invoices, checkout sessions, refunds, subscriptions, CSV export and webhook verification, paid in USDT on Whitechain.
 
 ```ts
-import { Stenmont, verifyWebhook } from "@stenmont/sdk";
+import { Stenmont, verifyWebhook } from "@vyqno/sdk";
 
 const stenmont = new Stenmont({
   apiKey: process.env.STENMONT_API_KEY!,

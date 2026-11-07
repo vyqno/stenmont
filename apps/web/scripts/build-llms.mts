@@ -88,7 +88,7 @@ ${fence("sdkWebhook")}
 
 ## SDK and React
 
-The packages are @stenmont/sdk (server) and @stenmont/react (button). They are not on npm yet; until they are, use the HTTP API above, which needs no package. The SDK is a thin wrapper over the same calls.
+The packages are @vyqno/sdk (server) and @vyqno/react (button). They are not on npm yet; until they are, use the HTTP API above, which needs no package. The SDK is a thin wrapper over the same calls.
 
 ${fence("sdkCheckout")}
 
@@ -127,7 +127,7 @@ The dashboard finance assistant is separately configured and can be disabled. It
 
 ## x402: charge an AI agent per request
 
-An x402 endpoint answers 402 with its price; a paying client signs a USDT authorization and retries; the facilitator at ${X402_URL} verifies and settles it on Whitechain and pays the gas. Network eip155:1874, scheme exact, x402 version 2, official USDT 0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7 (6 decimals). Headers: PAYMENT-REQUIRED (from the server), PAYMENT-SIGNATURE (from the client), PAYMENT-RESPONSE (settlement result). The facilitator only settles to payee addresses on its allowlist; ask the operator to add yours. @stenmont/x402 and @stenmont/agent are not on npm yet.
+An x402 endpoint answers 402 with its price; a paying client signs a USDT authorization and retries; the facilitator at ${X402_URL} verifies and settles it on Whitechain and pays the gas. Network eip155:1874, scheme exact, x402 version 2, official USDT 0xcedfB56113143d55b2358b8CFbB0dEB5Ad2f55a7 (6 decimals). Headers: PAYMENT-REQUIRED (from the server), PAYMENT-SIGNATURE (from the client), PAYMENT-RESPONSE (settlement result). The facilitator only settles to payee addresses on its allowlist; ask the operator to add yours. @vyqno/x402 and @vyqno/agent are not on npm yet.
 
 ${fence("x402Server")}
 

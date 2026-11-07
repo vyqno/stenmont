@@ -148,10 +148,10 @@ describe("SDK samples run against the real SDK", () => {
   });
 
   it("every name imported from a Stenmont package exists", () => {
-    const modules: Record<string, object> = { "@stenmont/sdk": sdk, "@stenmont/react": react, "@stenmont/x402": x402, "@stenmont/agent": agent };
+    const modules: Record<string, object> = { "@vyqno/sdk": sdk, "@vyqno/react": react, "@vyqno/x402": x402, "@vyqno/agent": agent };
     let imports = 0;
     for (const { code } of Object.values(SAMPLES)) {
-      for (const m of code.matchAll(/import \{([^}]+)\} from "(@stenmont\/[a-z0-9]+)"/g)) {
+      for (const m of code.matchAll(/import \{([^}]+)\} from "(@vyqno\/[a-z0-9]+)"/g)) {
         for (const name of m[1]!.split(",").map((n) => n.trim())) {
           imports++;
           expect(Object.keys(modules[m[2]!]!), `${name} from ${m[2]}`).toContain(name);

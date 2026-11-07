@@ -23,7 +23,7 @@ export default function X402() {
       <h2>Pay as an agent, inside limits</h2>
       <Code name="x402Agent" />
       <p>The limits are checked before anything is signed: one price too high, the day&apos;s total, or a host that is not on the list all stop the payment.</p>
-      <Note><code>@stenmont/x402</code> and <code>@stenmont/agent</code> are not on npm yet; they live in the repository under <code>packages/</code>.</Note>
+      <Note><code>@vyqno/x402</code> and <code>@vyqno/agent</code> are not on npm yet; they live in the repository under <code>packages/</code>.</Note>
     </>
   );
 }

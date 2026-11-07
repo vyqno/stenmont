@@ -47,7 +47,7 @@ async function createCheckout(order, saveInvoice) {
 
   sdkCheckout: {
     lang: "ts",
-    code: `import { Stenmont } from "@stenmont/sdk";
+    code: `import { Stenmont } from "@vyqno/sdk";
 
 const stenmont = new Stenmont({
   apiKey: process.env.STENMONT_API_KEY!,
@@ -84,7 +84,7 @@ const csv = await stenmont.exports.paymentsCsv({ from: "2026-11-01", to: "2026-1
 
   sdkWebhook: {
     lang: "ts",
-    code: `import { verifyWebhook } from "@stenmont/sdk";
+    code: `import { verifyWebhook } from "@vyqno/sdk";
 
 // Your order-store adapter must load the durable binding and atomically deduplicate fulfilment.
 export async function handleWebhook(rawBody: string, signatureHeader: string, orders: {
@@ -173,7 +173,7 @@ def verify_stenmont(raw_body: bytes, header: str, secret: str, now: float | None
 
   reactButton: {
     lang: "tsx",
-    code: `import { PayButton } from "@stenmont/react";
+    code: `import { PayButton } from "@vyqno/react";
 
 // Create the session on your server (see the SDK page), then pass its url to the button.
 export function Checkout({ sessionUrl }: { sessionUrl: string }) {
@@ -204,7 +204,7 @@ export function Checkout({ sessionUrl }: { sessionUrl: string }) {
 
   x402Server: {
     lang: "ts",
-    code: `import { stenmontPaywall } from "@stenmont/x402";
+    code: `import { stenmontPaywall } from "@vyqno/x402";
 import { Hono } from "hono";
 
 const app = new Hono<{ Bindings: { PAY_TO: string; X402_FACILITATOR_URL: string } }>();
@@ -220,7 +220,7 @@ export default app;`,
 
   x402Agent: {
     lang: "ts",
-    code: `import { createAgentFetch } from "@stenmont/agent";
+    code: `import { createAgentFetch } from "@vyqno/agent";
 import { privateKeyToAccount } from "viem/accounts";
 
 // A fetch that pays 402 answers itself, inside limits checked before anything is signed.
