@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { api } from "../../../lib/auth";
+import { AgentAvatar } from "../../../components/AgentAvatar";
 import { apiBase } from "../../../lib/pay";
 import { AssistantError, assistantErrorText, readAgentEvents } from "../../../lib/agentChat";
 import { useApi } from "../../../lib/useApi";
@@ -30,7 +31,7 @@ export default function Agent(){
  }
  async function saveKey(){if(!key||busy)return;setBusy(true);setError("");const value=key;setKey("");try{await api.post("/v1/agent/keys",{provider,key:value});setStatus("Key validated and saved securely.");reload();}catch(e){setError(e instanceof Error?e.message:"Could not save key.");}finally{setBusy(false);}}
  return <div className="flex flex-col gap-6">
-  <div><h1 className="text-3xl font-bold">Finance assistant</h1><p className="mt-2 text-muted">Ask about invoices and payments. Refund proposals need your review and passkey confirmation in <Link href="/dashboard/invoices" className="underline">Invoices</Link>.</p></div>
+  <div className="flex items-start gap-4"><AgentAvatar seed="finance-assistant" size={56} /><div><h1 className="text-3xl font-bold">Finance assistant</h1><p className="mt-2 text-muted">Ask about invoices and payments. Refund proposals need your review and passkey confirmation in <Link href="/dashboard/invoices" className="underline">Invoices</Link>.</p></div></div>
   {usageError&&<p role="alert" className="text-danger">{usageError}</p>}
   <Card title="Usage"><p>{usage?`${usage.daily.toLocaleString()} / ${usage.limits.daily.toLocaleString()} tokens today`:"Loading usage…"}</p>{usage&&<><meter className="w-full" min={0} max={usage.limits.daily} value={usage.daily} aria-label="Daily assistant token usage"/><p className="text-sm text-muted">{usage.monthly.toLocaleString()} / {usage.limits.monthly.toLocaleString()} this month. Tokens include active reservations. Estimated monthly cost: ${usage.estimatedMonthlyUsd.toFixed(4)}. {usage.costLabel}.</p></>}</Card>
   <Card title="Conversation settings"><div className="flex flex-col gap-3">

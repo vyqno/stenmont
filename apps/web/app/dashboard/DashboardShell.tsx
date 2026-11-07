@@ -9,21 +9,12 @@ import { currentMerchant, signOut, type Merchant } from "../../lib/auth";
 const MerchantContext = createContext<Merchant | null>(null);
 export const useMerchant = () => useContext(MerchantContext)!;
 
-const NAV = [
-  { href: "/dashboard", label: "Overview" },
-  { href: "/dashboard/connect", label: "Connect" },
-  { href: "/dashboard/agent", label: "Agent" },
-  { href: "/dashboard/invoices", label: "Invoices" },
-  { href: "/dashboard/subscriptions", label: "Subscriptions" },
-  { href: "/dashboard/collections", label: "Collections" },
-  { href: "/dashboard/catalog", label: "Catalogue" },
-  { href: "/dashboard/financing", label: "Financing" },
-  { href: "/dashboard/books", label: "Books" },
-  { href: "/dashboard/identity", label: "Identity" },
-  { href: "/dashboard/profile", label: "Public profile" },
-  { href: "/dashboard/verification", label: "Verification" },
-  { href: "/dashboard/settings", label: "Settings" },
-];
+const GROUPS = [
+  { label: "Business", items: [{ href: "/dashboard", label: "Overview" }, { href: "/dashboard/invoices", label: "Invoices" }, { href: "/dashboard/subscriptions", label: "Subscriptions" }, { href: "/dashboard/catalog", label: "Catalogue" }, { href: "/dashboard/collections", label: "Collections" }] },
+  { label: "Money", items: [{ href: "/dashboard/financing", label: "Financing" }, { href: "/dashboard/books", label: "Books" }] },
+  { label: "Trust", items: [{ href: "/dashboard/verification", label: "Verification" }, { href: "/dashboard/identity", label: "Identity" }, { href: "/dashboard/profile", label: "Public profile" }] },
+  { label: "Build", items: [{ href: "/dashboard/connect", label: "Connect" }, { href: "/dashboard/agent", label: "Agent" }, { href: "/dashboard/settings", label: "Settings" }] },
+] as const;
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -35,32 +26,36 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     currentMerchant().then((m) => (m ? setMerchant(m) : router.replace("/login")));
   }, [router]);
 
-  // On a phone the menu scrolls sideways: keep the current page in view.
-  useEffect(() => {
-    const here = nav.current?.querySelector<HTMLElement>('a[aria-current="page"]');
-    if (nav.current && here) nav.current.scrollTo({ left: Math.max(0, here.offsetLeft - 48) });
-  }, [path, merchant]);
-
-  if (!merchant) return <main role="status" aria-busy="true" className="flex flex-1 items-center justify-center text-muted">Loading your business…</main>;
+  if (!merchant) return <main role="status" aria-busy="true" className="dash-loading"><span className="dash-pulse"><Logo /></span></main>;
+  const all: { href: string; label: string }[] = GROUPS.reduce<{ href: string; label: string }[]>((acc, g) => acc.concat([...g.items]), []);
+  const current = all.find((n) => n.href === path)?.label ?? "Dashboard";
+  const links = (
+    <>
+      {GROUPS.map((g) => (
+        <div key={g.label} className="dash-group">
+          <p>{g.label}</p>
+          {g.items.map((n) => <Link key={n.href} href={n.href} aria-current={path === n.href ? "page" : undefined}>{n.label}</Link>)}
+        </div>
+      ))}
+    </>
+  );
   return (
     <MerchantContext.Provider value={merchant}>
-      <header className="workspace-header">
-        <div className="workspace-navigation">
-          <Link href="/dashboard" className="shrink-0 text-xl"><Logo /></Link>
-          <nav ref={nav} className="order-3 flex w-full flex-nowrap gap-x-5 overflow-x-auto pr-10 text-sm [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)] lg:order-none lg:w-auto lg:flex-1 lg:flex-wrap lg:gap-x-4 lg:gap-y-1 lg:overflow-visible lg:pr-0 lg:[mask-image:none]" aria-label="Main">
-            {NAV.map((n) => (
-              <Link key={n.href} href={n.href} aria-current={path === n.href ? "page" : undefined} className={`inline-flex min-h-11 shrink-0 items-center whitespace-nowrap ${path === n.href ? "font-medium underline underline-offset-8" : "text-muted hover:text-foreground"}`}>
-                {n.label}
-              </Link>
-            ))}
-          </nav>
-          <span data-testid="business-name" title={merchant.name} className="ml-auto max-w-28 truncate text-sm text-muted lg:ml-0">{merchant.name}</span>
-          <button onClick={() => signOut().then(() => router.push("/login"))} className="rounded border border-line px-3 py-1 text-sm">
-            Sign out
-          </button>
-        </div>
-      </header>
-      <main data-workspace="true" className="workspace-canvas">{children}</main>
+      <div className="dash">
+        <aside className="dash-side" aria-label="Dashboard">
+          <Link href="/dashboard" className="dash-brand"><Logo /></Link>
+          <nav ref={nav} className="dash-nav" aria-label="Dashboard sections">{links}</nav>
+          <div className="dash-who">
+            <span data-testid="business-name" title={merchant.name}>{merchant.name}</span>
+            <button type="button" onClick={() => signOut().then(() => router.push("/login"))}>Sign out</button>
+          </div>
+        </aside>
+        <header className="dash-top">
+          <Link href="/dashboard" className="dash-brand"><Logo /></Link>
+          <details className="dash-menu"><summary>{current}</summary><div>{links}<div className="dash-who"><span title={merchant.name}>{merchant.name}</span><button type="button" onClick={() => signOut().then(() => router.push("/login"))}>Sign out</button></div></div></details>
+        </header>
+        <main data-workspace="true" className="dash-main"><div key={path} className="dash-page">{children}</div></main>
+      </div>
     </MerchantContext.Provider>
   );
 }

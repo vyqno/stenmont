@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { EnsAuthority } from "../../../components/EnsAuthority";
 import { AgentAllowance } from "../../../components/AgentAllowance";
+import { AgentAvatar, agentCharacter } from "../../../components/AgentAvatar";
+import { OpProgress } from "../../../components/OpProgress";
 import { Badge, Card } from "../../../components/ui";
 import { AuthError, api } from "../../../lib/auth";
 import { AGENT_SCOPES, agentApprovalParams, canClaimLabel, parseAgentInput, type Agent, type AgentForm, type Availability, type BusinessName } from "../../../lib/identity";
@@ -124,7 +126,7 @@ export default function Identity() {
       </div>
       {error && <p role="alert" className="rounded border border-danger p-3 text-sm text-danger">{error}</p>}
       {status && <p role="status" className="rounded border border-mint p-3 text-sm">{status}</p>}
-      {pending && <p aria-live="polite" className="text-sm text-muted">{pending === "check" ? "Checking availability…" : "Working… This may take a few minutes. Keep this page open; refresh to check confirmed state if the connection is interrupted."}</p>}
+            {pending && (pending === "check" ? <p aria-live="polite" className="text-sm text-muted">Checking availability…</p> : <OpProgress label={({ claim: "Claiming your name", agent: "Creating the agent", revoke: "Revoking the agent", lock: "Locking the payout", member: "Updating access", refresh: "Refreshing" } as Record<string, string>)[pending] ?? "Working"} />)}
       {!loaded ? <p className="text-muted">{error ? "Identity could not be loaded. Use Refresh identity to retry." : "Loading identity…"}</p> : !name ? (
         <Card title="Give your business a name">
           <p className="mb-4 text-sm text-muted">Choose a unique name for payment links and your agents. Your name is public and can be checked by anyone. This is a test environment, so names here are for practice.</p>
@@ -180,7 +182,7 @@ export default function Identity() {
             <AgentAllowance agents={agents} onChanged={reload} />
             {agents.length === 0 ? <p className="mt-4 text-sm">No agents yet. Create a name below to connect your first agent.</p> : <ul className="mt-4 divide-y divide-line">
               {agents.map((agent) => <li data-testid="agent-row" key={agent.name} className="flex flex-wrap items-start justify-between gap-3 py-4">
-                <div className="min-w-0 flex-1"><p className="break-all font-medium">{agent.name}</p><p className="mt-1 break-all font-mono text-xs text-muted">{agent.agentAddress}</p><p className="mt-2 text-sm">{agent.dailyLimit} USDT/day · {agent.perTxLimit} per payment</p><p className="text-xs text-muted">{agent.scopes.join(", ")} · Expires {new Date(agent.expiresAt).toLocaleDateString()}</p></div>
+                <AgentAvatar seed={agent.label ?? agent.name} /><div className="min-w-0 flex-1"><p className="font-medium">{agentCharacter(agent.label ?? agent.name).name}</p><p className="break-all text-sm text-muted">{agent.name}</p><p className="mt-1 break-all font-mono text-xs text-muted">{agent.agentAddress}</p><p className="mt-2 text-sm">{agent.dailyLimit} USDT/day · {agent.perTxLimit} per payment</p><p className="text-xs text-muted">{agent.scopes.join(", ")} · Expires {new Date(agent.expiresAt).toLocaleDateString()}</p></div>
                 <Badge tone={agent.status === "active" ? "ok" : "off"}>{agent.status}</Badge>
                 {agent.status !== "revoked" && <button className={button} disabled={!!pending} onClick={() => run("revoke", async () => { await api.delete(`/v1/ens/agents/${encodeURIComponent(agent.label)}`); await reload(); setStatus("Agent revoked. Its name and profile-editing permission have been removed."); })}>Revoke</button>}
               </li>)}

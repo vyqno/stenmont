@@ -48,7 +48,7 @@ export function Badge({ tone, children }: { tone: keyof typeof TONES; children: 
 
 export function Card({ title, children, className = "" }: { title?: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-2xl border border-line bg-surface p-6 ${className}`}>
+    <section className={`dash-card ${className}`}>
       {title && <h2 className="mb-3 text-lg font-bold">{title}</h2>}
       {children}
     </section>
