@@ -18,10 +18,10 @@ export async function turnstileToken(action: "signup" | "activate"): Promise<str
   if(!turnstileSiteKey) return undefined; // Only local/unit fixture configuration permits this.
   await load();
   return new Promise<string>((resolve,reject)=>{
-    const node=document.createElement("div"); node.setAttribute("aria-label","Security check");document.body.appendChild(node);
+    const node=document.createElement("div"); node.setAttribute("aria-label","Security check");node.style.cssText="position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:rgba(255,255,255,.86)";const box=document.createElement("div");node.appendChild(box);document.body.appendChild(node);
     const widget: {id?:string} = {};
     const clean=()=>{clearTimeout(timer);if(widget.id)window.turnstile?.remove(widget.id);node.remove();};
     const timer=setTimeout(()=>{clean();reject(Error("The security check timed out. Please retry."));},120_000);
-    widget.id=window.turnstile!.render(node,{sitekey:turnstileSiteKey,action,theme:"auto",callback:(token:string)=>{clean();resolve(token);},"error-callback":()=>{clean();reject(Error("Security check failed. Please retry."));},"expired-callback":()=>{clean();reject(Error("Security check expired. Please retry."));}});
+    widget.id=window.turnstile!.render(box,{sitekey:turnstileSiteKey,action,theme:"auto",callback:(token:string)=>{clean();resolve(token);},"error-callback":()=>{clean();reject(Error("Security check failed. Please retry."));},"expired-callback":()=>{clean();reject(Error("Security check expired. Please retry."));}});
   });
 }
