@@ -3,16 +3,17 @@ import { describe, expect, it } from "vitest";
 import Home from "../app/page";
 
 describe("landing product examples", () => {
-  it("clearly identifies illustrative financial records and offers semantic feature tabs", () => {
+  it("keeps the story steps with described pictures, the platform marks, and offers semantic developer tabs", () => {
     const html = renderToStaticMarkup(<Home />);
     expect(html).toContain('role="tablist"');
     expect(html).toContain('role="tabpanel"');
-    expect(html).toContain("Sample data");
-    expect(html).toContain("Sample storefront catalogue");
-    expect(html).toContain("Get paid");
-    expect(html).toContain("Books");
-    expect(html).toContain("Capital");
-    expect(html).toContain("Agents");
+    expect(html).toContain("Signed webhook answered 200");
+    expect(html).toContain("Tokenize what you");
+    for (const mark of ["Shopify", "WooCommerce", "Webflow"]) expect(html).toContain(mark);
+    for (const step of ["Bring your store", "Customers pay with one tap", "One person, one business", "A name that carries the rules", "Get paid before the customer does"]) expect(html).toContain(step);
+    for (const tab of ["Take a payment", "Confirm it", "Sell an invoice", "Limit an agent"]) expect(html).toContain(tab);
+    expect(html).toContain("Bring your catalogue.");
+    expect(html).toContain("One-click connect to Shopify works on the test network");
     expect(html).toContain("Funding is not guaranteed.");
   });
 });

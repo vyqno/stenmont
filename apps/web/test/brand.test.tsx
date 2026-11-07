@@ -32,7 +32,7 @@ describe("brand accessibility", () => {
   });
   it("explains financing conditions and the test network beside the platform headline", () => {
     const html = renderToStaticMarkup(<Home />);
-    expect(html).toContain("Your business, on stablecoins.");
+    expect(html).toContain("Connect your store in one click. Get paid in USDT. Tokenize what you");
     expect(html).toContain("eligibility, human approval and investor funding apply");
     expect(html).toContain("test network");
     expect(html).toContain('href="/signup"');
